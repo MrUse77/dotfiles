@@ -1,0 +1,207 @@
+{
+    "layer": "top", // Prioridad de renderizado
+    "position": "top", // O "bottom", "left", "right"
+    "mod": "dock",
+    "height": 63, // Altura fija para evitar saltos de layout
+    "exclusive": true, // Hyprland reservará este espacio
+
+    // Módulos a cargar
+    "modules-left": ["hyprland/workspaces", "custom/sep","wlr/taskbar","custom/launcher", "custom/sep","tray","custom/sep","custom/pacman"],
+    "modules-center": ["clock"],
+    "modules-right": ["pulseaudio",  "custom/sep","group/hardware","custom/sep","custom/notification","custom/sep", "custom/power"],
+
+    // Configuración de módulos individuales
+    "hyprland/workspaces": {
+        "disable-scroll": true,
+        "all-outputs": false,
+	"on-click": "activate",
+        "format": "{icon}",
+	"format-icons": { 
+            "urgent": "",
+            "active": "<span size='15pt' rise='-1500'></span>",
+            "default": "<span size='15pt' rise='-1500'></span>"
+        }
+    },
+    "tray": {
+        "icon-size": 21,
+        "spacing": 10
+    },
+    "clock": {
+	    "format": "{:%H:%M} <span size='15pt' rise='-1500'></span>",
+	    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+	    "calendar": {
+		    "mode"          : "year",
+		    "mode-mon-col"  : 3,
+		    "weeks-pos"     : "right",
+		    "on-scroll"     : 1,
+		    "format": {
+			    "months":     "<span color='#c0caf5'><b>{}</b></span>",
+			    "days":       "<span color='#c0caf5'><b>{}</b></span>",
+			    "weeks":      "<span color='#7dcfff'><b>W{}</b></span>",
+			    "weekdays":   "<span color='#ff9e64'><b>{}</b></span>",
+			    "today":      "<span color='#f7768e'><b><u>{}</u></b></span>"
+		    }
+	    },
+	    "actions": {
+		    "on-click-right": "mode",
+		    "on-click-forward": "tz_up",
+		    "on-click-backward": "tz_down",
+		    "on-scroll-up": "shift_up",
+		    "on-scroll-down": "shift_down"
+	    }   
+    },
+
+    "network": {
+        // Ojo: Asume que tienes las Nerd Fonts instaladas para los iconos
+        "format-wifi": "{essid} ({signalStrength}%) <span size='15pt' rise='-1500'>󰖩<span>",
+        "format-ethernet": "{ipaddr}/{cidr} <span size='15pt' rise='-1500'>󰈀</span>",
+        "tooltip-format": "{ifname} via {gwaddr}",
+        "format-linked": "{ifname} (No IP)  ",
+        "format-disconnected": "Disconnected ⚠ ",
+        "format-alt": "{ifname}: {ipaddr}/{cidr}"
+    },
+
+    "pulseaudio": {
+        "format": "{volume}% {icon}",
+        "format-bluetooth": "{volume}% {icon} {format_source}",
+        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol" // Asume que tienes pavucontrol instalado
+    },
+    "memory":{ 
+	    "interval": 10,
+	    "format": "SWAP: {swapUsed}G / {swapTotal}G\nRAM: {used}G / {total}G"
+    },
+    "cpu": {
+	    "interval": 5,
+	    "format": "{usage}% <span size='15pt' rise='-1500'></span>",
+	    "tooltip": false
+    },
+    "temperature": {
+	    "critical-threshold": 80,
+	    "format": "{temperatureC}°C <span size='15pt' rise='-1500'>{icon}</span>",
+	    "format-icons": ["", "", ""]
+    },
+    "battery": {
+	    "bat": "BAT2",
+	    "interval": 60,
+	    "states": {
+		    "warning": 30,
+		    "critical": 15
+	    },
+	    "format": "{capacity}% {icon}",
+	    "format-icons": ["", "", "", "", ""],
+	    "max-length": 25
+    },
+
+    "upower": {
+	    "icon-size": 20,
+	    "hide-if-empty": true,
+	    "tooltip": true,
+	    "tooltip-spacing": 20
+    }, 
+    "power-profiles-daemon": {
+	    "format": "{icon}",
+	    "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+	    "tooltip": true,
+	    "format-icons": {
+		    "default": "",
+		    "performance": "",
+		    "balanced": "",
+		    "power-saver": ""
+	    }
+    },
+    "group/hardware": {
+	    "orientation": "horizontal",
+	    "drawer": {
+		    "transition-duration": 500,
+		    "children-class": "not-memory",
+		    "transition-left-to-right": false
+	    },
+	    "modules": [
+		    "cpu", // Un icono fijo que siempre se ve
+		    "temperature",
+		    "memory",
+		    "battery",
+		    "upower",
+		    "power-profiles-daemon"
+	    ]
+    },
+    "wlr/taskbar": {
+	    "format": "{icon}",
+	    "icon-size": 19,
+	    "icon-theme": "Numix-Circle",
+	    "tooltip-format": "{title}",
+	    "on-click": "activate",
+	    "on-click-middle": "close",
+	    "ignore-list": [
+		    "Alacritty"
+	    ]
+
+    },
+    "custom/power": {
+	    "format": "<span size='15pt'>⏻</span>",  // Icono (necesitas una fuente como FontAwesome o NerdFonts)
+	    "tooltip": false,
+	    "on-click": "wlogout"
+    },
+    "custom/notification": {
+	    "tooltip": false,
+	    "format": "{icon}",
+	    "format-icons": {
+		    "notification": "<span foreground='red'><sup></sup></span>",
+		    "none": "<span size='15pt'></span>",
+		    "dnd-notification": "<span foreground='red'><sup></sup></span>",
+		    "dnd-none": "<span size='15pt'></span>",
+		    "inhibited-notification": "<span foreground='red'><sup></sup></span>",
+		    "inhibited-none": "<span size='15pt'></span>",
+		    "dnd-inhibited-notification": "<span foreground='red'><sup></sup></span>",
+		    "dnd-inhibited-none": "<span size='15pt'></span>"
+	    },
+	    "return-type": "json",
+	    "exec-if": "which swaync-client",
+	    "exec": "swaync-client -swb",
+	    "on-click": "swaync-client -t -sw", // Abre el panel lateral
+	    "on-click-right": "swaync-client -d -sw", // Activa No Molestar
+	    "escape": true
+    },
+    "mpris": {
+	    "format": "{player_icon} {title} - {artist}",
+	    "format-paused": "{status_icon} {title} - {artist}",
+	    "player-icons": {
+		    "default": "🎵",
+		    "mpd": "🎧",
+		    "firefox": "🦊",
+		    "chromium": "",
+		    "spotify": ""
+	    },
+	    "status-icons": {
+		    "paused": ""
+	    }
+    },
+    "custom/sep": {
+	    "format": "|", // O un espacio vacío " "
+	    "tooltip": false
+    },
+    "custom/pacman":{
+	    "format": "<span>  {}</span>",
+	    "interval": "once",
+	    "exec": "(checkupdates; paru -Qua) | wc -l",
+	    "on-click": "ghostty --config-file=$HOME/dotfiles/ghostty/config-clean --title='UPDATING_SYSTEM' -e paru; read",
+	    "signal": 8,
+	    "tooltip-format":"{} updates available"
+
+    },
+    "custom/launcher": {
+	    "format": "", 
+	    "on-click": "nwg-drawer -c 6 -is 64 -ovl -nofs", // <--- AQUI EL CAMBIO
+	    "tooltip": false
+    }
+}

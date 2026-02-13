@@ -1,0 +1,190 @@
+/* Definición de variables */
+@define-color bg rgba(17, 17, 27, 0.8);
+@define-color fg rgba(255, 251, 246, 1);
+@define-color cyan #7dcfff;
+@define-color magenta #bb9af7;
+@define-color red #f7768e;
+@define-color green #9ece6a;
+@define-color black #15161e;
+@define-color gray #414868;
+/* --- PALETA TOKYO NIGHT (Definimos variables para ser ordenados) --- */
+@define-color bg_dark #1a1b26;      /* Fondo principal (Storm) */
+@define-color bg_module #24283b;    /* Fondo de los módulos (Moon) */
+@define-color text_main #c0caf5;    /* Texto principal */
+@define-color accent_blue #7aa2f7;  /* Azul Tokyo (Workspaces activos) */
+@define-color accent_cyan #7dcfff;  /* Cian suave */
+@define-color accent_purple #bb9af7;/* Violeta */
+@define-color urgent_red #f7768e;   /* Errores/Batería baja */
+* {
+	border: none;
+	border-radius: 0;
+	font-family: "Hack Nerd Font", Roboto, Helvetica, Arial, sans-serif; /* Tu fuente es CRÍTICA aquí */
+	font-size: 15px;
+	font-weight: 600;
+}
+#workspaces{
+	padding:0;
+	margin:0;
+}
+/* Eliminamos el fondo negro total */
+window#waybar {
+	background-color: transparent; /* Seguimos con el fondo transparente */
+	color: @text_main;
+	margin: 0;
+	padding: 0;
+}
+
+/* --- MÓDULOS FLOTANTES --- */
+.modules-left, .modules-center, .modules-right {
+	background-color: @bg_dark;     /* Usamos el azul muy oscuro */
+	border: 0.5px solid @accent_blue; /* Borde violeta sutil en vez de cyan */
+	border-radius: 12px;
+	padding: 5px 15px;
+	margin-top: 5px;
+	/* Tokyo Night usa sombras azuladas, no negras puras */
+	box-shadow: 0 4px 6px rgba(26, 27, 38, 0.6); 
+}
+
+/* --- WORKSPACES --- */
+#workspaces button {
+	color: #565f89;
+	padding-left:5;
+	padding-right:10px;
+}
+
+#workspaces button.active {
+	color: @accent_blue; /* El azul característico */
+	border-bottom: 2px solid @accent_blue;
+	background-color: rgba(122, 162, 247, 0.1); /* Glow azul muy suave */
+	transition: all 0.3s ease;
+}
+
+#workspaces button.urgent {
+	color: @urgent_red;
+}
+
+/* Atacamos el texto interno (label) */
+#workspaces button label {
+	margin: 0;
+	/* En GTK3, esto a veces ayuda a centrar el texto dentro del label */
+	font-size: 16px; 
+}
+
+#workspaces button:hover {
+	background: rgba(0, 0, 0, 0.2);
+	border-bottom: 2px solid #ffffff;
+}
+
+#mpd,
+#power,
+#notification,
+#clock,
+#battery,
+#cpu,
+#memory,
+#disk,
+#temperature,
+#backlight,
+#network,
+#pulseaudio,
+#custom-media,
+#tray,
+#mode,
+#idle_inhibitor,
+#custom-pacman,
+#mpd {
+	padding: 0 10px;
+	margin: 0 10px;
+	font-weight: bold;
+	color: @text_main;
+	border-radius: 10px;
+}
+
+
+#workspaces span{
+	margin: 0;
+	padding: 0 10px;
+}
+
+#groups-hardware {
+	min-width: 600px;
+	background-color: #383c4a;
+	border-radius: 15px;
+	padding-left: 10px;
+	margin: 4px;
+}
+#cpu, #memory, #temperature,#power-profiles-daemon {
+	background-color: transparent; /* Importante: el fondo lo da el grupo */
+	margin: 0;
+	padding: 0 10px;
+	border-radius:0;
+}
+/* ~/.config/waybar/style.css */
+
+#custom-notification {
+	/* Agrega espacio a la derecha del icono de notificaciones */
+	margin-left: 10px;
+	margin-right: 15px;
+	/* Opcional: Color de fondo o letra para diferenciar */
+}
+
+#taskbar button{
+	padding:10px;
+}
+#taskbar button:hover{
+
+	border-bottom: 2px solid #ffffff;
+	background: rgba(0, 0, 0, 0.2);
+}
+#custom-power {
+	/* Agrega espacio a la izquierda del botón de apagado */
+	margin-left: 10px;
+	/* Un poco de espacio extra a la derecha para que no pegue con el borde de la pantalla */
+	margin-right: 15px; 
+}
+
+#tray:hover{
+	background: rgba(0, 0, 0, 0.2);
+}
+#custom-launcher{
+	padding-left: 10px;
+	padding-right: 15px;
+}
+#custom-launcher:hover{
+
+	border-bottom: 2px solid #ffffff;
+	background: rgba(0, 0, 0, 0.2);
+}
+#battery, #network, #pulseaudio {
+	font-family: "CaskaydiaMono Nerd Font";
+	font-weight: bold;
+	color: #cdd6f4;
+	padding: 0 10px;
+}
+#battery.charging {
+	color: #a6e3a1; /* Verde al cargar */
+}
+
+#battery.warning:not(.charging) {
+	color: #f38ba8; /* Rojo si está baja */
+	animation-name: blink;
+	animation-duration: 0.5s;
+	animation-iteration-count: infinite;
+}
+
+#battery {
+	color: #e0af68; /* Naranja/Dorado para batería normal */
+}
+
+#battery.charging {
+	color: #9ece6a;
+}
+
+#clock {
+	padding-left:5px;
+	font-weight: bold;
+	color: @text_main;
+}
+#clock:hover {
+	border-bottom: 2px solid #ffffff;
+}
