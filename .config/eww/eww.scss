@@ -1,0 +1,805 @@
+// --- PALETA TOKYO NIGHT ---
+$bg-dark: #1a1b26; // Fondo principal (Storm)
+$bg-module: #24283b; // Fondo de los módulos (Moon)
+$text-main: #c0caf5; // Texto principal
+$accent-blue: #7aa2f7; // Azul Tokyo (Workspaces activos)
+$accent-cyan: #7dcfff; // Cian suave
+$accent-purple: #bb9af7; // Violeta
+$urgent-red: #f7768e; // Errores/Batería baja
+$success-green: #9ece6a; // Verde
+$warning-orange: #e0af68; // Naranja/Dorado
+$gray-dim: #414868; // Gris oscuro
+$gray-text: #565f89; // Gris para texto secundario
+$shadow-dark: #06060b; // Negro para sombras
+
+* {
+  all: unset;
+  font-family: "Hack Nerd Font";
+}
+
+.bar {
+  box-shadow:
+    0 4px 8px rgba(122, 162, 247, 0.4),
+    0 -4px 8px rgba(122, 162, 247, 0.4),
+    0 2px 4px rgba(125, 207, 255, 0.2),
+    0 -2px 4px rgba(125, 207, 255, 0.2);
+  border-radius: 10px;
+  background-color: rgba($bg-dark, 0.94);
+  padding: 5px;
+  margin: 6.5px;
+}
+
+.menu {
+  margin-left: 12px;
+}
+
+.menu-eventbox {
+  color: $accent-cyan;
+  transition: color 0.3s;
+  &:hover {
+    color: $text-main;
+  }
+}
+
+.power {
+  margin-right: 10px;
+}
+
+.power-eventbox {
+  color: $urgent-red;
+  font-weight: bold;
+  font-size: 20px;
+  font-family: "JetBrainsMono Nerd Font";
+  transition: color 0.3s;
+  &:hover {
+    color: $warning-orange;
+  }
+}
+
+.ws {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 16px;
+  color: $text-main;
+}
+
+.div {
+  font-size: 25px;
+  font-weight: 100;
+  color: rgba($text-main, 0.3);
+}
+
+.free {
+  opacity: 0.2;
+  transition: opacity 0.3s;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.time-label {
+  background-color: rgba($bg-module, 0.6);
+  color: $accent-cyan;
+  border-radius: 20px;
+  transition: color 0.3s;
+  transition: background-color 0.3s;
+  &:hover {
+    color: $text-main;
+    background-color: $accent-cyan;
+  }
+}
+
+.keyboard,
+.battery,
+.volume-short,
+.ram-short {
+  background-color: rgba($bg-module, 0.6);
+  padding: 0px 13px;
+  border-radius: 20px;
+  font-size: 11px;
+  margin: 3px 0px;
+}
+
+.volume-short {
+}
+
+.ram-short {
+  color: $accent-blue;
+}
+
+.keyboard {
+  color: $warning-orange;
+}
+
+.kb-div,
+.wifi-div {
+  margin: 0px 3px;
+}
+
+.kb-type,
+.wifi-type {
+  color: $text-main;
+}
+
+.tray-button {
+  font-size: 20px;
+  font-family: "JetBrainsMono Nerd Font";
+  color: $text-main;
+  border-radius: 10px;
+  transition: background-color 0.6s;
+  &:hover {
+    background-color: rgba($bg-module, 0.6);
+  }
+}
+
+.systray-shadow {
+  background-color: rgba($bg-module, 0.6);
+  margin-right: 5px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+  padding: 0px 8px;
+  border-radius: 20px;
+}
+
+image {
+  margin: 0px 3px;
+}
+
+menu {
+  border-radius: 15px;
+  padding: 10px;
+  color: $text-main;
+  background-color: $bg-module;
+  menuitem {
+    border-radius: 10px;
+    padding: 8px 12px;
+  }
+  menuitem:hover {
+    background-color: $accent-blue;
+  }
+}
+
+.tray-text {
+  margin-bottom: 4px;
+}
+
+.wifi {
+  background-color: rgba($bg-module, 0.6);
+  padding-left: 13px;
+  padding-right: 13px;
+  color: $warning-orange;
+  border-radius: 20px;
+  font-size: 11px;
+  margin: 3px 0px;
+}
+
+.space-wifi {
+  font-size: 4px;
+}
+
+.wifictl-container,
+.menuctl-container {
+  box-shadow: 0 2px 3px 2px $shadow-dark;
+  margin: 5.5px;
+  border-radius: 20px;
+  min-width: 385px;
+  background-color: rgba($bg-dark, 0.92);
+  padding: 5px;
+}
+
+.wifi-header,
+.cpu-header,
+.menu-header {
+  font-size: 25px;
+  margin-left: 15px;
+  margin-top: 10px;
+  margin-bottom: 7px;
+  color: $accent-blue;
+}
+
+.wifi-stats,
+.menu-subheader {
+  color: $text-main;
+  margin-left: 15px;
+}
+
+.nocon {
+  color: $urgent-red;
+}
+
+.yescon {
+  color: $success-green;
+}
+
+.network-container,
+.app-container {
+  min-height: 15rem;
+  margin: 7px;
+  margin-top: 17px;
+  border-radius: 15px;
+  box-shadow:
+    0 4px 8px rgba(122, 162, 247, 0.4),
+    0 -4px 8px rgba(122, 162, 247, 0.4),
+    0 2px 4px rgba(125, 207, 255, 0.2),
+    0 -2px 4px rgba(125, 207, 255, 0.2);
+  background-color: rgba($bg-module, 0.4);
+}
+
+.app-container {
+  min-height: 25rem;
+}
+
+.wifi-option-box,
+.app-option-box {
+  font-size: 16px;
+  margin: 5px 5px;
+  border-radius: 15px;
+  padding: 10px;
+  background-color: rgba($gray-dim, 0.3);
+  box-shadow:
+    0 4px 8px rgba(122, 162, 247, 0.4),
+    0 -4px 8px rgba(122, 162, 247, 0.4),
+    0 2px 4px rgba(125, 207, 255, 0.2),
+    0 -2px 4px rgba(125, 207, 255, 0.2);
+}
+
+.wifi-ssid {
+  margin: 2px 15px;
+}
+
+.app-display {
+  margin: 2px 2px;
+}
+
+.app-name {
+  margin-left: 15px;
+}
+
+.wifi-ssid-01 {
+  color: $text-main;
+}
+
+.wifi-ssid-02 {
+  color: $accent-blue;
+}
+
+.wifi-ssid-03 {
+  color: $success-green;
+}
+
+.wifi-buttons {
+  color: $text-main;
+  border-radius: 10px;
+  background-color: rgba($bg-module, 0.7);
+}
+
+.wifi-bcon {
+  margin: 10px;
+}
+
+.iwifi {
+  margin-top: 2px;
+  margin-left: 10px;
+}
+
+.swifi-header {
+  font-size: 15px;
+  margin-left: 15px;
+  margin-top: 10px;
+  margin-bottom: 7px;
+  color: $text-main;
+}
+
+.calendar-container {
+  box-shadow: 0 2px 3px 2px $shadow-dark;
+  margin: 5.5px;
+  margin-bottom: 10px;
+  border-radius: 20px;
+  background-color: rgba($bg-dark, 0.92);
+  padding: 5px;
+}
+
+.time-box {
+  box-shadow: 0 2px 3px 2px $shadow-dark;
+  border-radius: 15px;
+  margin-top: 8px;
+  padding-left: 25px;
+  padding-right: 25px;
+  padding-bottom: 20px;
+  background-color: rgba($bg-module, 0.4);
+}
+
+.time-inner {
+  color: $accent-blue;
+  font-size: 50px;
+  margin-left: 4px;
+  margin-top: 10px;
+}
+
+.date-inner {
+  color: $text-main;
+  margin-top: 20px;
+  font-size: 18px;
+}
+
+.calendar-box {
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  border-radius: 15px;
+  padding-top: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-bottom: 9px;
+  background-color: rgba($bg-module, 0.4);
+}
+
+.cal {
+  padding: 5px;
+  color: $text-main;
+  &.header {
+    color: $warning-orange;
+  }
+  &.button {
+    color: $warning-orange;
+    &:hover {
+      color: $urgent-red;
+    }
+  }
+  &:indeterminate {
+    color: rgba($text-main, 0.4);
+  }
+  &.highlight {
+    color: $warning-orange;
+  }
+}
+
+.main-container,
+.music-container,
+.cpu-container {
+  box-shadow:
+    0 2px 4px rgba(122, 162, 247, 0.4),
+    0 -2px 4px rgba(122, 162, 247, 0.4),
+    0 1px 2px rgba(125, 207, 255, 0.2),
+    0 -1px 2px rgba(125, 207, 255, 0.2);
+  margin: 5.5px;
+  border-radius: 20px;
+  min-width: 385px;
+  background-color: rgba($bg-dark, 0.92);
+  padding: 5px;
+}
+
+.profile,
+.graph-container {
+  min-width: 370px;
+  margin: 0px 7px;
+  margin-top: 5px;
+  padding: 10px;
+  border-radius: 15px;
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-color: rgba($bg-module, 0.4);
+}
+
+.graph-container {
+  color: $urgent-red;
+  margin-bottom: 10px;
+}
+
+.graph-display {
+  min-width: 350px;
+}
+
+.main-temp {
+  border-radius: 10px;
+  background-color: rgba($gray-dim, 0.3);
+  margin-left: 3px;
+  padding: 5px 10px;
+}
+
+.pfp {
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-image: url("./119166871.png");
+  background-size: 90px;
+  background-position: 50% 35%;
+  background-repeat: no-repeat;
+  min-height: 90px;
+  min-width: 90px;
+  border-radius: 100%;
+  margin-right: 20px;
+}
+
+.username {
+  font-size: 30px;
+  color: $accent-blue;
+}
+
+.uptime {
+  color: $text-main;
+}
+
+.minicore-container {
+  margin-top: 20px;
+  margin-bottom: 5px;
+}
+
+.minicores {
+  padding: 7px;
+}
+
+.C0,
+.C1,
+.C2,
+.C3 {
+  margin: 0px 7px;
+  padding: 10px;
+  border-radius: 15px;
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-color: rgba($bg-module, 0.4);
+  color: $accent-cyan;
+}
+
+.ctlpanel {
+  min-width: 230px;
+  margin-top: 10px;
+  border-radius: 20px;
+  padding: 5px;
+  background-color: rgba($gray-dim, 0.3);
+  font-family: "JetBrainsMono Nerd Font";
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+}
+
+.shutdown {
+  color: $urgent-red;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($urgent-red, 10%);
+  }
+}
+
+.logout {
+  color: $warning-orange;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($warning-orange, 10%);
+  }
+}
+
+.lockscr {
+  color: $accent-blue;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($accent-blue, 10%);
+  }
+}
+
+.reboot {
+  color: $accent-purple;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($accent-purple, 10%);
+  }
+}
+
+.suspend {
+  color: $accent-cyan;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($accent-cyan, 10%);
+  }
+}
+
+.hibernate {
+  color: $accent-cyan;
+  transition: color 0.3s;
+  &:hover {
+    color: lighten($accent-cyan, 15%);
+  }
+}
+
+tooltip {
+  padding: 10px;
+  border-radius: 20px;
+  background-color: rgba($bg-dark, 0.75);
+}
+
+.sysctl {
+  margin: 0px 7px;
+  margin-top: 17px;
+  padding: 10px;
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-color: rgba($bg-module, 0.4);
+  min-width: 370px;
+  border-radius: 15px;
+}
+
+.BAT1,
+.BAT2,
+.BAT3 {
+  color: $success-green;
+}
+
+.BAT4,
+.BAT5 {
+  color: $urgent-red;
+}
+
+.CHARGING {
+  color: $warning-orange;
+}
+
+.batico-main {
+  margin-left: 10px;
+  margin-right: 15px;
+  font-size: 50px;
+}
+
+.batico-short {
+  margin-right: 6px;
+  margin-top: 6px;
+}
+
+.volico {
+  color: $accent-purple;
+  margin-left: 3px;
+}
+
+.bsht {
+  color: $text-main;
+}
+
+.bat-percent {
+  font-size: 20px;
+  color: $text-main;
+}
+
+.bat-status {
+  color: rgba($text-main, 0.5);
+}
+
+.bat-btn {
+  font-size: 13px;
+}
+
+.divider-h {
+  min-height: 3px;
+  margin: 15px 5px;
+  background-color: $bg-dark;
+}
+
+.sys {
+  margin: 0px 10px;
+}
+
+.cpu-box,
+.ram-box,
+.disk-box {
+  margin: 0px 10px;
+  border-radius: 15px;
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-color: rgba(45, 52, 66, 0.3);
+}
+
+.cpu,
+.ram,
+.disk {
+  border-radius: 100px;
+  margin-top: 20px;
+}
+.cpu,
+.cpu01 {
+  color: $urgent-red;
+}
+.ram,
+.ram01 {
+  color: $accent-blue;
+}
+.disk,
+.disk01 {
+  color: $success-green;
+}
+.cpu02,
+.ram02,
+.disk02 {
+  color: $text-main;
+}
+
+.ramico,
+.diskico,
+.cpuico {
+  margin-right: 15px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
+.cpuico {
+  margin-left: 20px;
+}
+
+.ramico,
+.diskico {
+  margin-left: 25px;
+}
+
+.cpu,
+.ram,
+.disk {
+  background-color: $bg-dark;
+}
+
+.cpu-text,
+.ram-text,
+.disk-text {
+  margin-bottom: 10px;
+}
+
+.ram-text,
+.disk-text {
+  margin-top: 3.2px;
+}
+
+.sliderctl {
+  border-radius: 15px;
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.9);
+  background-color: rgba(45, 52, 66, 0.3);
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.monitor-container {
+  margin-bottom: 6px;
+}
+
+.volume-slider {
+  margin-top: 10px;
+  margin-left: 13px;
+}
+
+.light-slider {
+  margin-bottom: 10px;
+  margin-left: 13px;
+}
+
+.vol trough {
+  all: unset;
+  background-color: rgba($bg-module, 0.5);
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.3);
+  border-radius: 50px;
+  min-height: 10px;
+  min-width: 250px;
+  margin: 0 20px 0 20px;
+}
+
+.vol trough highlight {
+  all: unset;
+  background-color: $accent-purple;
+  border-radius: 10px;
+}
+
+.volume-slider,
+.volume-short {
+  color: $accent-purple;
+}
+
+.lig trough {
+  all: unset;
+  background-color: rgba($bg-module, 0.5);
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.3);
+  border-radius: 50px;
+  min-height: 10px;
+  min-width: 250px;
+  margin: 0 20px 0 20px;
+}
+
+.lig trough highlight {
+  all: unset;
+  background-color: $warning-orange;
+  border-radius: 10px;
+}
+
+.light-slider {
+  color: $warning-orange;
+}
+
+.clear-container {
+  margin: 6px 10px;
+}
+
+.nheader {
+  font-size: 20px;
+  color: $text-main;
+}
+
+.clear {
+  color: $urgent-red;
+  font-size: 30px;
+  transition: color 0.3s;
+  &:hover {
+    color: $warning-orange;
+  }
+}
+
+.music-title {
+  margin-left: 7px;
+  margin-right: 7px;
+  margin-top: 7px;
+}
+
+.music-thumbnail {
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  min-height: 6rem;
+  min-width: 6rem;
+  border-radius: 1rem;
+}
+
+.app-ico {
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+}
+
+.main-title {
+  margin-top: 15px;
+  margin-bottom: 12px;
+  margin-left: 15px;
+  font-size: 20px;
+  color: $accent-blue;
+}
+
+.artist {
+  color: $text-main;
+  font-size: 13px;
+  margin-left: 15px;
+}
+
+.music-slider {
+  margin-top: 10px;
+}
+
+.music-slider trough {
+  all: unset;
+  background-color: rgba($bg-module, 0.5);
+  box-shadow: 0 2px 3px 2px rgba(6, 6, 11, 0.3);
+  border-radius: 50px;
+  min-height: 5px;
+  min-width: 270px;
+  margin: 0 20px 0 20px;
+}
+
+.music-slider trough highlight {
+  all: unset;
+  background-color: $accent-blue;
+  border-radius: 10px;
+}
+
+.music-timer {
+  color: $text-main;
+  margin: 3px 20px;
+}
+
+.mico {
+  font-size: 30px;
+  margin-left: 10px;
+  transition: color 0.3s;
+  &:hover {
+    color: $accent-blue;
+  }
+}
+
+.vol-mini trough {
+  all: unset;
+  margin-left: 7px;
+  background-color: rgba($gray-dim, 0.4);
+  border-radius: 50px;
+  min-height: 5px;
+  min-width: 100px;
+}
+
+.vol-mini trough highlight {
+  all: unset;
+  background-color: $accent-purple;
+  border-radius: 10px;
+}

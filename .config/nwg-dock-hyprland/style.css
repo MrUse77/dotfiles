@@ -1,0 +1,44 @@
+
+@define-color bg rgba(17, 17, 27, 0.8);
+@define-color fg rgba(255, 251, 246, 1);
+window {
+    background: @bg; /* Un poco más transparente que la barra */
+    border: 1px solid @fg; /* Borde gris Tokyo Night */
+}
+
+#box {
+	/* Define attributes of the box surrounding icons here */
+    	background: @bg; /* Un poco más transparente que la barra */
+	color:@fg;
+	padding: 10px
+}
+
+#active {
+	/* This is to underline the button representing the currently active window */
+	border-bottom: solid 1px;
+	border-color: @fg;
+}
+
+button, image {
+	background: @bg;
+	border-style: none;
+	box-shadow: none;
+	color: @fg
+}
+
+button {
+	padding: 4px;
+	margin-left: 4px;
+	margin-right: 4px;
+	color: @fg;
+  	font-size: 12px
+}
+
+button:hover {
+	background-color: rgba(255, 255, 255, 0.15);
+	border-radius: 2px;
+}
+
+button:focus {
+	box-shadow: none
+}

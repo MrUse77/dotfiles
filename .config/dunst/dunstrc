@@ -1,0 +1,16 @@
+[global]
+    width = 300
+    height = 150
+    offset = 30x30
+    origin = top-right
+    frame_color = "#7aa2f7" # Azul TokyoNight
+    font = CaskaydiaMono Nerd Font 10
+    corner_radius = 10 # El redondeo que te gusta de GTK
+
+[urgency_low]
+    background = "#1a1b26"
+    foreground = "#cfc9c2"
+
+[urgency_normal]
+    background = "#1a1b26"
+    foreground = "#cfc9c2"

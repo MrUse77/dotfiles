@@ -1,0 +1,38 @@
+
+
+# You can preview the config here
+shell-integration = zsh
+background-opacity = 0.9
+window-decoration = true
+background-blur = false
+theme = TokyoNight Night
+minimum-contrast = 1.5
+palette = 0=#15161e
+palette = 1=#f7768e
+palette = 2=#9ece6a
+palette = 3=#e0af68
+palette = 4=#7aa2f7
+palette = 5=#bb9af7
+palette = 6=#7dcfff
+palette = 7=#a9b1d6
+palette = 8=#414868
+palette = 9=#f7768e
+palette = 10=#9ece6a
+palette = 11=#e0af68
+palette = 12=#7aa2f7
+palette = 13=#bb9af7
+palette = 14=#7dcfff
+palette = 15=#c0caf5
+background = #11111b
+foreground = #1A066F
+selection-background = #283457
+selection-foreground = #c0caf5
+cursor-color = #0045FF
+cursor-text = #1A066F
+cursor-style = bar
+cursor-style-blink = true
+font-family = CaskaydiaCode Mono Nerd Font
+font-size = 15
+font-style = bold
+command = /bin/zsh
+term = xterm-kitty

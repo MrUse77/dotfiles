@@ -6,17 +6,37 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-log() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log()     { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
-error() { echo -e "${RED}[ERROR]${NC} $1"; }
+error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
+note()    { echo -e "${CYAN}[NOTE]${NC} $1"; }
 
-# Verificación de no correr como root (paru no debe correrse como root)
+# ==========================================
+# ADVERTENCIA INICIAL
+# ==========================================
+echo ""
+warn "Este script instala el entorno personal de agustin (Hyprland + TokyoNight)."
+warn "Está pensado para Arch Linux con GPU AMD."
+warn "Revisá el script antes de ejecutarlo y comentá lo que no necesites."
+echo ""
+note "Secciones marcadas con [PERSONAL] son específicas del autor y opcionales."
+note "Secciones marcadas con [AMD] requieren GPU AMD."
+echo ""
+read -rp "¿Continuar? [s/N] " confirm
+[[ "$confirm" =~ ^[sS]$ ]] || { log "Abortado."; exit 0; }
+
+# No correr como root
 if [ "$EUID" -eq 0 ]; then
-  error "Por favor, no ejecutes este script como root. El script pedirá sudo cuando lo necesite."
+  error "No ejecutes este script como root. Pedirá sudo cuando lo necesite."
   exit 1
 fi
+
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ==========================================
 # 1. ACTUALIZACIÓN Y DEPENDENCIAS BASE
@@ -28,56 +48,74 @@ sudo pacman -Syu --noconfirm base-devel git
 # 2. INSTALACIÓN DE PARU (AUR HELPER)
 # ==========================================
 if ! command -v paru &> /dev/null; then
-    log "Paru no encontrado. Instalando..."
-    cd /tmp
-    git clone https://aur.archlinux.org/paru.git
-    cd paru
+    log "Instalando paru (AUR helper)..."
+    git clone https://aur.archlinux.org/paru.git /tmp/paru-install
+    cd /tmp/paru-install
     makepkg -si --noconfirm
-    cd -
+    cd "$DOTFILES_DIR"
 else
-    success "Paru ya está instalado."
+    success "paru ya está instalado."
 fi
 
 # ==========================================
 # 3. PAQUETES OFICIALES (PACMAN)
 # ==========================================
-log "Instalando paquetes..."
+log "Instalando paquetes base..."
 
-# Core + Utils  + Theming Tools + Neovim Deps
 PACKAGES=(
-    # Core Wayland/Hyprland
+    # Shell
+    zsh
+    stow
+
+    # Core Wayland / Hyprland
     hyprland
     hyprlock
-    waybar         # Casi mandatorio si usas hyprland, aunque no lo pediste explícitamente
-    wofi           # Launcher alternativo por si nwg-drawer falla
+    hyprpaper
+    hypridle
+    hyprsunset
     hyprpolkitagent
-    
-    # Terminal & Shell Utils
+    waybar
+    wofi
+    dunst
+    xdg-desktop-portal-hyprland
+    xdg-desktop-portal-gtk
+
+    # Terminal y herramientas de shell
+    ghostty
     zellij
     neovim
     yazi
-    ripgrep        # Nvim dep (telescope)
-    fd             # Nvim dep
-    wl-clipboard   # Clipboard para nvim en wayland
+    fzf
+    eza
+    bat
+    zoxide
+    ripgrep
+    fd
+    wl-clipboard
     unzip
-    npm            # Nvim dep (LSP servers)
+    npm
     nodejs
-    
-    # Power Management
+    reflector
+
+    # Administrador de archivos
+    thunar
+    gvfs
+
+    # Gestión de energía
     upower
     power-profiles-daemon
-    
-    # Theming & QT/GTK
+
+    # Theming Qt/GTK
     qt5ct
     qt6ct
-    nwg-look       # GUI para configurar GTK en Wayland
-    kvantum        # Temas SVG para QT
- 
-    # Hyprpm dependencies (compilación de plugins)
+    nwg-look
+    kvantum
+
+    # Dependencias para hyprpm (compilación de plugins)
     cpio
     cmake
     meson
-    hyprland-headers # CRÍTICO para hyprpm en versión estable
+    hyprland-headers  # Solo aplica con hyprland del repo oficial (no -git)
 )
 
 # ==========================================
@@ -85,103 +123,177 @@ PACKAGES=(
 # ==========================================
 
 AUR_PACKAGES=(
-    ghostty         # Ojo: Compilación pesada
-    nwg-drawer-bin  # Binario para ahorrar tiempo de compilación Go
-    swaync          # Notificaciones
-    wlogout         # Menú de salida
-    bibata-cursor-theme # Cursor moderno recomendado
+    oh-my-posh-bin      # Prompt de shell (configurado en .zshrc)
+    fnm-bin             # Node version manager (usado en .zshrc)
+    nwg-drawer-bin      # App launcher
+    nwg-dock-hyprland   # Dock
+    swaync              # Centro de notificaciones
+    eww                 # Widgets
+    wlogout             # Menú de logout
+
+    # [PERSONAL] Temas TokyoNight — hardcodeados en los configs de este repo.
+    # Si querés otro tema, comentá estas líneas y configurá el tuyo manualmente.
+    tokyonight-gtk-theme-git   # gtk-theme-name=TokyoNight-zk
+    tokyonight-icon-theme-git  # gtk-icon-theme-name=TokyoNight-SE
 )
+
+# [AMD] corectrl — control de GPU AMD. Comentar si no tenés GPU AMD.
+AMD_PACKAGES=(
+    corectrl
+)
+
+echo ""
+read -rp "[AMD] ¿Tenés GPU AMD? Instalar corectrl [s/N] " amd_confirm
+if [[ "$amd_confirm" =~ ^[sS]$ ]]; then
+    AUR_PACKAGES+=("${AMD_PACKAGES[@]}")
+    note "corectrl será instalado."
+else
+    warn "corectrl omitido. Si lo necesitás después: paru -S corectrl"
+    warn "Además, comentá la línea 'exec-once = ... corectrl' en hyprland.conf"
+fi
 
 paru -S --needed --noconfirm "${PACKAGES[@]}" "${AUR_PACKAGES[@]}"
 
-# Fuentes
-cp ./assets/fonts/* /home/$USER/.local/share/fonts
-#curosor
-cp ./assets/icons/* /home/$USER/.local/share/icons
-
-
 # ==========================================
-# 5. CONFIGURACIÓN DE PLUGINS HYPRLAND
+# 5. ZSH COMO SHELL POR DEFECTO
 # ==========================================
-log "Inicializando hyprpm (Hyprland Plugin Manager)..."
-# Esto a menudo falla si los headers no coinciden, intentamos actualizar
-hyprpm update
-
-hyprpm add https://github.com/hyprwm/hyprland-plugins
-hyprpm enable split-monitor-workspaces 
-hyprpm enable hyprbars 
-hyprpm enable borders-plus-plus 
-hyprpm enable hyprscrolling 
-hyprpm enable hyprwinwrap
-
-
-# ==========================================
-# 6. CONFIGURACIÓN DE VARIABLES DE ENTORNO (THEMING)
-# ==========================================
-log "Configurando variables de entorno para temas QT/GTK..."
-
-# Creamos un archivo en profile.d para que sea global
-echo "export QT_QPA_PLATFORMTHEME=qt5ct" | sudo tee /etc/profile.d/qt-theme.sh
-echo "export QT_STYLE_OVERRIDE=kvantum" | sudo tee -a /etc/profile.d/qt-theme.sh
-# Forzar backend wayland para GTK y QT
-echo "export MOZ_ENABLE_WAYLAND=1" | sudo tee /etc/profile.d/wayland-vars.sh
-echo "export GDK_BACKEND=wayland,x11" | sudo tee -a /etc/profile.d/wayland-vars.sh
-
-# Aplicar permisos
-sudo chmod +x /etc/profile.d/qt-theme.sh
-sudo chmod +x /etc/profile.d/wayland-vars.sh
-
-# ==========================================
-# 7. APLICACIÓN DE TEMAS (INTENTO AUTOMÁTICO)
-# ==========================================
-log "Aplicando configuración GTK básica..."
-
-# Crear configuración GTK-3.0 si no existe
-mkdir -p ~/.config/gtk-3.0
-mkdir -p ~/.config/gtk-4.0
-
-CAT_CONFIG="[Settings]
-gtk-theme-name=Arc-Dark
-gtk-icon-theme-name=Papirus-Dark
-gtk-font-name=Hack Nerd Font 11
-gtk-cursor-theme-name=Bibata-Modern-Ice
-gtk-application-prefer-dark-theme=1
-"
-
-# Solo escribimos si no existe para no destruir tu config actual
-if [ ! -f ~/.config/gtk-3.0/settings.ini ]; then
-    echo "$CAT_CONFIG" > ~/.config/gtk-3.0/settings.ini
-    success "Configuración GTK-3 generada."
+if [ "$SHELL" != "$(command -v zsh)" ]; then
+    log "Cambiando shell por defecto a zsh..."
+    chsh -s "$(command -v zsh)"
+    success "Shell cambiado a zsh. Reiniciá sesión para que tome efecto."
 else
-    log "Configuración GTK-3 ya existente. Omitiendo sobreescritura."
+    success "zsh ya es el shell por defecto."
 fi
 
-# Configuración básica de gsettings (GNOME/GTK apps)
-gsettings set org.gnome.desktop.interface gtk-theme "Arc-Dark"
-gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
-gsettings set org.gnome.desktop.interface cursor-theme "Bibata-Modern-Ice"
-gsettings set org.gnome.desktop.interface font-name "Hack Nerd Font 11"
+# ==========================================
+# 6. FUENTES Y CURSOR THEME
+# ==========================================
+log "Instalando fuentes (CaskaydiaCove, CaskaydiaM, Hack Nerd Font)..."
+mkdir -p "$HOME/.local/share/fonts"
+cp -r "$DOTFILES_DIR/assets/fonts/"* "$HOME/.local/share/fonts/"
+fc-cache -f
+success "Fuentes instaladas y caché actualizado."
+
+log "Instalando cursor theme (volantes_cursors)..."
+mkdir -p "$HOME/.local/share/icons"
+cp -r "$DOTFILES_DIR/assets/icons/"* "$HOME/.local/share/icons/"
+success "Cursor theme instalado en ~/.local/share/icons/"
 
 # ==========================================
-# 8. SERVICIOS
+# 7. DESPLEGAR DOTFILES CON STOW
 # ==========================================
-log "Habilitando servicios de energía..."
+log "Desplegando dotfiles con GNU stow..."
+cd "$DOTFILES_DIR"
 
-# Verificar conflicto con TLP
+# stow crea symlinks de todo el contenido del repo hacia $HOME.
+# .config/* → ~/.config/*, .zshrc → ~/.zshrc, etc.
+# --restow: rehace los symlinks (seguro para re-ejecuciones)
+# --no-folding: crea los directorios intermedios en vez de enlazar carpetas enteras
+if stow --target="$HOME" --no-folding --restow . 2>&1; then
+    success "Dotfiles desplegados con stow."
+else
+    error "stow encontró conflictos. Revisá los archivos que ya existen en $HOME."
+    error "Podés hacer backup de los conflictos y re-ejecutar."
+    exit 1
+fi
+
+# Directorio para historial y caché de zsh (no tracked en el repo)
+mkdir -p "$HOME/.config/zsh"
+
+# ==========================================
+# 8. [PERSONAL] PLUGINS HYPRLAND (hyprpm)
+# ==========================================
+# Los plugins configurados en este repo son: split-monitor-workspaces, hyprbars,
+# borders-plus-plus, hyprscrolling, hyprwinwrap.
+# Requieren que hyprland-headers coincida con la versión instalada.
+echo ""
+read -rp "[PERSONAL] ¿Instalar plugins de Hyprland via hyprpm? [s/N] " hyprpm_confirm
+if [[ "$hyprpm_confirm" =~ ^[sS]$ ]]; then
+    log "Inicializando hyprpm..."
+    hyprpm update || warn "hyprpm update falló (Hyprland debe estar corriendo para esto)"
+    hyprpm add https://github.com/hyprwm/hyprland-plugins || warn "Fallo al agregar repo de plugins"
+
+    # split-monitor-workspaces: solo habilitar si hay más de un monitor conectado
+    MONITOR_COUNT=$(hyprctl monitors -j 2>/dev/null | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    if [ "$MONITOR_COUNT" -gt 1 ]; then
+        hyprpm enable split-monitor-workspaces
+        success "split-monitor-workspaces habilitado ($MONITOR_COUNT monitores detectados)."
+    else
+        hyprpm disable split-monitor-workspaces 2>/dev/null || true
+        warn "split-monitor-workspaces deshabilitado (solo $MONITOR_COUNT monitor detectado)."
+        note "Se habilitará automáticamente al conectar un segundo monitor (ver toggle-split-monitor.sh)."
+    fi
+
+    hyprpm enable hyprbars
+    hyprpm enable borders-plus-plus
+    hyprpm enable hyprscrolling
+    hyprpm enable hyprwinwrap
+    success "Plugins habilitados."
+else
+    warn "Plugins omitidos. Comentá la línea 'hyprpm reload' en hyprland.conf si no los instalás."
+fi
+
+# ==========================================
+# 9. VARIABLES DE ENTORNO GLOBALES (Qt/GTK/Wayland)
+# ==========================================
+log "Configurando variables de entorno en /etc/profile.d/..."
+
+sudo tee /etc/profile.d/qt-theme.sh > /dev/null <<'EOF'
+export QT_QPA_PLATFORMTHEME=qt5ct
+export QT_STYLE_OVERRIDE=kvantum
+EOF
+
+sudo tee /etc/profile.d/wayland-vars.sh > /dev/null <<'EOF'
+export MOZ_ENABLE_WAYLAND=1
+export GDK_BACKEND=wayland,x11,*
+EOF
+
+sudo chmod +x /etc/profile.d/qt-theme.sh
+sudo chmod +x /etc/profile.d/wayland-vars.sh
+success "Variables de entorno configuradas."
+
+# ==========================================
+# 10. [PERSONAL] APLICAR TEMAS GTK
+# ==========================================
+# Estos valores coinciden con los settings.ini del repo (TokyoNight).
+# Si usás otro tema, cambiá los valores aquí y en .config/gtk-3.0/settings.ini
+log "Aplicando temas GTK via gsettings..."
+gsettings set org.gnome.desktop.interface gtk-theme    "TokyoNight-zk"
+gsettings set org.gnome.desktop.interface icon-theme   "TokyoNight-SE"
+gsettings set org.gnome.desktop.interface cursor-theme "volantes_cursors"
+gsettings set org.gnome.desktop.interface cursor-size  24
+gsettings set org.gnome.desktop.interface font-name    "CaskaydiaMono Nerd Font Mono Bold 10"
+gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
+success "Temas GTK aplicados."
+
+# ==========================================
+# 11. SERVICIOS
+# ==========================================
+log "Habilitando servicios..."
+
 if systemctl is-active --quiet tlp; then
-    error "TLP detectado. No se habilitará power-profiles-daemon para evitar conflictos."
+    warn "TLP detectado y activo. Omitiendo power-profiles-daemon para evitar conflictos."
 else
     sudo systemctl enable --now power-profiles-daemon.service
     success "power-profiles-daemon habilitado."
 fi
 
 sudo systemctl enable --now upower
+success "upower habilitado."
 
-log "---------------------------------------------------------"
-success "Instalación completada." 
-log "Pasos siguientes obligatorios:"
-log "1. Reinicia tu sesión o el equipo."
-log "2. Abre 'qt5ct' y selecciona el estilo 'kvantum' o 'gtk2'."
-log "3. Ejecuta 'nwg-look' para confirmar los temas GTK."
-log "4. Configura tu hyprland.conf para iniciar 'swaync' y 'polkit-gnome'."
-log "---------------------------------------------------------"
+# ==========================================
+# RESUMEN FINAL
+# ==========================================
+echo ""
+echo -e "${GREEN}============================================${NC}"
+success "Instalación completada."
+echo -e "${GREEN}============================================${NC}"
+echo ""
+note "Pasos siguientes:"
+note "  1. Reiniciá la sesión o el sistema."
+note "  2. Abrí 'qt5ct' → seleccioná estilo 'kvantum'."
+note "  3. Ejecutá 'nwg-look' para confirmar temas GTK."
+if [[ ! "$amd_confirm" =~ ^[sS]$ ]]; then
+    warn "  4. Comentá 'exec-once = ... corectrl' en ~/.config/hypr/hyprland.conf"
+fi
+echo ""
