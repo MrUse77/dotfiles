@@ -94,6 +94,7 @@ PACKAGES=(
     wl-clipboard
     unzip
     reflector
+    lazygit
 
     # Administrador de archivos
     thunar
@@ -130,8 +131,8 @@ AUR_PACKAGES=(
 
     # [PERSONAL] Temas TokyoNight — hardcodeados en los configs de este repo.
     # Si querés otro tema, comentá estas líneas y configurá el tuyo manualmente.
-    tokyonight-gtk-theme-git   # gtk-theme-name=TokyoNight-zk
-    tokyonight-icon-theme-git  # gtk-icon-theme-name=TokyoNight-SE
+ #   tokyonight-gtk-theme-git   # gtk-theme-name=TokyoNight-zk
+#  tokyonight-icon-theme-git  # gtk-icon-theme-name=TokyoNight-SE
 )
 
 # [AMD] corectrl — control de GPU AMD. Comentar si no tenés GPU AMD.
