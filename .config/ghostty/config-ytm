@@ -1,4 +1,5 @@
 
+
 # You can preview the config here
 shell-integration = zsh
 background-opacity = 0.9
@@ -30,9 +31,7 @@ cursor-color = #0045FF
 cursor-text = #1A066F
 cursor-style = bar
 cursor-style-blink = true
-mouse-shift-capture = false
 font-family = CaskaydiaCove NFM
-font-size = 17
+font-size = 18
 font-style = bold
-	command = /usr/bin/zellij attach -c "MrUse"
 term = xterm-kitty

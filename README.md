@@ -15,7 +15,7 @@ Configuración personal para Arch Linux con Hyprland.
 | Editor | Neovim |
 | Bar | Waybar |
 | Launcher | nwg-drawer |
-| Notificaciones | Dunst + SwayNC |
+| Notificaciones | Dunst |
 | File manager | Thunar + Yazi |
 | Tema | TokyoNight |
 | Cursor | volantes_cursors |

@@ -1,0 +1,172 @@
+# Tokyo Night Blue - Yazi Theme
+# Based on TokyoNight but replacing purples/violets with deep blues
+
+# Palette reference:
+#   bg:           #1a1b2e  (deep navy background)
+#   bg_dark:      #13141f  (darker navy)
+#   bg_highlight: #1e2030  (slightly lighter navy)
+#   fg:           #c0caf5  (soft lavender-white)
+#   blue:         #7aa2f7  (main blue accent)
+#   blue_dark:    #3d59a1  (dark blue)
+#   blue_mid:     #2ac3de  (cyan-blue)
+#   blue_deep:    #1e3a5f  (very deep blue, replaces purple)
+#   blue_navy:    #24406b  (navy blue, replaces dark violet)
+#   green:        #9ece6a  (soft green)
+#   yellow:       #e0af68  (warm yellow)
+#   orange:       #ff9e64  (orange)
+#   red:          #f7768e  (soft red)
+#   cyan:         #2ac3de  (cyan)
+#   teal:         #1abc9c  (teal)
+#   gray:         #565f89  (muted gray-blue)
+#   comment:      #444b6a  (dim comment)
+
+[app]
+overall = { bg = "#1a1b2e" }
+
+[mgr]
+cwd            = { fg = "#7aa2f7", bold = true }
+find_keyword   = { fg = "#e0af68", bold = true, italic = true, underline = true }
+find_position  = { fg = "#2ac3de", bg = "reset", bold = true, italic = true }
+symlink_target = { fg = "#2ac3de", italic = true }
+
+marker_copied   = { fg = "#9ece6a", bg = "#9ece6a" }
+marker_cut      = { fg = "#f7768e", bg = "#f7768e" }
+marker_marked   = { fg = "#2ac3de", bg = "#2ac3de" }
+marker_selected = { fg = "#7aa2f7", bg = "#7aa2f7" }
+
+count_copied   = { fg = "#1a1b2e", bg = "#9ece6a", bold = true }
+count_cut      = { fg = "#1a1b2e", bg = "#f7768e", bold = true }
+count_selected = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+
+border_symbol = "│"
+border_style  = { fg = "#3d59a1" }
+
+[indicator]
+parent  = { fg = "#c0caf5", bg = "#24406b" }
+current = { fg = "#c0caf5", bg = "#1e3a5f", bold = true }
+preview = { fg = "#565f89", underline = true }
+padding = { open = "▌", close = "▐" }
+
+[tabs]
+active   = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+inactive = { fg = "#565f89", bg = "#13141f" }
+sep_inner = { open = "", close = "" }
+sep_outer = { open = "", close = "" }
+
+[mode]
+normal_main = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+normal_alt  = { fg = "#7aa2f7", bg = "#1e3a5f" }
+select_main = { fg = "#1a1b2e", bg = "#9ece6a", bold = true }
+select_alt  = { fg = "#9ece6a", bg = "#1a1b2e" }
+unset_main  = { fg = "#1a1b2e", bg = "#e0af68", bold = true }
+unset_alt   = { fg = "#e0af68", bg = "#1a1b2e" }
+
+[status]
+overall   = { fg = "#c0caf5", bg = "#13141f" }
+sep_left  = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+
+perm_type  = { fg = "#7aa2f7" }
+perm_read  = { fg = "#e0af68" }
+perm_write = { fg = "#f7768e" }
+perm_exec  = { fg = "#9ece6a" }
+perm_sep   = { fg = "#444b6a" }
+
+progress_label  = { fg = "#c0caf5", bold = true }
+progress_normal = { fg = "#7aa2f7", bg = "#13141f" }
+progress_error  = { fg = "#f7768e", bg = "#13141f" }
+
+[which]
+cols            = 3
+mask            = { bg = "#13141f" }
+cand            = { fg = "#7aa2f7", bold = true }
+rest            = { fg = "#565f89" }
+desc            = { fg = "#c0caf5" }
+separator       = "  "
+separator_style = { fg = "#3d59a1" }
+
+[confirm]
+border  = { fg = "#3d59a1" }
+title   = { fg = "#7aa2f7", bold = true }
+body    = { fg = "#c0caf5" }
+list    = { fg = "#2ac3de" }
+btn_yes = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+btn_no  = { fg = "#1a1b2e", bg = "#f7768e", bold = true }
+btn_labels = ["  Yes  ", "  No  "]
+
+[spot]
+border   = { fg = "#3d59a1" }
+title    = { fg = "#7aa2f7", bold = true }
+tbl_col  = { fg = "#2ac3de", bold = true }
+tbl_cell = { fg = "#1a1b2e", bg = "#7aa2f7" }
+
+[notify]
+title_info  = { fg = "#9ece6a", bold = true }
+title_warn  = { fg = "#e0af68", bold = true }
+title_error = { fg = "#f7768e", bold = true }
+
+[pick]
+border   = { fg = "#3d59a1" }
+active   = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+inactive = { fg = "#c0caf5" }
+
+[input]
+border   = { fg = "#3d59a1" }
+title    = { fg = "#7aa2f7", bold = true }
+value    = { fg = "#c0caf5" }
+selected = { fg = "#1a1b2e", bg = "#2ac3de" }
+
+[cmp]
+border      = { fg = "#3d59a1" }
+active      = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+inactive    = { fg = "#c0caf5" }
+icon_file   = ""
+icon_folder = ""
+icon_command = ""
+
+[tasks]
+border  = { fg = "#3d59a1" }
+title   = { fg = "#7aa2f7", bold = true }
+hovered = { fg = "#1a1b2e", bg = "#7aa2f7", bold = true }
+
+[help]
+on      = { fg = "#7aa2f7", bold = true }
+run     = { fg = "#2ac3de" }
+desc    = { fg = "#c0caf5" }
+hovered = { fg = "#c0caf5", bg = "#1e3a5f", bold = true }
+footer  = { fg = "#565f89", bg = "#13141f" }
+icon_info  = ""
+icon_warn  = ""
+icon_error = ""
+
+[filetype]
+rules = [
+  # Images
+  { mime = "image/*", fg = "#e0af68" },
+  # Video
+  { mime = "video/*", fg = "#f7768e" },
+  # Audio
+  { mime = "audio/*", fg = "#ff9e64" },
+  # Archives
+  { mime = "application/zip",              fg = "#9ece6a" },
+  { mime = "application/gzip",             fg = "#9ece6a" },
+  { mime = "application/x-tar",            fg = "#9ece6a" },
+  { mime = "application/x-bzip2",          fg = "#9ece6a" },
+  { mime = "application/x-7z-compressed",  fg = "#9ece6a" },
+  { mime = "application/x-rar",            fg = "#9ece6a" },
+  { mime = "application/xz",               fg = "#9ece6a" },
+  # Documents
+  { mime = "application/pdf",              fg = "#f7768e" },
+  # Code / text
+  { mime = "text/*",                       fg = "#c0caf5" },
+  # Empty file
+  { mime = "inode/empty",                  fg = "#565f89" },
+  # Orphan symlinks
+  { url = "*", is = "orphan",              fg = "#f7768e", underline = true },
+  # Executables
+  { url = "*", is = "exec",                fg = "#9ece6a", bold = true },
+  # Symlinks
+  { url = "*", is = "link",                fg = "#2ac3de" },
+  # Directories
+  { url = "*/",                            fg = "#7aa2f7", bold = true },
+]

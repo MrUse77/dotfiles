@@ -193,7 +193,7 @@
     "format": "<span>  {}</span>",
     "interval": "once",
     "exec": "(checkupdates; paru -Qua) | wc -l",
-    "on-click": "ghostty --config-file=$HOME/dotfiles/ghostty/config-clean --title='UPDATING_SYSTEM' -e paru; read",
+    "on-click": "ghostty --config-file=$HOME/.config/ghostty/config-clean --title='UPDATING_SYSTEM' -e paru; read",
     "signal": 8,
     "tooltip-format": "{} updates available",
   },

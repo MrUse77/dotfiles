@@ -93,8 +93,6 @@ PACKAGES=(
     fd
     wl-clipboard
     unzip
-    npm
-    nodejs
     reflector
 
     # Administrador de archivos
@@ -127,7 +125,6 @@ AUR_PACKAGES=(
     fnm-bin             # Node version manager (usado en .zshrc)
     nwg-drawer-bin      # App launcher
     nwg-dock-hyprland   # Dock
-    swaync              # Centro de notificaciones
     eww                 # Widgets
     wlogout             # Menú de logout
 

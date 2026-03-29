@@ -7,6 +7,8 @@
 # --- VARIABLES DE ENTORNO ---
 export EDITOR="nvim"
 export PATH="$HOME/.local/bin:$PATH"
+export YAZI_IMAGE_ADAPTER=kitty
+export NIXPKGS_ALLOW_UNFREE=1
 
 # Configuración Wayland/Qt (Solo si estamos en el host)
 if [[ -z "$CONTAINER_ID" ]]; then
@@ -34,21 +36,20 @@ if (( $+commands[zoxide] )); then
 fi
 
 # Oh My Posh (Prompt)
-# Asumimos que está en ~/.local/bin que ya agregamos al PATH
+# Asumimos queval "$(direnv hook zsh)"e está en ~/.local/bin que ya agregamos al PATH
 if (( $+commands[oh-my-posh] )); then
     eval "$(oh-my-posh init zsh --config "~/oh-my-posh/tokyonight_storm.omp.json")"
 else
     # Prompt minimalista de respaldo si no hay OhMyPosh
     PS1='[%n@%m %W]\$ '
 fi
-
+eval "$(direnv hook zsh)"
 # --- ALIAS INTELIGENTES ---
 # Solo usamos eza/bat si están instalados, si no, volvemos a los básicos
 if (( $+commands[eza] )); then
     alias ls='eza --icons=always --color=always -a'
     alias ll='eza --icons=always --color=always -la'
-else
-    alias ls='ls --color=auto -a'
+else    alias ls='ls --color=auto -a'
     alias ll='ls -la'
 fi
 
@@ -63,7 +64,7 @@ alias icat='kitten icat'
 alias s='kitten ssh'
 
 # --- PLUGINS (Carga Segura) ---
-# --- COMPLETION ---
+# --- COMPLETION ---eval "$(direnv hook zsh)"
 #
 source "$HOME/.zsh_plugins/fzf-tab/fzf-tab.zsh"
 source "$HOME/.zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
@@ -148,3 +149,9 @@ setopt appendhistory sharehistory hist_ignore_space hist_ignore_all_dups
 bindkey -M viins '^?' backward-delete-char
 bindkey -M viins '^h' backward-delete-char
 export OLLAMA_MODELS="/home/agustin/modelos_ia"
+# Asegura que Nix siempre encuentre los paquetes en Arch
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/agustin/.lmstudio/bin"
+# End of LM Studio CLI section
+

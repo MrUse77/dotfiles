@@ -1,6 +1,7 @@
-install.sh
+^/install.sh
 #Comments and blank lines are allowed.
 
+^/assets
 RCS
 .+,v
 

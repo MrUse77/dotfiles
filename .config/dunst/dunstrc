@@ -1,16 +1,130 @@
 [global]
-    width = 300
-    height = 150
-    offset = 30x30
+    # Display
+    follow = mouse
     origin = top-right
-    frame_color = "#7aa2f7" # Azul TokyoNight
-    font = CaskaydiaMono Nerd Font 10
-    corner_radius = 10 # El redondeo que te gusta de GTK
+    offset = (16, 16)
+
+    # Geometry
+    width = (360, 540)
+    height = (0, 400)
+    gap_size = 8
+
+    # Appearance
+    corner_radius = 10
+    frame_width = 2
+    frame_color = "#3d59a1"
+    separator_height = 1
+    separator_color = "#3d59a1"
+    padding = 18
+    horizontal_padding = 20
+    text_icon_padding = 14
+
+    # Font
+    font = CaskaydiaMono Nerd Font 13
+
+    # Text
+    line_height = 2
+    markup = full
+    format = "<b>%s</b>\n%b"
+    word_wrap = yes
+    ellipsize = middle
+    ignore_newline = no
+    stack_duplicates = true
+    hide_duplicate_count = false
+    show_indicators = yes
+    min_icon_size = 48
+    max_icon_size = 64
+
+    # Sort & timing
+    sort = urgency_descending
+    idle_threshold = 120
+
+    # Dismiss
+    sticky_history = yes
+    history_length = 20
+
+    # Misc
+    show_age_threshold = 60
+    title = Dunst
+    class = Dunst
+    force_xwayland = false
+    force_xinerama = false
+    dmenu = /usr/bin/dmenu -p dunst
+    browser = /usr/bin/xdg-open
+
+    # Mouse actions
+    mouse_left_click = close_current
+    mouse_middle_click = do_action, close_current
+    mouse_right_click = close_all
 
 [urgency_low]
-    background = "#1a1b26"
-    foreground = "#cfc9c2"
+    background = "#13141f"
+    foreground = "#565f89"
+    frame_color = "#24406b"
+    timeout = 4
 
 [urgency_normal]
-    background = "#1a1b26"
-    foreground = "#cfc9c2"
+    background = "#1a1b2e"
+    foreground = "#c0caf5"
+    frame_color = "#3d59a1"
+    timeout = 6
+
+[urgency_critical]
+    background = "#1a1b2e"
+    foreground = "#f7768e"
+    frame_color = "#f7768e"
+    timeout = 0
+
+# ── Per-app rules ──────────────────────────────────────────────────────────────
+
+# Bloquear notificaciones nativas de Brave (el script manda las propias)
+[brave_block]
+    appname = "Brave"
+    skip_display = yes
+    history_ignore = yes
+
+# Volume / brightness (efimeras, sin historial)
+[volume]
+    appname = "volume"
+    background = "#13141f"
+    foreground = "#7aa2f7"
+    frame_color = "#1e3a5f"
+    timeout = 2
+    history_ignore = yes
+
+[brightness]
+    appname = "brightness"
+    background = "#13141f"
+    foreground = "#7aa2f7"
+    frame_color = "#1e3a5f"
+    timeout = 2
+    history_ignore = yes
+
+# Musica / media
+[youtubemusic]
+    appname = "YouTube Music"
+    background = "#1a1b2e"
+    foreground = "#f7768e"
+    frame_color = "#6b1e1e"
+    timeout = 4
+
+[media]
+    appname = "playerctl"
+    background = "#1a1b2e"
+    foreground = "#9ece6a"
+    frame_color = "#2d5a27"
+    timeout = 3
+
+# Network manager
+[networkmanager]
+    appname = "NetworkManager"
+    background = "#1a1b2e"
+    foreground = "#9ece6a"
+    frame_color = "#3d59a1"
+    timeout = 4
+
+# Clipboard (muy cortas, sin historial)
+[clipboard]
+    appname = "copyq"
+    timeout = 2
+    history_ignore = yes

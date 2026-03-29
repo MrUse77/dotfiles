@@ -4,7 +4,8 @@ image_file="${base_dir}image.png"
 
 mkdir -p "$base_dir"
 
-playerctl metadata -F -f '{{playerName}}|{{title}}|{{artist}}|{{mpris:artUrl}}|{{status}}|{{mpris:length}}' | while IFS='|' read -r name title artist artUrl status length; do
+playerctl -p playerctld metadata -F -f '{{playerName}}|{{title}}|{{artist}}|{{mpris:artUrl}}|{{status}}|{{mpris:length}}' 2>/dev/null | while IFS='|' read -r name title artist artUrl status length; do
+
     if [[ -n "$length" && "$length" =~ ^[0-9]+$ ]]; then
         len_sec=$(( (length + 500000) / 1000000 ))
         mins=$((len_sec / 60))
@@ -14,6 +15,7 @@ playerctl metadata -F -f '{{playerName}}|{{title}}|{{artist}}|{{mpris:artUrl}}|{
         len_sec=""
         lengthStr=""
     fi
+
     if [[ "$artUrl" =~ ^https?:// ]]; then
         tmp_image="${image_file}.tmp"
         if wget -q -O "$tmp_image" "$artUrl"; then
@@ -22,9 +24,17 @@ playerctl metadata -F -f '{{playerName}}|{{title}}|{{artist}}|{{mpris:artUrl}}|{
             rm -f "$image_file"
             cp "${base_dir}scripts/cover.png" "$image_file"
         fi
+    elif [[ "$artUrl" =~ ^file:// ]]; then
+        local_path="${artUrl#file://}"
+        if [[ -s "$local_path" ]]; then
+            cp "$local_path" "$image_file"
+        else
+            cp "${base_dir}scripts/cover.png" "$image_file"
+        fi
     else
         cp "${base_dir}scripts/cover.png" "$image_file"
     fi
+
     jq -n -c \
         --arg name "$name" \
         --arg title "$title" \

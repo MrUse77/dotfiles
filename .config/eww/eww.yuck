@@ -310,7 +310,7 @@
                    :halign "center"
                    :spacing 45
                    (eventbox :class "mico" :cursor "pointer" :onclick "playerctl previous" "󰒮")
-                   (eventbox :class "mico" :cursor "pointer" :onclick "playerctl play-pause" {music.status == "Playing" ? "󰓛" : "󰐊"})
+                   (eventbox :class "mico" :cursor "pointer" :onclick "playerctl play-pause" {music.status == "Playing" ? "" : "󰐊"})
                    (eventbox :class "mico" :cursor "pointer" :onclick "playerctl next" "󰒭")
               )
          ))
