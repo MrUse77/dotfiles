@@ -157,10 +157,8 @@ setopt appendhistory sharehistory hist_ignore_space hist_ignore_all_dups
 
 bindkey -M viins '^?' backward-delete-char
 bindkey -M viins '^h' backward-delete-char
-export OLLAMA_MODELS="/home/agustin/modelos_ia"
-# Asegura que Nix siempre encuentre los paquetes en Arch
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/agustin/.lmstudio/bin"
+export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
 

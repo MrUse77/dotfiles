@@ -5,6 +5,13 @@ Configuración personal para Arch Linux con Hyprland.
 > **Nota:** Este repo está diseñado para mi setup específico (GPU AMD, tema TokyoNight).
 > El `install.sh` te avisa sobre las partes opcionales antes de hacer cualquier cosa.
 
+## Mini preview
+
+<p align="center">
+  <img src="./image1.png" alt="Preview 1" width="49%" />
+  <img src="./image2.png" alt="Preview 2" width="49%" />
+</p>
+
 ## Stack
 
 | Categoría | Herramienta |
