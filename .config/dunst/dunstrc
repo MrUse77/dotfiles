@@ -76,12 +76,16 @@
     timeout = 0
 
 # ── Per-app rules ──────────────────────────────────────────────────────────────
-
-# Bloquear notificaciones nativas de Brave (el script manda las propias)
-[brave_block]
-    appname = "Brave"
-    skip_display = yes
+[obsidian]
+    appname = "obsidian"
+    skip_display = no
     history_ignore = yes
+    timeout = 5
+[brave]
+    appname = "Brave"
+    skip_display = no
+    history_ignore = yes
+    timeout = 5
 
 # Volume / brightness (efimeras, sin historial)
 [volume]

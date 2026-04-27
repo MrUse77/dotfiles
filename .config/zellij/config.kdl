@@ -263,7 +263,7 @@ plugins {
     strider location="zellij:strider"
     tab-bar location="zellij:tab-bar"
     welcome-screen location="zellij:session-manager" {
-        welcome_screen true
+        welcome_screen false
     }
 }
 
@@ -436,11 +436,14 @@ default_mode "locked"
         }
     }
 }
+//layout_dir "layouts"
+//default_layout "kanagawa"
 // The folder in which Zellij will look for layouts
 // (Requires restart)
 // 
 // layout_dir "/tmp"
  
+//layout_dir "~/.config/zellij/layouts"
 // The folder in which Zellij will look for themes
 // (Requires restart)
 // 
