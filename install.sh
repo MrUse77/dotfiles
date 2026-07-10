@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # ==========================================
 # CONFIGURACIÓN Y COLORES
@@ -92,6 +93,7 @@ PACKAGES=(
     ripgrep
     fd
     wl-clipboard
+    direnv
     unzip
     reflector
     lazygit
@@ -178,20 +180,40 @@ cp -r "$DOTFILES_DIR/assets/icons/"* "$HOME/.local/share/icons/"
 success "Cursor theme instalado en ~/.local/share/icons/"
 
 # ==========================================
-# 7. DESPLEGAR DOTFILES CON STOW
+# 7. INICIALIZAR SUBMÓDULOS Y DESPLEGAR CON STOW
 # ==========================================
-log "Desplegando dotfiles con GNU stow..."
+log "Inicializando submódulos de Git (plugins de zsh, nvim)..."
 cd "$DOTFILES_DIR"
+git submodule update --init --recursive
 
+log "Respaldando configuraciones previas conflictivas..."
+# Busca archivos y carpetas que stow va a enlazar. Si existen y no son symlinks, los resguarda a .bak
+for item in $(ls -A "$DOTFILES_DIR" | grep -vE '^(\.git|\.gitmodules|\.stow-local-ignore|install\.sh|README.*|assets|.*\.png)$'); do
+    if [ "$item" == ".config" ]; then
+        for config_item in $(ls -A "$DOTFILES_DIR/.config"); do
+            target="$HOME/.config/$config_item"
+            if [ -e "$target" ] && [ ! -L "$target" ]; then
+                warn "Respaldando: $target -> ${target}.bak"
+                mv "$target" "${target}.bak"
+            fi
+        done
+    else
+        target="$HOME/$item"
+        if [ -e "$target" ] && [ ! -L "$target" ]; then
+            warn "Respaldando: $target -> ${target}.bak"
+            mv "$target" "${target}.bak"
+        fi
+    fi
+done
+
+log "Desplegando dotfiles con GNU stow..."
 # stow crea symlinks de todo el contenido del repo hacia $HOME.
-# .config/* → ~/.config/*, .zshrc → ~/.zshrc, etc.
 # --restow: rehace los symlinks (seguro para re-ejecuciones)
 # --no-folding: crea los directorios intermedios en vez de enlazar carpetas enteras
 if stow --target="$HOME" --no-folding --restow . 2>&1; then
     success "Dotfiles desplegados con stow."
 else
-    error "stow encontró conflictos. Revisá los archivos que ya existen en $HOME."
-    error "Podés hacer backup de los conflictos y re-ejecutar."
+    error "stow encontró conflictos inesperados."
     exit 1
 fi
 

@@ -77,10 +77,10 @@ suppress_preload = false
 
 
 [plugin]
-fetchers = [
-	{ id = "mime", url = "*/",        run = "mime.dir",   prio = "high" },
-	{ id = "mime", url = "local://*", run = "mime.local", prio = "high" },
-]
+#fetchers = [
+#	{ id = "mime", url = "*/",        run = "mime.dir",   prio = "high" },
+#	{ id = "mime", url = "local://*", run = "mime.local", prio = "high" },
+#]
 spotters = [
 	{ url = "*/",                        run = "folder" },
 	{ mime = "text/*",                   run = "code"   },

@@ -34,5 +34,5 @@ mouse-shift-capture = false
 font-family = CaskaydiaCove NFM
 font-size = 17
 font-style = bold
-	command = /usr/bin/zellij attach -c "MrUse"
+	command = herdr 
 term = xterm-kitty
