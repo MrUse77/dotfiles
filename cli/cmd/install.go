@@ -36,6 +36,7 @@ var installCmd = &cobra.Command{
 		var mode string
 		var hasAMD bool
 		var installPlugins bool
+		var enableSSHAgent bool
 
 		err = huh.NewForm(
 			huh.NewGroup(
@@ -53,6 +54,10 @@ var installCmd = &cobra.Command{
 					Title("¿Instalar plugins de Hyprland via hyprpm?").
 					Description("Requiere que Hyprland esté corriendo.").
 					Value(&installPlugins),
+				huh.NewConfirm().
+					Title("¿Habilitar SSH Agent via systemd?").
+					Description("Gestiona el agente con systemd --user. Más limpio que el setup manual en .zshrc.").
+					Value(&enableSSHAgent),
 			),
 		).Run()
 
@@ -61,7 +66,7 @@ var installCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		fmt.Printf("\nOpciones elegidas:\n- Modo: %s\n- GPU AMD: %v\n- Plugins Hyprland: %v\n\n", mode, hasAMD, installPlugins)
+		fmt.Printf("\nOpciones elegidas:\n- Modo: %s\n- GPU AMD: %v\n- Plugins Hyprland: %v\n- SSH Agent: %v\n\n", mode, hasAMD, installPlugins, enableSSHAgent)
 
 		if mode == "dev" {
 			fmt.Println("Ejecutando en Modo Dev (Stow) - Próximamente...")
@@ -162,6 +167,13 @@ var installCmd = &cobra.Command{
 			fmt.Println("🔌 Instalando plugins de Hyprland...")
 			if err := installer.InstallHyprlandPlugins(); err != nil {
 				fmt.Fprintf(os.Stderr, "❌ Error instalando plugins: %v\n", err)
+			}
+		}
+
+		if enableSSHAgent {
+			fmt.Println("🔑 Habilitando SSH Agent via systemd...")
+			if err := installer.EnableSSHAgent(); err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Error habilitando SSH Agent: %v\n", err)
 			}
 		}
 
