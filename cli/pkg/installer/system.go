@@ -137,3 +137,27 @@ func EnsureZshDirs() error {
 	return nil
 }
 
+// EnableSSHAgent habilita ssh-agent como servicio de systemd --user
+// y exporta SSH_AUTH_SOCK via /etc/profile.d/
+func EnableSSHAgent() error {
+	fmt.Println("Habilitando ssh-agent via systemd --user...")
+
+	if err := runCommand("systemctl", "--user", "enable", "--now", "ssh-agent"); err != nil {
+		return fmt.Errorf("error habilitando ssh-agent.service: %w", err)
+	}
+
+	content := "# ssh-agent managed by systemd --user\nexport SSH_AUTH_SOCK=\"$XDG_RUNTIME_DIR/ssh-agent.socket\"\n"
+	cmd := exec.Command("sudo", "tee", "/etc/profile.d/ssh-agent.sh")
+	cmd.Stdin = strings.NewReader(content)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("error escribiendo /etc/profile.d/ssh-agent.sh: %w", err)
+	}
+	if err := runCommand("sudo", "chmod", "+x", "/etc/profile.d/ssh-agent.sh"); err != nil {
+		return err
+	}
+
+	fmt.Println("✅ SSH Agent habilitado. Reiniciá sesión para que tome efecto.")
+	return nil
+}

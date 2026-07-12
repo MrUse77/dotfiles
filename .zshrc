@@ -157,13 +157,7 @@ bindkey -M viins '^h' backward-delete-char
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
-# --- SSH Agent (compartido entre terminales) ---
-export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
-if ! pgrep -u "$USER" ssh-agent > /dev/null; then
-    rm -f "$SSH_AUTH_SOCK"
-    ssh-agent -a "$SSH_AUTH_SOCK" > /dev/null
-    ssh-add -t 8h ~/.ssh/id_ed25519 2>/dev/null
-fi
+
 
 # pnpm
 export PNPM_HOME="/home/agustin/.local/share/pnpm"
