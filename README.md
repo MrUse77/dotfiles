@@ -3,7 +3,7 @@
 Configuración personal para Arch Linux con Hyprland.
 
 > **Nota:** Este repo está diseñado para mi setup específico (GPU AMD, tema TokyoNight).
-> El `install.sh` te avisa sobre las partes opcionales antes de hacer cualquier cosa.
+> El instalador te pregunta sobre las partes opcionales antes de hacer cualquier cosa.
 
 ## Mini preview
 
@@ -21,7 +21,6 @@ Configuración personal para Arch Linux con Hyprland.
 | Shell | Zsh + Oh My Posh |
 | Editor | Neovim |
 | Bar | Waybar |
-| Launcher | nwg-drawer |
 | Notificaciones | Dunst |
 | File manager | Thunar + Yazi |
 | Tema | TokyoNight |
@@ -35,7 +34,7 @@ Configuración personal para Arch Linux con Hyprland.
 
 - Arch Linux (o derivado)
 - Conexión a internet
-- Hyprland **no** corriendo al momento de instalar (algunos pasos lo requieren)
+- `go` instalado (`sudo pacman -S go`)
 
 ### 1. Clonar el repo
 
@@ -52,31 +51,57 @@ Si ya clonaste sin ese flag:
 git submodule update --init --recursive
 ```
 
-### 2. Correr el script de instalación
+### 2. Compilar el instalador
 
 ```bash
-cd ~/dotfiles
-bash install.sh
+cd ~/dotfiles/cli
+go build -o dots
 ```
 
-El script va a:
+### 3. Correr el instalador
+
+```bash
+./dots install
+```
+
+El instalador va a preguntarte interactivamente:
+
+1. ¿Estás seguro que querés modificar tu sistema?
+2. Modo de instalación: **Usuario** (copia limpia) o **Dev** (symlinks con stow)
+3. ¿Tenés GPU AMD? (instala `corectrl`)
+4. ¿Instalar plugins de Hyprland via `hyprpm`?
+
+Luego ejecuta automáticamente:
 
 1. Actualizar el sistema e instalar `base-devel` y `git`
 2. Instalar `paru` (AUR helper) si no está
 3. Instalar todos los paquetes necesarios (oficiales + AUR)
 4. Configurar `zsh` como shell por defecto
-5. Instalar fuentes y el cursor theme
-6. Desplegar los configs con `stow` (symlinks hacia `~/.config/`)
-7. Preguntar si instalar los plugins de Hyprland via `hyprpm`
-8. Configurar variables de entorno globales para Qt/GTK/Wayland
-9. Aplicar temas GTK via `gsettings`
-10. Habilitar servicios (`upower`, `power-profiles-daemon`)
+5. Inicializar submódulos de Git (plugins de zsh + Neovim)
+6. Respaldar configs existentes en `~/.config-backup-<timestamp>`
+7. Copiar todos los configs a `~/.config/`
+8. Copiar `.zshrc`, `.gtkrc-2.0`, `oh-my-posh/`, `.zsh_plugins/`, `.themes/`
+9. Instalar fuentes y cursor theme + `fc-cache`
+10. Aplicar temas GTK via `gsettings`
+11. Habilitar servicios (`upower`, `power-profiles-daemon`)
+12. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
+13. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
 
-### 3. Después de instalar
+### 4. Después de instalar
 
 1. Reiniciar sesión o el sistema
 2. Abrir `qt5ct` → seleccionar estilo **kvantum**
 3. Ejecutar `nwg-look` para confirmar los temas GTK
+
+---
+
+## CLI: comandos disponibles
+
+```bash
+./dots install       # Instalador interactivo completo
+./dots theme <name>  # Aplicar un tema al sistema (WIP)
+./dots help          # Ver todos los comandos
+```
 
 ---
 
@@ -91,46 +116,36 @@ dotfiles/
 │   ├── gtk-3.0/        # Tema GTK3
 │   ├── gtk-4.0/        # Tema GTK4
 │   ├── hypr/           # Hyprland, hyprlock, hyprpaper, hypridle, hyprsunset
-│   │   └── scripts/    # Scripts de autostart (toggle-split-monitor, etc.)
+│   │   └── scripts/    # Scripts de autostart
 │   ├── nvim/           # Config de Neovim (submodule → MrUse77/Nvim-config)
 │   ├── nwg-dock-hyprland/
-│   ├── nwg-drawer/
-│   ├── swaync/
 │   ├── waybar/
+│   │   ├── style.css
+│   │   └── colors.css  # Variables de color (theming dinámico)
 │   ├── wofi/
+│   ├── yazi/
 │   └── zellij/
-├── .zsh_plugins/       # Plugins de zsh (submodules, ver abajo)
+├── .zsh_plugins/       # Plugins de zsh (submodules)
 ├── assets/
 │   ├── fonts/          # CaskaydiaCove, CaskaydiaM, Hack Nerd Font
 │   └── icons/          # volantes_cursors
+├── cli/                # Instalador Go (dots)
+│   ├── cmd/            # Comandos cobra (install, theme)
+│   ├── pkg/
+│   │   ├── installer/  # Lógica de instalación del sistema
+│   │   └── theme/      # Lógica de theming
+│   └── main.go
 ├── oh-my-posh/         # Temas de prompt (.omp.json)
+├── .themes/            # Temas GTK
 ├── .zshrc
-├── .gtkrc-2.0
-└── install.sh
+└── .gtkrc-2.0
 ```
-
-Los configs se despliegan con `stow`, que crea symlinks desde este repo hacia `$HOME`.
-Esto significa que cualquier cambio que hagas en `~/.config/waybar/config.jsonc`, por
-ejemplo, en realidad está editando el archivo dentro del repo directamente.
 
 ---
 
 ## Submodules
 
-Este repo usa **git submodules** para manejar repos externos sin duplicar su código.
-
-### ¿Qué es un submodule?
-
-En vez de copiar el código de un proyecto externo dentro de tu repo, un submodule
-guarda solo un puntero: la URL del repo y el commit exacto en el que estás parado.
-
-```
-[submodule ".zsh_plugins/zsh-autosuggestions"]
-    url = https://github.com/zsh-users/zsh-autosuggestions
-    # git guarda internamente a qué commit apunta
-```
-
-### Submodules en este repo
+Este repo usa **git submodules** para manejar repos externos sin duplicar código.
 
 | Path | Repo | Descripción |
 |---|---|---|
@@ -142,40 +157,12 @@ guarda solo un puntero: la URL del repo y el commit exacto en el que estás para
 
 ### Comandos útiles
 
-**Inicializar submodules después de clonar sin `--recurse-submodules`:**
 ```bash
-git submodule update --init --recursive
-```
-
-**Actualizar todos los submodules a su último commit:**
-```bash
+# Actualizar todos los submodules
 git submodule update --remote --merge
-```
 
-**Actualizar solo uno:**
-```bash
-git submodule update --remote --merge .zsh_plugins/zsh-autosuggestions
-```
-
-**Ver en qué commit está cada submodule:**
-```bash
+# Ver estado de cada submodule
 git submodule status
-```
-
-**Trabajar en el config de nvim** (es un repo independiente):
-```bash
-cd ~/.config/nvim   # o ~/dotfiles/.config/nvim, es el mismo archivo via stow
-git add .
-git commit -m "..."
-git push            # pushea a MrUse77/Nvim-config, no a dotfiles
-```
-
-Después de hacer cambios en un submodule, el dotfiles repo detecta que el puntero
-cambió. Para registrarlo:
-```bash
-cd ~/dotfiles
-git add .config/nvim
-git commit -m "nvim: actualizar a último commit"
 ```
 
 ---
@@ -183,11 +170,10 @@ git commit -m "nvim: actualizar a último commit"
 ## Actualizar dotfiles en una nueva máquina
 
 ```bash
-# Clonar
 git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/dotfiles
-
-# Instalar
-cd ~/dotfiles && bash install.sh
+cd ~/dotfiles/cli
+go build -o dots
+./dots install
 ```
 
 ## Sincronizar cambios desde otra máquina
@@ -195,5 +181,5 @@ cd ~/dotfiles && bash install.sh
 ```bash
 cd ~/dotfiles
 git pull
-git submodule update --recursive   # actualiza los submodules al commit que indica el repo
+git submodule update --recursive
 ```

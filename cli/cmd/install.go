@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/MrUse77/dots-cli/pkg/installer"
 	"github.com/charmbracelet/huh"
@@ -85,7 +86,15 @@ var installCmd = &cobra.Command{
 		}
 
 		homeDir, _ := os.UserHomeDir()
-		repoRoot := ".."
+
+		// Resolver la ruta del repo desde la ubicación del binario, no el cwd
+		exe, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error resolviendo path del binario: %v\n", err)
+			return
+		}
+		// El binario vive en <repo>/cli/dots → repo root es dos niveles arriba del binario
+		repoRoot := filepath.Join(filepath.Dir(exe), "..")
 
 		fmt.Println("📦 Inicializando submódulos de Git...")
 		if err := installer.InitSubmodules(repoRoot); err != nil {
@@ -164,16 +173,28 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 }
 
-// copyDir copia un directorio recursivamente
+// copyDir copia un directorio recursivamente, saltando archivos especiales
 func copyDir(src string, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Ignorar la carpeta .git si existe (como en .config/nvim)
+		// Ignorar .git
 		if d.IsDir() && d.Name() == ".git" {
 			return filepath.SkipDir
+		}
+
+		// Ignorar archivos especiales (sockets, devices, pipes)
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+			mode := info.Mode()
+			if mode&os.ModeSocket != 0 || mode&os.ModeDevice != 0 || mode&os.ModeNamedPipe != 0 {
+				return nil // Skipear silenciosamente
+			}
 		}
 
 		relPath, _ := filepath.Rel(src, path)
@@ -187,24 +208,38 @@ func copyDir(src string, dst string) error {
 	})
 }
 
-// backupConflicts renombra a .bak los archivos/carpetas que serían sobreescritos
+// backupConflicts mueve configs conflictivas a una carpeta de respaldo con timestamp
 func backupConflicts(repoConfig, systemConfig string) error {
 	entries, err := os.ReadDir(repoConfig)
 	if err != nil {
 		return err
 	}
+
+	backupDir := ""
+
 	for _, entry := range entries {
 		target := filepath.Join(systemConfig, entry.Name())
-		if _, err := os.Lstat(target); err != nil {
+		info, err := os.Lstat(target)
+		if err != nil {
+			continue // No existe, sin conflicto
+		}
+		// Ignorar symlinks (resto de stow anterior)
+		if info.Mode()&os.ModeSymlink != 0 {
 			continue
 		}
-		if info, _ := os.Lstat(target); info.Mode()&os.ModeSymlink != 0 {
-			continue
+		// Crear la carpeta de backup solo si hay algo para respaldar
+		if backupDir == "" {
+			homeDir, _ := os.UserHomeDir()
+			backupDir = filepath.Join(homeDir, fmt.Sprintf(".config-backup-%s", time.Now().Format("20060102-150405")))
+			if err := os.MkdirAll(backupDir, 0755); err != nil {
+				return fmt.Errorf("error creando carpeta de backup: %w", err)
+			}
+			fmt.Printf("\n📁 Carpeta de respaldo: %s\n", backupDir)
 		}
-		bak := target + ".bak"
-		fmt.Printf("⚠️  Respaldando %s -> %s\n", target, bak)
-		if err := os.Rename(target, bak); err != nil {
-			return err
+		dest := filepath.Join(backupDir, entry.Name())
+		fmt.Printf("⚠️  Respaldando %s\n", entry.Name())
+		if err := os.Rename(target, dest); err != nil {
+			return fmt.Errorf("error moviendo %s: %w", target, err)
 		}
 	}
 	return nil
