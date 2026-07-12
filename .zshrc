@@ -17,14 +17,6 @@ if [[ -z "$CONTAINER_ID" ]]; then
     export QT_STYLE_OVERRIDE=kvantum
 fi
 
-# --- SSH AGENT ---
-# Iniciar ssh-agent automáticamente si no está corriendo
-if ! pgrep -u "$USER" ssh-agent > /dev/null; then
-    ssh-agent -t 1h > "$XDG_RUNTIME_DIR/ssh-agent.env"
-fi
-if [[ ! -f "$SSH_AUTH_SOCK" ]]; then
-    source "$XDG_RUNTIME_DIR/ssh-agent.env" >/dev/null
-fi
 
 # --- DETECCIÓN DE HERRAMIENTAS ---
 
@@ -52,7 +44,10 @@ else
     # Prompt minimalista de respaldo si no hay OhMyPosh
     PS1='[%n@%m %W]\$ '
 fi
-eval "$(direnv hook zsh)"
+
+if (( $+commands[direnv] )); then
+    eval "$(direnv hook zsh)"
+fi
 # --- ALIAS INTELIGENTES ---
 # Solo usamos eza/bat si están instalados, si no, volvemos a los básicos
 if (( $+commands[eza] )); then
@@ -69,16 +64,17 @@ else
 fi
 
 alias grep='grep --color=auto'
-alias icat='kitten icat'
-alias s='kitten ssh'
-
 # --- PLUGINS (Carga Segura) ---
-# --- COMPLETION ---eval "$(direnv hook zsh)"
+# --- COMPLETION ---
 #
-source "$HOME/.zsh_plugins/fzf-tab/fzf-tab.zsh"
-source "$HOME/.zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
-source "$HOME/.zsh_plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-source "$HOME/.zsh_plugins/zsh-history-substring-search/zsh-history-substring-search.zsh"
+for plugin in \
+    "$HOME/.zsh_plugins/fzf-tab/fzf-tab.zsh" \
+    "$HOME/.zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" \
+    "$HOME/.zsh_plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
+    "$HOME/.zsh_plugins/zsh-history-substring-search/zsh-history-substring-search.zsh"
+do
+    [[ -f "$plugin" ]] && source "$plugin"
+done
 
 autoload -Uz compinit
 
@@ -161,4 +157,22 @@ bindkey -M viins '^h' backward-delete-char
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
+# --- SSH Agent (compartido entre terminales) ---
+export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
+if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+    rm -f "$SSH_AUTH_SOCK"
+    ssh-agent -a "$SSH_AUTH_SOCK" > /dev/null
+    ssh-add -t 8h ~/.ssh/id_ed25519 2>/dev/null
+fi
 
+# pnpm
+export PNPM_HOME="/home/agustin/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/agustin/.local/bin:$PATH"

@@ -1,0 +1,17 @@
+/* Definición de variables */
+@define-color bg rgba(17, 17, 27, 0.8);
+@define-color fg rgba(255, 251, 246, 1);
+@define-color cyan #7dcfff;
+@define-color magenta #bb9af7;
+@define-color red #f7768e;
+@define-color green #9ece6a;
+@define-color black #15161e;
+@define-color gray #414868;
+/* --- PALETA TOKYO NIGHT (Definimos variables para ser ordenados) --- */
+@define-color bg_dark #1a1b26; /* Fondo principal (Storm) */
+@define-color bg_module #24283b; /* Fondo de los módulos (Moon) */
+@define-color text_main #c0caf5; /* Texto principal */
+@define-color accent_blue #7aa2f7; /* Azul Tokyo (Workspaces activos) */
+@define-color accent_cyan #7dcfff; /* Cian suave */
+@define-color accent_purple #bb9af7; /* Violeta */
+@define-color urgent_red #f7768e; /* Errores/Batería baja */

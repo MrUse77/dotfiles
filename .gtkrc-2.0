@@ -2,13 +2,13 @@
 # Any customization should be done in ~/.gtkrc-2.0.mine instead.
 
 include "/home/agustin/.gtkrc-2.0.mine"
-gtk-theme-name="TokyoNight-zk"
-gtk-icon-theme-name="TokyoNight-SE"
-gtk-font-name="CaskaydiaMono Nerd Font 10"
+gtk-theme-name="Tokyonight-BL-LB-Dark"
+gtk-icon-theme-name="Tokyonight-Dark"
+gtk-font-name="CaskaydiaMono Nerd Font Mono Bold 10"
 gtk-cursor-theme-name="volantes_cursors"
 gtk-cursor-theme-size=24
-gtk-toolbar-style=3
-gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-toolbar-style=GTK_TOOLBAR_ICONS
+gtk-toolbar-icon-size=GTK_ICON_SIZE_SMALL_TOOLBAR
 gtk-button-images=0
 gtk-menu-images=0
 gtk-enable-event-sounds=0

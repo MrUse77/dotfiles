@@ -1,0 +1,22 @@
+# Usamos la imagen oficial base de Arch Linux
+FROM archlinux:latest
+
+# Actualizamos repositorios e instalamos dependencias críticas para compilar y usar git
+RUN pacman -Syu --noconfirm base-devel git sudo
+
+# Creamos un usuario normal llamado "tester" (El script de install.sh aborta si detecta a root)
+RUN useradd -m -G wheel -s /bin/bash tester
+
+# Le damos permisos de superusuario (sudo) al usuario tester sin pedir contraseña
+RUN echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel
+
+# Cambiamos al nuevo usuario
+USER tester
+WORKDIR /home/tester
+
+# Preparamos el directorio donde vamos a montar el repo en tiempo real
+RUN mkdir -p /home/tester/dotfiles
+WORKDIR /home/tester/dotfiles
+
+# Al iniciar, mostramos instrucciones y abrimos una bash interactiva
+CMD ["/bin/bash", "-c", "echo -e '\\n\\033[0;32m[+] Entorno de Arch Linux aislado listo.\\033[0m\\nPara simular la instalación ejecutá:\\n\\n  bash install.sh\\n'; exec /bin/bash"]
