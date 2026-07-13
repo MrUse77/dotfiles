@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +28,92 @@ func SetupShell() error {
 	return nil
 }
 
+func copyDirectoryContents(source, destination string) error {
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return fmt.Errorf("read directory %q: %w", source, err)
+	}
+	for _, entry := range entries {
+		if err := copyPath(filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyPath(source, destination string) error {
+	if err := rejectDestinationSymlinks(destination); err != nil {
+		return err
+	}
+	info, err := os.Lstat(source)
+	if err != nil {
+		return fmt.Errorf("stat %q: %w", source, err)
+	}
+	if info.IsDir() {
+		if err := os.MkdirAll(destination, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("mkdir %q: %w", destination, err)
+		}
+		entries, err := os.ReadDir(source)
+		if err != nil {
+			return fmt.Errorf("read directory %q: %w", source, err)
+		}
+		for _, entry := range entries {
+			if err := copyPath(filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name())); err != nil {
+				return err
+			}
+		}
+		return os.Chmod(destination, info.Mode().Perm())
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		link, err := os.Readlink(source)
+		if err != nil {
+			return fmt.Errorf("read symlink %q: %w", source, err)
+		}
+		if err := os.Symlink(link, destination); err != nil {
+			return fmt.Errorf("create symlink %q: %w", destination, err)
+		}
+		return nil
+	}
+	input, err := os.Open(source)
+	if err != nil {
+		return fmt.Errorf("open %q: %w", source, err)
+	}
+	defer input.Close()
+	output, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+	if err != nil {
+		return fmt.Errorf("create %q: %w", destination, err)
+	}
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return fmt.Errorf("copy %q: %w", source, copyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close %q: %w", destination, closeErr)
+	}
+	return nil
+}
+
+func rejectDestinationSymlinks(destination string) error {
+	current := filepath.Clean(destination)
+	for {
+		info, err := os.Lstat(current)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing destination symlink %q", current)
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("inspect destination %q: %w", current, err)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return nil
+}
+
 func InstallFontsAndCursors(dotfilesDir string) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -39,7 +126,7 @@ func InstallFontsAndCursors(dotfilesDir string) error {
 		return fmt.Errorf("error creando directorio de fuentes: %w", err)
 	}
 
-	if err := runCommand("sh", "-c", fmt.Sprintf("cp -r %s/* %s/", filepath.Join(dotfilesDir, "assets", "fonts"), fontsDir)); err != nil {
+	if err := copyDirectoryContents(filepath.Join(dotfilesDir, "assets", "fonts"), fontsDir); err != nil {
 		return fmt.Errorf("error copiando fuentes: %w", err)
 	}
 	if err := runCommand("fc-cache", "-f"); err != nil {
@@ -51,7 +138,7 @@ func InstallFontsAndCursors(dotfilesDir string) error {
 	if err := os.MkdirAll(iconsDir, 0755); err != nil {
 		return fmt.Errorf("error creando directorio de iconos: %w", err)
 	}
-	if err := runCommand("sh", "-c", fmt.Sprintf("cp -r %s/* %s/", filepath.Join(dotfilesDir, "assets", "icons"), iconsDir)); err != nil {
+	if err := copyDirectoryContents(filepath.Join(dotfilesDir, "assets", "icons"), iconsDir); err != nil {
 		return fmt.Errorf("error copiando cursores: %w", err)
 	}
 
