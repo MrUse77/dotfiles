@@ -314,7 +314,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### RED — Failing tests first
 
-- [ ] **3.1 RED**: Ownership-aware rollback tests
+- [x] **3.1 RED**: Ownership-aware rollback tests
   - File: `cli/pkg/installer/transaction/rollback_test.go`
   - Mutate target, then externally replace installed content with different file/symlink.
   - Call rollback: assert externally substituted content NOT removed or overwritten.
@@ -322,7 +322,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert rollback of owned file (no external change) restores or removes correctly.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestRollbackOwnership -v` → FAIL
 
-- [ ] **3.2 RED**: Directory swap failure recovery tests
+- [x] **3.2 RED**: Directory swap failure recovery tests
   - File: `cli/pkg/installer/transaction/transaction_test.go`
   - Inject failure at each directory swap boundary:
     - After stage complete, before trash rename: assert stage retained, original untouched.
@@ -331,7 +331,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert inventory records each phase transition.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestDirectorySwapFailure -v` → FAIL
 
-- [ ] **3.3 RED**: Partial recovery reporting tests
+- [x] **3.3 RED**: Partial recovery reporting tests
   - File: `cli/pkg/installer/report/report_test.go`
   - Simulate incomplete rollback: assert report includes `RecoveryState` = incomplete/manual.
   - Assert `RecoveryArtifact` lists destination, backup path, stage path, trash path, inventory path for each affected target.
@@ -339,7 +339,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert complete rollback never claims partial state.
   - Run: `cd cli && go test ./pkg/installer/report/ -run TestPartialRecovery -v` → FAIL
 
-- [ ] **3.4 RED**: Combined rollback + inventory persistence error tests
+- [x] **3.4 RED**: Combined rollback + inventory persistence error tests
   - File: `cli/pkg/installer/transaction/rollback_test.go`
   - Inject rollback failure AND inventory persistence failure simultaneously.
   - Assert returned error aggregates both via `errors.Join`.
@@ -349,7 +349,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### GREEN — Minimum production code to pass
 
-- [ ] **3.5 GREEN**: Implement swap phase recording in inventory
+- [x] **3.5 GREEN**: Implement swap phase recording in inventory
   - File: `cli/pkg/installer/transaction/inventory.go`, `transaction/transaction.go`
   - Before each irreversible directory swap action, persist inventory with entry state transition:
     - `staged`: stage path complete and retained.
@@ -358,7 +358,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Use atomic inventory writer from PR 2.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestDirectorySwapFailure -v` → PASS
 
-- [ ] **3.6 GREEN**: Implement directory swap with artifact preservation on failure
+- [x] **3.6 GREEN**: Implement directory swap with artifact preservation on failure
   - File: `cli/pkg/installer/transaction/transaction.go`
   - Directory swap ordering:
     1. Stage complete → persist `staged`.
@@ -370,7 +370,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - No best-effort cleanup removes retained recovery artifacts.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestDirectorySwapFailure -v` → PASS
 
-- [ ] **3.7 GREEN**: Implement ownership-aware rollback
+- [x] **3.7 GREEN**: Implement ownership-aware rollback
   - File: `cli/pkg/installer/transaction/transaction.go`
   - Process mutated entries in reverse order.
   - Before changing destination: read it without following symlinks (`SafeFS`), compare to entry's recorded `InstalledIdentity`, digest, link value, and type.
@@ -380,7 +380,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Persist inventory after every material state transition.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestRollbackOwnership -v` → PASS
 
-- [ ] **3.8 GREEN**: Implement RecoveryState, RecoveryArtifact, partial recovery in report
+- [x] **3.8 GREEN**: Implement RecoveryState, RecoveryArtifact, partial recovery in report
   - File: `cli/pkg/installer/report/report.go`
   - Add `RecoveryState` type: `complete`, `incomplete`, `manual-recovery-required`.
   - Add `RecoveryArtifact` struct: destination, backup path, stage path, trash path, inventory path.
@@ -403,7 +403,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert other targets still rolled back; failed target's artifacts retained; report lists both succeeded and failed targets.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestRollbackContinuation -v` → PASS
 
-- [ ] **3.11 TRIANGULATE**: Symlink rollback ownership
+- [x] **3.11 TRIANGULATE**: Symlink rollback ownership
   - File: `cli/pkg/installer/transaction/rollback_test.go`
   - Install symlink target, then externally replace with different symlink (different link value).
   - Assert rollback does not overwrite; marks ownership-ambiguous; retains artifacts.

@@ -247,6 +247,91 @@ func TestTransaction_Rollback_ContinuesAfterRestoreFailure(t *testing.T) {
 	}
 }
 
+func TestRollbackCombinedRestoreAndInventoryPersistenceFailures(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	source, destination := filepath.Join(repo, "source"), filepath.Join(home, "destination")
+	mustWriteFile(t, source, []byte("installed"))
+	mustWriteFile(t, destination, []byte("original"))
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+
+	tx := New(p, WithFilesystem(&hookFS{
+		Filesystem: OSFilesystem(),
+		failOpen:   map[string]error{p.ManagedTargets()[0].BackupPath: errors.New("restore denied")},
+	}))
+	if err := tx.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	persistErr := errors.New("inventory persistence denied")
+	inventoryPersistFailure = func(*Inventory) error { return persistErr }
+	t.Cleanup(func() { inventoryPersistFailure = nil })
+
+	err := tx.Rollback()
+	if !errors.Is(err, persistErr) {
+		t.Fatalf("Rollback() error = %v, does not include persistence failure", err)
+	}
+	var rollbackErr *report.RollbackError
+	if !errors.As(err, &rollbackErr) || len(rollbackErr.Failures) != 1 {
+		t.Fatalf("Rollback() error = %v, want one restoration failure", err)
+	}
+	if got := tx.Inventory().Lifecycle; got != InventoryRecoveryIncomplete {
+		t.Errorf("lifecycle = %q, want %q", got, InventoryRecoveryIncomplete)
+	}
+	entry := entryFor(t, tx.Inventory(), destination)
+	if entry.Status != report.TargetFailed || entry.Error == nil {
+		t.Errorf("outcome = status %q, error %v; want failed restoration outcome", entry.Status, entry.Error)
+	}
+	if _, statErr := os.Lstat(entry.BackupPath); statErr != nil {
+		t.Errorf("backup not retained: %v", statErr)
+	}
+	rpt := tx.buildReport(err)
+	if rpt.RecoveryState != report.RecoveryManualRecoveryRequired || len(rpt.RecoveryArtifacts) != 1 {
+		t.Errorf("recovery report = state %q artifacts %+v", rpt.RecoveryState, rpt.RecoveryArtifacts)
+	}
+}
+
+func TestRollbackSymlinkOwnershipPreservesExternalReplacement(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	source, destination := filepath.Join(repo, "source"), filepath.Join(home, "destination")
+	if err := os.Symlink("installed", source); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("original", destination); err != nil {
+		t.Fatal(err)
+	}
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.Symlink}})
+	tx := New(p)
+	if err := tx.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(destination); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("external", destination); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tx.Rollback(); err == nil {
+		t.Fatal("Rollback() succeeded after external symlink replacement")
+	}
+	if got, err := os.Readlink(destination); err != nil || got != "external" {
+		t.Errorf("destination link = %q, %v; want external", got, err)
+	}
+	entry := entryFor(t, tx.Inventory(), destination)
+	if entry.State != EntryOwnershipAmbiguous {
+		t.Errorf("state = %q, want ownership-ambiguous", entry.State)
+	}
+	if _, err := os.Lstat(entry.BackupPath); err != nil {
+		t.Errorf("backup not retained: %v", err)
+	}
+}
+
 func TestTransaction_Rollback_BackupsRetainedAfterSuccess(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()

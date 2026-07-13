@@ -165,6 +165,19 @@ func (t *Transaction) Rollback() error {
 		tgt := t.mutated[i]
 		entry := t.inventoryEntry(tgt.Destination)
 
+		if entry == nil || !t.ownsInstalledTarget(entry) {
+			failures = append(failures, report.TargetOutcome{Destination: tgt.Destination, Status: report.TargetFailed, BackupPath: tgt.BackupPath, Error: errors.New("installed target ownership is ambiguous")})
+			if entry != nil {
+				entry.Status = report.TargetFailed
+				entry.State = EntryOwnershipAmbiguous
+				entry.Error = failures[len(failures)-1].Error
+			}
+			if err := persistInventory(t.fs, t.inventory); err != nil {
+				persistFailures = append(persistFailures, err)
+			}
+			continue
+		}
+
 		if tgt.PreState.Type == plan.StateAbsent {
 			if err := t.fs.RemoveAll(tgt.Destination); err != nil {
 				failures = append(failures, report.TargetOutcome{
@@ -213,7 +226,7 @@ func (t *Transaction) Rollback() error {
 		}
 	}
 
-	if len(failures) > 0 {
+	if len(failures) > 0 || len(persistFailures) > 0 {
 		t.inventory.Lifecycle = InventoryRecoveryIncomplete
 	} else {
 		t.inventory.Lifecycle = InventoryRolledBack
@@ -629,6 +642,17 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 		return entry.Error
 	}
 
+	installed, err := t.reader.Read(tgt.Destination)
+	if err != nil {
+		return fmt.Errorf("read installed target identity: %w", err)
+	}
+	entry.InstalledDigest = installed.Digest
+	entry.InstalledMode = installed.Mode
+	if info, err := os.Lstat(tgt.Destination); err == nil {
+		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			entry.InstalledIdentity = fmt.Sprintf("%d:%d", stat.Dev, stat.Ino)
+		}
+	}
 	entry.Status = report.TargetMutated
 	entry.State = EntryMutated
 	return nil
@@ -838,6 +862,19 @@ func unixMode(mode os.FileMode) uint32 {
 	return result
 }
 
+func (t *Transaction) ownsInstalledTarget(entry *InventoryEntry) bool {
+	actual, err := t.reader.Read(entry.Target.Destination)
+	if err != nil || actual.Digest != entry.InstalledDigest || actual.Mode != entry.InstalledMode {
+		return false
+	}
+	info, err := os.Lstat(entry.Target.Destination)
+	if err != nil {
+		return false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && entry.InstalledIdentity == fmt.Sprintf("%d:%d", stat.Dev, stat.Ino)
+}
+
 func (t *Transaction) restoreFromBackup(tgt plan.Target) error {
 	parent := filepath.Dir(tgt.Destination)
 	base := filepath.Base(tgt.Destination)
@@ -1040,18 +1077,54 @@ func (t *Transaction) commitTree(tgt plan.Target, boundSource *os.File, parent, 
 	}
 
 	if tgt.PreState.Type != plan.StateAbsent {
+		entry := t.inventoryEntry(tgt.Destination)
 		trashPath := tmpDir + ".dots-trash"
+		if entry != nil {
+			entry.StagePath, entry.TrashPath, entry.State = tmpDir, trashPath, EntryStaged
+			if err := persistInventory(t.fs, t.inventory); err != nil {
+				return err
+			}
+		}
 		if err := t.fs.Rename(tgt.Destination, trashPath); err != nil {
-			_ = t.fs.RemoveAll(tmpDir)
 			return fmt.Errorf("relocate original directory: %w", err)
 		}
+		// The destination is now absent and its original is only recoverable at
+		// TrashPath. Include it in rollback before the checkpoint can fail.
+		t.mutated = append(t.mutated, tgt)
+		if entry != nil {
+			entry.State = EntryOriginalRelocated
+			if err := persistInventory(t.fs, t.inventory); err != nil {
+				return err
+			}
+		}
 		if err := t.fs.Rename(tmpDir, tgt.Destination); err != nil {
-			_ = t.fs.Rename(trashPath, tgt.Destination)
+			if restoreErr := t.fs.Rename(trashPath, tgt.Destination); restoreErr != nil {
+				if entry != nil {
+					entry.State = EntryFailed
+					entry.Error = errors.Join(err, restoreErr)
+				}
+				t.inventory.Lifecycle = InventoryRecoveryIncomplete
+				_ = persistInventory(t.fs, t.inventory)
+				return fmt.Errorf("commit directory: %w", errors.Join(err, restoreErr))
+			}
+			if entry != nil {
+				entry.State = EntryFailed
+				entry.Error = err
+				_ = persistInventory(t.fs, t.inventory)
+			}
+			// The original is active again, so the staged replacement has no recovery value.
 			_ = t.fs.RemoveAll(tmpDir)
+			if entry != nil {
+				entry.StagePath = ""
+			}
 			return fmt.Errorf("commit directory: %w", err)
 		}
-		t.mutated = append(t.mutated, tgt)
-		// Best-effort cleanup of the original tree. The retained backup remains.
+		if entry != nil {
+			entry.State = EntryMutated
+			if err := persistInventory(t.fs, t.inventory); err != nil {
+				return err
+			}
+		}
 		_ = t.fs.RemoveAll(trashPath)
 	} else {
 		if err := t.fs.Rename(tmpDir, tgt.Destination); err != nil {
@@ -1424,8 +1497,19 @@ func (t *Transaction) buildReport(cause error) *report.ExecutionReport {
 	if t.inventory == nil {
 		return rpt
 	}
+	if t.inventory.Lifecycle == InventoryRecoveryIncomplete {
+		rpt.RecoveryState = report.RecoveryManualRecoveryRequired
+		rpt.RecoveryNextAction = report.ManualRecoveryNextAction
+	} else if t.inventory.Lifecycle == InventoryRolledBack {
+		rpt.RecoveryState = report.RecoveryComplete
+	}
 	for i := range t.inventory.Entries {
 		e := &t.inventory.Entries[i]
+		if e.State == EntryOwnershipAmbiguous || e.State == EntryFailed || e.StagePath != "" || e.TrashPath != "" {
+			rpt.RecoveryArtifacts = append(rpt.RecoveryArtifacts, report.RecoveryArtifact{
+				Destination: e.Target.Destination, BackupPath: e.BackupPath, StagePath: e.StagePath, TrashPath: e.TrashPath, InventoryPath: t.inventory.Path,
+			})
+		}
 		rpt.ManagedTargets = append(rpt.ManagedTargets, report.TargetOutcome{
 			Destination: e.Target.Destination,
 			Status:      e.Status,
