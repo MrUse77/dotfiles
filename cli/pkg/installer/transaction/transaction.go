@@ -90,7 +90,7 @@ func (t *Transaction) Prepare() error {
 			entry.Error = &report.BackupError{Target: tgt, Cause: fmt.Errorf("backup root: %w", err)}
 			inv.Entries = append(inv.Entries, entry)
 			if persistErr := persistInventory(t.fs, inv); persistErr != nil {
-				return errors.Join(entry.Error, persistErr)
+				return joinErrors(entry.Error, persistErr)
 			}
 			return entry.Error
 		}
@@ -110,7 +110,7 @@ func (t *Transaction) Prepare() error {
 			entry.Error = &report.BackupError{Target: tgt, Cause: fmt.Errorf("backup collision at %q", tgt.BackupPath)}
 			inv.Entries = append(inv.Entries, entry)
 			if persistErr := persistInventory(t.fs, inv); persistErr != nil {
-				return errors.Join(entry.Error, persistErr)
+				return joinErrors(entry.Error, persistErr)
 			}
 			return entry.Error
 		}
@@ -1472,6 +1472,12 @@ func tempSibling(fs Filesystem, parent, base string) (string, error) {
 		}
 	}
 	return "", errors.New("could not allocate unique staging name")
+}
+
+// joinErrors joins operation and persistence errors for reporting both
+// failures at the call site.
+func joinErrors(errs ...error) error {
+	return errors.Join(errs...)
 }
 
 func preStatesEqual(a, b plan.PreState) bool {
