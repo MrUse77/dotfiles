@@ -1,8 +1,8 @@
 change: safe-dotfiles-installer
 schema: spec-driven
 artifact_store: openspec
-status: planned
-current_phase: tasks
+status: active
+current_phase: apply
 artifacts:
   proposal:
     path: openspec/changes/safe-dotfiles-installer/proposal.md
@@ -26,8 +26,8 @@ artifacts:
 next_recommended: apply
 scope:
   component: cli/
-  product_code_modified: false
-updated: 2026-07-12
+  product_code_modified: true
+updated: 2026-07-13
 review_workload:
   estimated_changed_lines: "1400-2100"
   budget_risk: high

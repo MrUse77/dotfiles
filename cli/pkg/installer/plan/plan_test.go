@@ -561,6 +561,15 @@ func TestBuildPlan_BindsSourceContentAndResolvedIdentity(t *testing.T) {
 	if tgt.SourceDigest == "" {
 		t.Error("SourceDigest is empty")
 	}
+	if tgt.SourceBinding.PathIdentity.Inode == 0 {
+		t.Error("SourceBinding.PathIdentity is empty for declared symlink")
+	}
+	if tgt.SourceBinding.LinkValue != realFile {
+		t.Errorf("SourceBinding.LinkValue = %q, want %q", tgt.SourceBinding.LinkValue, realFile)
+	}
+	if tgt.SourceBinding.LinkDigest == "" {
+		t.Error("SourceBinding.LinkDigest is empty for declared symlink")
+	}
 
 	// A content change after planning must change the fingerprint, proving the
 	// reviewed plan is bound to source content and enables execution-drift checks.
@@ -685,6 +694,224 @@ func TestBuildPlan_DoesNotCreateOrRemoveBackupRoot(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Error("planning removed existing backup content")
+	}
+}
+
+func TestSourceBinding_PlannerBindsFileIdentityAndFingerprint(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("reviewed"))
+
+	build := func() InstallationPlan {
+		t.Helper()
+		p, err := New(WithDiscoverer(&fakeDiscoverer{targets: []Target{{
+			Source: source, Destination: filepath.Join(home, "destination"), Kind: CopyFile,
+		}}})).Build(repo, home, Options{})
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
+		return p
+	}
+
+	first := build()
+	target := first.ManagedTargets()[0]
+	if target.SourceBinding.Kind != "file" || target.SourceBinding.Digest == "" || target.SourceBinding.Identity.Inode == 0 {
+		t.Fatalf("SourceBinding = %#v, want bound file identity and digest", target.SourceBinding)
+	}
+	if target.SourceDigest != target.SourceBinding.Digest {
+		t.Errorf("SourceDigest = %q, want binding digest %q", target.SourceDigest, target.SourceBinding.Digest)
+	}
+
+	if err := os.Chmod(source, 0o755); err != nil {
+		t.Fatalf("chmod source: %v", err)
+	}
+	second := build()
+	if second.Fingerprint == first.Fingerprint {
+		t.Error("fingerprint did not include source binding mode")
+	}
+}
+
+func TestSourceBinding_RecordsRootSourceMode(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	for _, tt := range []struct {
+		name string
+		kind MutationKind
+		mode os.FileMode
+		setup func(string)
+	}{
+		{
+			name: "file",
+			kind: CopyFile,
+			mode: os.FileMode(0o755) | os.ModeSetuid,
+			setup: func(source string) { mustWriteFile(t, source, []byte("content")) },
+		},
+		{
+			name: "directory",
+			kind: CopyTree,
+			mode: os.FileMode(0o755) | os.ModeSticky,
+			setup: func(source string) { mustMkdirAll(t, source) },
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			source := filepath.Join(repo, tt.name)
+			tt.setup(source)
+			if err := os.Chmod(source, tt.mode); err != nil {
+				t.Fatalf("chmod source: %v", err)
+			}
+
+			p, err := New(WithDiscoverer(&fakeDiscoverer{targets: []Target{{
+				Source: source, Destination: filepath.Join(home, tt.name), Kind: tt.kind,
+			}}})).Build(repo, home, Options{})
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
+
+			if got := p.ManagedTargets()[0].SourceBinding.Mode; got != tt.mode {
+				t.Errorf("SourceBinding.Mode = %#o, want %#o", got, tt.mode)
+			}
+		})
+	}
+}
+
+func TestSourceBinding_DirectoryTreeManifest(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	srcDir := filepath.Join(repo, "config")
+	mustMkdirAll(t, filepath.Join(srcDir, "sub"))
+	mustWriteFile(t, filepath.Join(srcDir, "file.txt"), []byte("hello"))
+	mustWriteFile(t, filepath.Join(srcDir, "sub", "nested"), []byte("world"))
+	if err := os.Symlink("file.txt", filepath.Join(srcDir, "link")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	p, err := New(WithDiscoverer(&fakeDiscoverer{targets: []Target{{
+		Source: srcDir, Destination: filepath.Join(home, ".config"), Kind: CopyTree,
+	}}})).Build(repo, home, Options{})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
+	target := p.ManagedTargets()[0]
+	if target.SourceBinding.Kind != "directory" {
+		t.Fatalf("SourceBinding.Kind = %q, want directory", target.SourceBinding.Kind)
+	}
+	if len(target.SourceBinding.TreeManifest) == 0 {
+		t.Fatal("TreeManifest is empty")
+	}
+
+	byPath := make(map[string]TreeManifestEntry)
+	for _, e := range target.SourceBinding.TreeManifest {
+		byPath[e.RelativePath] = e
+	}
+
+	if e, ok := byPath["file.txt"]; !ok || e.Kind != "file" || e.Digest == "" || e.Identity.Inode == 0 {
+		t.Errorf("file.txt entry = %#v, want bound file with digest and identity", e)
+	}
+	if e, ok := byPath["sub"]; !ok || e.Kind != "directory" || e.Identity.Inode == 0 {
+		t.Errorf("sub entry = %#v, want bound directory with identity", e)
+	}
+	if e, ok := byPath["sub/nested"]; !ok || e.Kind != "file" {
+		t.Errorf("sub/nested entry = %#v, want bound file", e)
+	}
+	if e, ok := byPath["link"]; !ok || e.Kind != "symlink" || e.LinkValue != "file.txt" || e.Digest == "" {
+		t.Errorf("link entry = %#v, want bound symlink", e)
+	}
+}
+
+func TestSourceBinding_RetriesSymlinkSubstitutionWithoutMixedBinding(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	first := filepath.Join(repo, "first")
+	second := filepath.Join(repo, "second")
+	mustWriteFile(t, first, []byte("first"))
+	mustWriteFile(t, second, []byte("second"))
+	source := filepath.Join(repo, "source")
+	if err := os.Symlink(first, source); err != nil {
+		t.Fatalf("symlink source: %v", err)
+	}
+
+	calls := 0
+	sourceBindingCaptureHook = func() {
+		calls++
+		if calls != 1 {
+			return
+		}
+		if err := os.Remove(source); err != nil {
+			t.Fatalf("remove source: %v", err)
+		}
+		if err := os.Symlink(second, source); err != nil {
+			t.Fatalf("replace source: %v", err)
+		}
+	}
+	defer func() { sourceBindingCaptureHook = nil }()
+
+	p, err := New(WithDiscoverer(&fakeDiscoverer{targets: []Target{{
+		Source: source, Destination: filepath.Join(home, "destination"), Kind: CopyFile,
+	}}})).Build(repo, home, Options{})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	binding := p.ManagedTargets()[0].SourceBinding
+	if calls < 2 {
+		t.Fatalf("capture calls = %d, want retry", calls)
+	}
+	if binding.LinkValue != second {
+		t.Errorf("LinkValue = %q, want coherent replacement link %q", binding.LinkValue, second)
+	}
+	wantDigest, err := SourceDigestForPath(second)
+	if err != nil {
+		t.Fatalf("SourceDigestForPath(second): %v", err)
+	}
+	if binding.Digest != wantDigest {
+		t.Errorf("Digest = %q, want digest of coherent replacement %q", binding.Digest, wantDigest)
+	}
+	if binding.PathIdentity == binding.Identity {
+		t.Error("declared symlink identity unexpectedly matches resolved file identity")
+	}
+}
+
+func TestSourceBinding_RejectsPersistentSymlinkSubstitution(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	first := filepath.Join(repo, "first")
+	second := filepath.Join(repo, "second")
+	mustWriteFile(t, first, []byte("first"))
+	mustWriteFile(t, second, []byte("second"))
+	source := filepath.Join(repo, "source")
+	if err := os.Symlink(first, source); err != nil {
+		t.Fatalf("symlink source: %v", err)
+	}
+
+	current := first
+	calls := 0
+	sourceBindingCaptureHook = func() {
+		calls++
+		if current == first {
+			current = second
+		} else {
+			current = first
+		}
+		if err := os.Remove(source); err != nil {
+			t.Fatalf("remove source: %v", err)
+		}
+		if err := os.Symlink(current, source); err != nil {
+			t.Fatalf("replace source: %v", err)
+		}
+	}
+	defer func() { sourceBindingCaptureHook = nil }()
+
+	_, err := New(WithDiscoverer(&fakeDiscoverer{targets: []Target{{
+		Source: source, Destination: filepath.Join(home, "destination"), Kind: CopyFile,
+	}}})).Build(repo, home, Options{})
+	var drift *SourceBindingDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("Build() error = %v, want SourceBindingDriftError", err)
+	}
+	if calls != sourceBindingCaptureAttempts {
+		t.Errorf("capture calls = %d, want bounded attempts %d", calls, sourceBindingCaptureAttempts)
 	}
 }
 

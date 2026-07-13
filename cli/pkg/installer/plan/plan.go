@@ -61,11 +61,15 @@ type ExternalAction struct {
 type Target struct {
 	Source         string
 	ResolvedSource string
-	SourceDigest   string
-	Destination    string
-	Kind           MutationKind
-	PreState       PreState
-	BackupPath     string
+	// SourceDigest is empty only for legacy direct Target construction. Planner-built
+	// targets always set it and SourceBinding; an empty value never disables binding
+	// validation for other targets in the same plan.
+	SourceDigest  string
+	SourceBinding SourceBinding
+	Destination   string
+	Kind          MutationKind
+	PreState      PreState
+	BackupPath    string
 }
 
 // Options are the user-selected installation options.
@@ -84,6 +88,18 @@ type InstallationPlan struct {
 
 	managedTargets  []Target
 	externalActions []ExternalAction
+}
+
+// NewInstallationPlan constructs a plan from internal direct targets. Targets with
+// an empty SourceDigest retain legacy unbound execution semantics.
+func NewInstallationPlan(runID string, targets []Target) (InstallationPlan, error) {
+	p := InstallationPlan{RunID: runID, managedTargets: cloneTargets(targets)}
+	fp, err := fingerprint(&p)
+	if err != nil {
+		return InstallationPlan{}, &FingerprintError{Cause: err}
+	}
+	p.Fingerprint = fp
+	return p, nil
 }
 
 // ManagedTargets returns a deep copy of the plan's managed targets.
@@ -206,13 +222,24 @@ func cloneTargets(ts []Target) []Target {
 	return out
 }
 
+// SourceDigestForPath returns the content digest for a regular file or directory.
+func SourceDigestForPath(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() && !info.IsDir() {
+		return "", fmt.Errorf("source %q is not a regular file or directory", path)
+	}
+	return sourceDigest(path, info)
+}
+
 func sourceDigest(path string, info os.FileInfo) (string, error) {
 	if info.IsDir() {
 		return directoryDigest(path)
 	}
 	return fileDigest(path)
 }
-
 func cloneActions(as []ExternalAction) []ExternalAction {
 	out := make([]ExternalAction, len(as))
 	for i, a := range as {
@@ -243,6 +270,7 @@ func fingerprint(plan *InstallationPlan) (string, error) {
 			Source:         t.Source,
 			ResolvedSource: t.ResolvedSource,
 			SourceDigest:   t.SourceDigest,
+			SourceBinding:  t.SourceBinding,
 			Destination:    t.Destination,
 			Kind:           string(t.Kind),
 			PreState: canonicalPreState{
@@ -310,6 +338,7 @@ type canonicalTarget struct {
 	Source         string            `json:"source"`
 	ResolvedSource string            `json:"resolved_source"`
 	SourceDigest   string            `json:"source_digest"`
+	SourceBinding  SourceBinding     `json:"source_binding"`
 	Destination    string            `json:"destination"`
 	Kind           string            `json:"kind"`
 	PreState       canonicalPreState `json:"pre_state"`
