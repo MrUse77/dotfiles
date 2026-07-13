@@ -43,14 +43,38 @@ type ActionOutcome struct {
 	Error       error
 }
 
+// RecoveryState describes whether automatic rollback left safe recovery work.
+type RecoveryState string
+
+const (
+	RecoveryComplete               RecoveryState = "complete"
+	RecoveryIncomplete             RecoveryState = "incomplete"
+	RecoveryManualRecoveryRequired RecoveryState = "manual-recovery-required"
+)
+
+// RecoveryArtifact names every retained path needed for manual recovery.
+type RecoveryArtifact struct {
+	Destination   string
+	BackupPath    string
+	StagePath     string
+	TrashPath     string
+	InventoryPath string
+}
+
+// ManualRecoveryNextAction is deliberately conservative: ambiguous paths are not safe to overwrite.
+const ManualRecoveryNextAction = "inspect named inventory and retained artifacts; do not delete or overwrite ambiguous paths"
+
 // ExecutionReport is the immutable, typed result of an installation attempt.
 type ExecutionReport struct {
-	Fingerprint      string
-	ManagedTargets   []TargetOutcome
-	ExternalActions  []ActionOutcome
-	BackupPaths      []string
-	PrimaryCause     error
-	RollbackFailures []TargetOutcome
+	Fingerprint        string
+	ManagedTargets     []TargetOutcome
+	ExternalActions    []ActionOutcome
+	BackupPaths        []string
+	PrimaryCause       error
+	RollbackFailures   []TargetOutcome
+	RecoveryState      RecoveryState
+	RecoveryArtifacts  []RecoveryArtifact
+	RecoveryNextAction string
 }
 
 // PlanError represents a failure during the planning phase.

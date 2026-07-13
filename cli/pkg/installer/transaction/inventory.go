@@ -91,9 +91,17 @@ var inventoryBeforeRename func()
 // inventoryBeforeWrite is a test seam for observing durable lifecycle snapshots.
 var inventoryBeforeWrite func(*Inventory)
 
+// inventoryPersistFailure is a test seam for persistence failure recovery tests.
+var inventoryPersistFailure func(*Inventory) error
+
 // persistInventory writes beside the first target's backup. The final filename is
 // authoritative only after the atomic replacement completes.
 func persistInventory(fs Filesystem, inv *Inventory) error {
+	if inventoryPersistFailure != nil {
+		if err := inventoryPersistFailure(inv); err != nil {
+			return err
+		}
+	}
 	if len(inv.Entries) == 0 {
 		return nil
 	}

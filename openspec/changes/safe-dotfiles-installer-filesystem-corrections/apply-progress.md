@@ -11,3 +11,16 @@ Complete.
 - Judgment Day remediation: after backup validation, a durable `backed-up` inventory checkpoint is written before mutation. The lifecycle regression reads the checkpoint on disk and confirms the original destination remains unchanged.
 - Judgment Day remediation: descriptor-relative backup fsync ordering now flushes each regular file after metadata, each completed directory, and the backup root after its entry changes. Failure injection at every required sync proves no `backed-up` checkpoint or destination mutation proceeds.
 - Verification: `cd cli && go test ./pkg/installer/transaction -run TestTransaction_Commit_BackupSyncFailurePreventsCheckpointAndMutation -count=1 && go test ./... -count=1 && go vet ./... && go build ./...`; `git diff --check` passed.
+
+## PR 3 — Recoverable Swaps and Ownership-Aware Rollback
+
+In progress.
+
+- RED evidence: `go test ./pkg/installer/transaction -run 'Test(RollbackOwnership|DirectorySwapFailure)' -count=1 -v` failed before implementation because rollback overwrote an externally replaced target and swap paths were not retained.
+- GREEN: installed digest, mode, and device/inode identity are recorded after commit; rollback refuses ambiguous live destinations, retains recovery artifacts, and persists `ownership-ambiguous`.
+- GREEN: directory replacement persists `staged` and `original-relocated` before renames. An unrecoverable final swap failure retains stage, trash, backup, and inventory and marks recovery incomplete.
+- GREEN: execution reports now expose recovery state, exact retained artifact paths, and the conservative manual-recovery instruction.
+- Focused verification: `cd cli && go test ./pkg/installer/transaction ./pkg/installer/report -count=1` passed.
+- Full verification: `cd cli && go test ./... -count=1 && go vet ./... && go build ./...`; `git diff --check` passed.
+- Judgment Day correction: combined restoration and inventory-persistence failure is now injected together; the returned joined error retains both causes, the failed target outcome and recovery artifacts remain reportable, and lifecycle becomes `recovery-incomplete`.
+- Judgment Day correction: an external replacement of an installed symlink is conservatively preserved during rollback; the entry becomes `ownership-ambiguous` and its backup is retained.
