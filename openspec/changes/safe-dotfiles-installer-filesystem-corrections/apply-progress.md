@@ -14,7 +14,7 @@ Complete.
 
 ## PR 3 — Recoverable Swaps and Ownership-Aware Rollback
 
-In progress.
+Complete.
 
 - RED evidence: `go test ./pkg/installer/transaction -run 'Test(RollbackOwnership|DirectorySwapFailure)' -count=1 -v` failed before implementation because rollback overwrote an externally replaced target and swap paths were not retained.
 - GREEN: installed digest, mode, and device/inode identity are recorded after commit; rollback refuses ambiguous live destinations, retains recovery artifacts, and persists `ownership-ambiguous`.
@@ -24,3 +24,7 @@ In progress.
 - Full verification: `cd cli && go test ./... -count=1 && go vet ./... && go build ./...`; `git diff --check` passed.
 - Judgment Day correction: combined restoration and inventory-persistence failure is now injected together; the returned joined error retains both causes, the failed target outcome and recovery artifacts remain reportable, and lifecycle becomes `recovery-incomplete`.
 - Judgment Day correction: an external replacement of an installed symlink is conservatively preserved during rollback; the entry becomes `ownership-ambiguous` and its backup is retained.
+- TRIANGULATE 3.9: `TestTransaction_Rollback_ReverseOrder` validates rollback processes targets in reverse mutation order.
+- TRIANGULATE 3.10: `TestTransaction_Rollback_ContinuesAfterRestoreFailure` validates rollback continues after individual failures, retaining failed target artifacts.
+- REFACTOR 3.12: Extracted `recordRollbackFailure` helper to consolidate repetitive failure-recording and inventory-persistence pattern in `Rollback()`. The helper separates operation failures (RollbackError) from persistence failures (`errors.Join`).
+- REFACTOR 3.13: Added per-value doc comments for `InventoryLifecycle` (state machine transitions) and `InventoryEntryState` (normal/failure flows). Added detailed doc for `RecoveryState`, `RecoveryArtifact`, and `ManualRecoveryNextAction` in `report`.

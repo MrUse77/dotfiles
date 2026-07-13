@@ -15,7 +15,7 @@ var themeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		themeName := args[0]
 		fmt.Printf("🔧 Cargando tema '%s' (Dummy)...\n", themeName)
-		
+
 		// Dummy Dracula theme con rutas a archivos fijos
 		dracula := theme.Theme{
 			Name:      "Dracula",
@@ -34,17 +34,17 @@ var themeCmd = &cobra.Command{
 		if err := theme.ApplyHyprpaper(dracula.Wallpaper); err != nil {
 			fmt.Fprintf(os.Stderr, "Error applying Hyprpaper wallpaper: %v\n", err)
 		}
-		
+
 		fmt.Printf("📊 Aplicando tema '%s' a Waybar...\n", themeName)
 		if err := theme.ApplyWaybar(dracula.Waybar); err != nil {
 			fmt.Fprintf(os.Stderr, "Error applying Waybar theme: %v\n", err)
 		}
-		
+
 		fmt.Printf("📁 Aplicando tema '%s' a Yazi...\n", themeName)
 		if err := theme.ApplyYazi(dracula.Yazi); err != nil {
 			fmt.Fprintf(os.Stderr, "Error applying Yazi theme: %v\n", err)
 		}
-		
+
 		fmt.Println("✅ ¡Paso 1 completado!")
 	},
 }

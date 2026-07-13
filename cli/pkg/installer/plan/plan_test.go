@@ -737,21 +737,21 @@ func TestSourceBinding_RecordsRootSourceMode(t *testing.T) {
 	home := t.TempDir()
 
 	for _, tt := range []struct {
-		name string
-		kind MutationKind
-		mode os.FileMode
+		name  string
+		kind  MutationKind
+		mode  os.FileMode
 		setup func(string)
 	}{
 		{
-			name: "file",
-			kind: CopyFile,
-			mode: os.FileMode(0o755) | os.ModeSetuid,
+			name:  "file",
+			kind:  CopyFile,
+			mode:  os.FileMode(0o755) | os.ModeSetuid,
 			setup: func(source string) { mustWriteFile(t, source, []byte("content")) },
 		},
 		{
-			name: "directory",
-			kind: CopyTree,
-			mode: os.FileMode(0o755) | os.ModeSticky,
+			name:  "directory",
+			kind:  CopyTree,
+			mode:  os.FileMode(0o755) | os.ModeSticky,
 			setup: func(source string) { mustMkdirAll(t, source) },
 		},
 	} {

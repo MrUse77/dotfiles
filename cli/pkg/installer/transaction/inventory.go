@@ -18,32 +18,90 @@ import (
 // InventoryFormatVersion is the first additive-only on-disk inventory schema.
 const InventoryFormatVersion = 1
 
-// InventoryLifecycle describes the durable transaction lifecycle.
+// InventoryLifecycle describes a durable inventory's state machine.
+//
+// Normal flow:
+//
+//	prepared → committing → completed
+//
+// Failure flows:
+//
+//	committing → commit-failed → rolling-back → rolled-back (all restored)
+//	committing → commit-failed → rolling-back → recovery-incomplete (partial restore)
+//
+// Recovery-incomplete means one or more targets could not be restored. The
+// retained inventory, backups, stage paths, and trash paths must be inspected
+// manually before any automatic mutation of those paths is safe.
 type InventoryLifecycle string
 
 const (
-	InventoryPrepared           InventoryLifecycle = "prepared"
-	InventoryCommitting         InventoryLifecycle = "committing"
-	InventoryCommitFailed       InventoryLifecycle = "commit-failed"
-	InventoryRollingBack        InventoryLifecycle = "rolling-back"
-	InventoryRolledBack         InventoryLifecycle = "rolled-back"
+	// InventoryPrepared marks a fresh inventory before any destination mutation.
+	InventoryPrepared InventoryLifecycle = "prepared"
+
+	// InventoryCommitting marks the inventory while targets are being mutated.
+	InventoryCommitting InventoryLifecycle = "committing"
+
+	// InventoryCommitFailed marks completion of commit with one or more target failures.
+	InventoryCommitFailed InventoryLifecycle = "commit-failed"
+
+	// InventoryRollingBack marks the inventory during automatic rollback.
+	InventoryRollingBack InventoryLifecycle = "rolling-back"
+
+	// InventoryRolledBack marks that rollback completed all target restorations.
+	InventoryRolledBack InventoryLifecycle = "rolled-back"
+
+	// InventoryRecoveryIncomplete means rollback failed for some targets. The
+	// installer has left retained artifacts (backups, stage copies, trash) and
+	// will not auto-delete or overwrite ambiguous paths. Manual inspection of
+	// the named inventory file is required before any recovery action.
 	InventoryRecoveryIncomplete InventoryLifecycle = "recovery-incomplete"
-	InventoryCompleted          InventoryLifecycle = "completed"
+
+	// InventoryCompleted marks that all targets were mutated and the plan succeeded.
+	InventoryCompleted InventoryLifecycle = "completed"
 )
 
-// InventoryEntryState describes a target's durable recovery state.
+// InventoryEntryState describes a single target's durable recovery state.
+//
+// Normal flow:
+//
+//	pending → backed-up → staged → original-relocated → mutated → restored
+//
+// Failure terminals:
+//
+//	pending → source-drift        (source changed before backup)
+//	pending → failed              (backup or staging failure)
+//	mutated → ownership-ambiguous (target replaced externally after mutation)
+//	mutated → failed              (rollback restore failure)
 type InventoryEntryState string
 
 const (
-	EntryPending            InventoryEntryState = "pending"
-	EntrySourceDrift        InventoryEntryState = "source-drift"
-	EntryBackedUp           InventoryEntryState = "backed-up"
-	EntryStaged             InventoryEntryState = "staged"
-	EntryOriginalRelocated  InventoryEntryState = "original-relocated"
-	EntryMutated            InventoryEntryState = "mutated"
-	EntryRestored           InventoryEntryState = "restored"
+	// EntryPending means the target has not been processed yet.
+	EntryPending InventoryEntryState = "pending"
+
+	// EntrySourceDrift means the source content changed between planning and execution.
+	EntrySourceDrift InventoryEntryState = "source-drift"
+
+	// EntryBackedUp means the destination was backed up to a durable path.
+	EntryBackedUp InventoryEntryState = "backed-up"
+
+	// EntryStaged means the source was copied to a staging path (used for directory swaps).
+	EntryStaged InventoryEntryState = "staged"
+
+	// EntryOriginalRelocated means the original destination was moved to a trash path.
+	EntryOriginalRelocated InventoryEntryState = "original-relocated"
+
+	// EntryMutated means the source was installed at the destination.
+	EntryMutated InventoryEntryState = "mutated"
+
+	// EntryRestored means the original destination was restored from backup during rollback.
+	EntryRestored InventoryEntryState = "restored"
+
+	// EntryOwnershipAmbiguous means rollback found the destination externally changed.
+	// The target was not modified; retained artifacts must be inspected manually.
 	EntryOwnershipAmbiguous InventoryEntryState = "ownership-ambiguous"
-	EntryFailed             InventoryEntryState = "failed"
+
+	// EntryFailed means the target operation (backup, staging, mutation, or restore) failed.
+	EntryFailed InventoryEntryState = "failed"
 )
 
 // Inventory records every managed target and is persisted as human-readable,

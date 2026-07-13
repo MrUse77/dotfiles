@@ -391,13 +391,13 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### TRIANGULATE — Edge cases
 
-- [ ] **3.9 TRIANGULATE**: Rollback reverse ordering with multi-target plans
+- [x] **3.9 TRIANGULATE**: Rollback reverse ordering with multi-target plans
   - File: `cli/pkg/installer/transaction/rollback_test.go`
   - Create plan with 3+ targets, mutate all, then rollback.
   - Assert rollback processes in reverse mutation order.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestRollbackReverseOrder -v` → PASS
 
-- [ ] **3.10 TRIANGULATE**: Rollback continuation after one target fails
+- [x] **3.10 TRIANGULATE**: Rollback continuation after one target fails
   - File: `cli/pkg/installer/transaction/rollback_test.go`
   - Inject failure on one target's rollback (e.g., backup unreadable).
   - Assert other targets still rolled back; failed target's artifacts retained; report lists both succeeded and failed targets.
@@ -411,13 +411,13 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### REFACTOR — Clean up and document
 
-- [ ] **3.12 REFACTOR**: Consolidate error aggregation
+- [x] **3.12 REFACTOR**: Consolidate error aggregation
   - File: `cli/pkg/installer/transaction/transaction.go`
   - Ensure all rollback + persistence error paths use `errors.Join` consistently.
   - Add helper for building `RollbackError` with clear separation of operation vs persistence failures.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -v` → all PASS
 
-- [ ] **3.13 REFACTOR**: Document recovery-incomplete state machine
+- [x] **3.13 REFACTOR**: Document recovery-incomplete state machine
   - File: `cli/pkg/installer/transaction/inventory.go`, `cli/pkg/installer/report/report.go`
   - Add doc comment on inventory lifecycle state transitions, especially `recovery-incomplete`.
   - Document what manual recovery entails (inspect inventory, retained artifacts; do not auto-delete).
