@@ -1,275 +1,150 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/MrUse77/dots-cli/pkg/installer"
+	"github.com/MrUse77/dots-cli/pkg/installer/external"
+	"github.com/MrUse77/dots-cli/pkg/installer/plan"
+	"github.com/MrUse77/dots-cli/pkg/installer/report"
+	"github.com/MrUse77/dots-cli/pkg/installer/transaction"
+	"github.com/MrUse77/dots-cli/pkg/installer/ui"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
+var ErrDevModeUnsupported = errors.New("dev mode planning is not supported yet")
+
+type installDiscoverer struct{}
+
+func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) ([]plan.Target, error) {
+	catalog := installer.NewActionCatalog()
+	targets, err := catalog.ManagedTargets(repoRoot, homeDir, opts)
+	if err != nil {
+		return nil, err
+	}
+	filtered := targets[:0]
+	for _, target := range targets {
+		if _, err := os.Lstat(target.Source); err == nil {
+			filtered = append(filtered, target)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	targets = filtered
+	candidates := []struct {
+		source, destination string
+		kind                plan.MutationKind
+	}{
+		{filepath.Join(repoRoot, ".config"), filepath.Join(homeDir, ".config"), plan.CopyTree},
+	}
+	for _, name := range []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"} {
+		candidates = append(candidates, struct {
+			source, destination string
+			kind                plan.MutationKind
+		}{filepath.Join(repoRoot, name), filepath.Join(homeDir, name), plan.CopyFile})
+	}
+	for _, candidate := range candidates {
+		info, err := os.Lstat(candidate.source)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		kind := candidate.kind
+		if info.IsDir() {
+			kind = plan.CopyTree
+		}
+		targets = append(targets, plan.Target{Source: candidate.source, Destination: candidate.destination, Kind: kind})
+	}
+	return targets, nil
+}
+
+func newInstallPlanner() *plan.Planner {
+	return plan.New(
+		plan.WithDiscoverer(installDiscoverer{}),
+		plan.WithCatalog(installer.NewActionCatalog()),
+	)
+}
+
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Copia toda la configuración del repo al sistema (~/.config)",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Bienvenido al instalador de dotfiles")
-
-		var confirm bool
-		err := huh.NewForm(
-			huh.NewGroup(
-				huh.NewConfirm().
-					Title("¿Estás seguro que querés modificar tu sistema?").
-					Value(&confirm),
-			),
-		).Run()
-
-		if err != nil || !confirm {
-			fmt.Println("Instalación cancelada.")
-			os.Exit(0)
-		}
-
-		var mode string
-		var hasAMD bool
-		var installPlugins bool
-		var enableSSHAgent bool
-
-		err = huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("Modo de instalación").
-					Options(
-						huh.NewOption("Modo Usuario (Copia limpia, no se sincroniza con Git)", "user"),
-						huh.NewOption("Modo Dev (Symlinks con Stow, ideal para seguir editando)", "dev"),
-					).
-					Value(&mode),
-				huh.NewConfirm().
-					Title("¿Tenés GPU AMD? (Instalará corectrl)").
-					Value(&hasAMD),
-				huh.NewConfirm().
-					Title("¿Instalar plugins de Hyprland via hyprpm?").
-					Description("Requiere que Hyprland esté corriendo.").
-					Value(&installPlugins),
-				huh.NewConfirm().
-					Title("¿Habilitar SSH Agent via systemd?").
-					Description("Gestiona el agente con systemd --user. Más limpio que el setup manual en .zshrc.").
-					Value(&enableSSHAgent),
-			),
-		).Run()
-
-		if err != nil {
-			fmt.Println("Instalación cancelada.")
-			os.Exit(0)
-		}
-
-		fmt.Printf("\nOpciones elegidas:\n- Modo: %s\n- GPU AMD: %v\n- Plugins Hyprland: %v\n- SSH Agent: %v\n\n", mode, hasAMD, installPlugins, enableSSHAgent)
-
-		if mode == "dev" {
-			fmt.Println("Ejecutando en Modo Dev (Stow) - Próximamente...")
-			return
-		}
-
-		fmt.Println("🚀 Iniciando instalación de dependencias...")
-		if err := installer.UpdateAndInstallBase(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error actualizando base: %v\n", err)
-			return
-		}
-		if err := installer.InstallParu(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error instalando paru: %v\n", err)
-			return
-		}
-		if err := installer.InstallPackages(hasAMD); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error instalando paquetes: %v\n", err)
-			return
-		}
-		if err := installer.SetupShell(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error configurando shell: %v\n", err)
-		}
-
-		homeDir, _ := os.UserHomeDir()
-
-		// Resolver la ruta del repo desde la ubicación del binario, no el cwd
-		exe, err := os.Executable()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error resolviendo path del binario: %v\n", err)
-			return
-		}
-		// El binario vive en <repo>/cli/dots → repo root es dos niveles arriba del binario
-		repoRoot := filepath.Join(filepath.Dir(exe), "..")
-
-		fmt.Println("📦 Inicializando submódulos de Git...")
-		if err := installer.InitSubmodules(repoRoot); err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️  Error en submódulos: %v\n", err)
-		}
-
-		repoConfig := filepath.Join(repoRoot, ".config")
-		systemConfig := filepath.Join(homeDir, ".config")
-
-		// Respaldar configs existentes que puedan generar conflictos
-		fmt.Println("🔒 Respaldando configuraciones conflictivas...")
-		if err := backupConflicts(repoConfig, systemConfig); err != nil {
-			fmt.Fprintf(os.Stderr, "⚠️  Error en backup: %v\n", err)
-		}
-
-		fmt.Println("🚀 Iniciando despliegue de dotfiles (Modo Usuario)...")
-		fmt.Printf("Copiando desde %s hacia %s\n", repoConfig, systemConfig)
-
-		err = copyDir(repoConfig, systemConfig)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error copiando config: %v\n", err)
-			return
-		}
-
-		// Copiar archivos sueltos en el root
-		itemsToCopy := []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"}
-		for _, item := range itemsToCopy {
-			src := filepath.Join(repoRoot, item)
-			dst := filepath.Join(homeDir, item)
-
-			// Detectar si es directorio o archivo para usar copyDir o copyFileInternal
-			info, err := os.Stat(src)
-			if err != nil {
-				continue // Ignorar si no existe
-			}
-
-			if info.IsDir() {
-				if err := copyDir(src, dst); err == nil {
-					fmt.Printf("✅ Copiado %s/\n", item)
-				}
-			} else {
-				if err := copyFileInternal(src, dst); err == nil {
-					fmt.Printf("✅ Copiado %s\n", item)
-				}
-			}
-		}
-
-		if err := installer.InstallFontsAndCursors(repoRoot); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error instalando fuentes y cursores: %v\n", err)
-		}
-		if err := installer.ApplyGSettings(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error aplicando GSettings: %v\n", err)
-		}
-		if err := installer.EnableServices(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error habilitando servicios: %v\n", err)
-		}
-		if err := installer.SetupEnvVars(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error configurando variables de entorno: %v\n", err)
-		}
-		if err := installer.EnsureZshDirs(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Error creando directorios zsh: %v\n", err)
-		}
-
-		if installPlugins {
-			fmt.Println("🔌 Instalando plugins de Hyprland...")
-			if err := installer.InstallHyprlandPlugins(); err != nil {
-				fmt.Fprintf(os.Stderr, "❌ Error instalando plugins: %v\n", err)
-			}
-		}
-
-		if enableSSHAgent {
-			fmt.Println("🔑 Habilitando SSH Agent via systemd...")
-			if err := installer.EnableSSHAgent(); err != nil {
-				fmt.Fprintf(os.Stderr, "❌ Error habilitando SSH Agent: %v\n", err)
-			}
-		}
-
-		fmt.Println("🎉 ¡Configuración desplegada exitosamente!")
-	},
+	RunE:  runInstall,
 }
 
-func init() {
-	rootCmd.AddCommand(installCmd)
-}
+func runInstall(cmd *cobra.Command, _ []string) error {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Bienvenido al instalador de dotfiles")
 
-// copyDir copia un directorio recursivamente, saltando archivos especiales
-func copyDir(src string, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
+	var mode string
+	var hasAMD, installPlugins, enableSSHAgent bool
+	if err := huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().Title("Modo de instalación").Options(
+			huh.NewOption("Modo Usuario (Copia limpia, no se sincroniza con Git)", "user"),
+			huh.NewOption("Modo Dev (Symlinks con Stow, ideal para seguir editando)", "dev"),
+		).Value(&mode),
+		huh.NewConfirm().Title("¿Tenés GPU AMD? (Instalará corectrl)").Value(&hasAMD),
+		huh.NewConfirm().Title("¿Instalar plugins de Hyprland via hyprpm?").Description("Requiere que Hyprland esté corriendo.").Value(&installPlugins),
+		huh.NewConfirm().Title("¿Habilitar SSH Agent via systemd?").Description("Gestiona el agente con systemd --user.").Value(&enableSSHAgent),
+	)).Run(); err != nil {
+		return err
+	}
+	if mode == "dev" {
+		return ErrDevModeUnsupported
+	}
 
-		// Ignorar .git
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
-
-		// Ignorar archivos especiales (sockets, devices, pipes)
-		if !d.IsDir() {
-			info, err := d.Info()
-			if err != nil {
-				return nil
-			}
-			mode := info.Mode()
-			if mode&os.ModeSocket != 0 || mode&os.ModeDevice != 0 || mode&os.ModeNamedPipe != 0 {
-				return nil // Skipear silenciosamente
-			}
-		}
-
-		relPath, _ := filepath.Rel(src, path)
-		destPath := filepath.Join(dst, relPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		return copyFileInternal(path, destPath)
-	})
-}
-
-// backupConflicts mueve configs conflictivas a una carpeta de respaldo con timestamp
-func backupConflicts(repoConfig, systemConfig string) error {
-	entries, err := os.ReadDir(repoConfig)
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home directory: %w", err)
+	}
+	selected := plan.Options{Mode: mode, HasAMD: hasAMD, InstallPlugins: installPlugins, EnableSSHAgent: enableSSHAgent}
+	installationPlan, err := newInstallPlanner().Build(repoRoot, homeDir, selected)
 	if err != nil {
 		return err
 	}
 
-	backupDir := ""
-
-	for _, entry := range entries {
-		target := filepath.Join(systemConfig, entry.Name())
-		info, err := os.Lstat(target)
-		if err != nil {
-			continue // No existe, sin conflicto
-		}
-		// Ignorar symlinks (resto de stow anterior)
-		if info.Mode()&os.ModeSymlink != 0 {
-			continue
-		}
-		// Crear la carpeta de backup solo si hay algo para respaldar
-		if backupDir == "" {
-			homeDir, _ := os.UserHomeDir()
-			backupDir = filepath.Join(homeDir, fmt.Sprintf(".config-backup-%s", time.Now().Format("20060102-150405")))
-			if err := os.MkdirAll(backupDir, 0755); err != nil {
-				return fmt.Errorf("error creando carpeta de backup: %w", err)
-			}
-			fmt.Printf("\n📁 Carpeta de respaldo: %s\n", backupDir)
-		}
-		dest := filepath.Join(backupDir, entry.Name())
-		fmt.Printf("⚠️  Respaldando %s\n", entry.Name())
-		if err := os.Rename(target, dest); err != nil {
-			return fmt.Errorf("error moviendo %s: %w", target, err)
-		}
+	tx := transaction.New(installationPlan)
+	executor := installer.NewExecutor(tx, external.NewRunner(nil).WithStdio(cmd.InOrStdin(), out, cmd.ErrOrStderr()))
+	result, aborted, err := ui.RunWithContext(cmd.Context(), installationPlan, executor, cmd.InOrStdin(), out, nil)
+	if aborted {
+		fmt.Fprintln(out, "Instalación cancelada.")
+		return nil
+	}
+	if result != nil {
+		printExecutionReport(out, result)
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func copyFileInternal(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
+func printExecutionReport(w io.Writer, result *report.ExecutionReport) {
+	fmt.Fprintf(w, "Plan fingerprint: %s\n", result.Fingerprint)
+	for _, target := range result.ManagedTargets {
+		fmt.Fprintf(w, "managed %s: %s\n", target.Destination, target.Status)
+		if target.BackupPath != "" {
+			fmt.Fprintf(w, "  retained backup: %s\n", target.BackupPath)
+		}
 	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
+	for _, action := range result.ExternalActions {
+		fmt.Fprintf(w, "external %s: %s\n", action.Description, action.Status)
 	}
-	defer dstFile.Close()
+	if result.RecoveryState != "" {
+		fmt.Fprintf(w, "rollback: %s\n", result.RecoveryState)
+	}
+}
 
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+func init() {
+	rootCmd.AddCommand(installCmd)
 }
