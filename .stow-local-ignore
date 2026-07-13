@@ -22,6 +22,7 @@ _darcs
 
 ^/README.*
 ^/LICENSE.*
+^/CONTRIBUTING.*
 ^/COPYIN
 image1.png
 image2.png
