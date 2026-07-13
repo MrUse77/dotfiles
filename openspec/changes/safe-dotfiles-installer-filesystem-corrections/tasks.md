@@ -193,14 +193,14 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### RED — Failing tests first
 
-- [ ] **2.1 RED**: Symlink-safe backup root creation tests
+- [x] **2.1 RED**: Symlink-safe backup root creation tests
   - File: `cli/pkg/installer/transaction/transaction_test.go`
   - Insert symlink at each level of backup root chain; assert creation refused with clear error.
   - Assert foreign/unsafe parent ownership or group/world-writable mode refused.
   - Assert new `.dots-backups` and run directories created with 0700 and verified after creation.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestBackupRootSymlink -v` → FAIL
 
-- [ ] **2.2 RED**: Atomic inventory persistence tests
+- [x] **2.2 RED**: Atomic inventory persistence tests
   - File: `cli/pkg/installer/transaction/inventory_test.go` (new)
   - Interrupt write mid-flight (inject error after temp write, before rename).
   - Assert old `inventory.json` intact (or absent if first write); temp file exists but is not authoritative.
@@ -208,7 +208,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert valid prior inventory preserved on error.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestAtomicInventory -v` → FAIL
 
-- [ ] **2.3 RED**: Versioned inventory content tests
+- [x] **2.3 RED**: Versioned inventory content tests
   - File: `cli/pkg/installer/transaction/inventory_test.go`
   - Assert inventory JSON has format version field.
   - Assert lifecycle states: `prepared`, `committing`, `commit-failed`, `rolling-back`, `rolled-back`, `recovery-incomplete`, `completed`.
@@ -216,7 +216,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Assert each entry records `InstalledIdentity`, digest, mode, `BackupPath`, `StagePath`, `TrashPath`, error description.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestInventorySchema -v` → FAIL
 
-- [ ] **2.4 RED**: Backup path collision tests
+- [x] **2.4 RED**: Backup path collision tests
   - File: `cli/pkg/installer/transaction/transaction_test.go`
   - Create two targets whose deterministic backup paths would overlap.
   - Assert both targets refused; clear collision error.
@@ -224,7 +224,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### GREEN — Minimum production code to pass
 
-- [ ] **2.5 GREEN**: Implement `SafeFS.OpenDirectoryChain` with O_NOFOLLOW
+- [x] **2.5 GREEN**: Implement `SafeFS.OpenDirectoryChain` with O_NOFOLLOW
   - File: `cli/pkg/installer/transaction/filesystem.go`
   - Walk backup root chain from trusted user-owned directory descriptor using `openat(..., O_DIRECTORY|O_NOFOLLOW)` and `mkdirat`.
   - Validate each component: real directory, current-user-owned, non-group/world-writable.
@@ -232,7 +232,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - Return error on symlink, unsafe ownership, or wrong permissions at any level.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestBackupRootSymlink -v` → PASS
 
-- [ ] **2.6 GREEN**: Implement atomic inventory writer
+- [x] **2.6 GREEN**: Implement atomic inventory writer
   - File: `cli/pkg/installer/transaction/inventory.go`
   - Write temp sibling file: `O_CREAT|O_EXCL`, 0600 at creation (before write).
   - Write all JSON content, `fsync` file, close.
@@ -241,7 +241,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - On any error: temp file remains non-authoritative (recognizable name); prior inventory untouched.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestAtomicInventory -v` → PASS
 
-- [ ] **2.7 GREEN**: Implement versioned inventory schema
+- [x] **2.7 GREEN**: Implement versioned inventory schema
   - File: `cli/pkg/installer/transaction/inventory.go`
   - Add `FormatVersion` field (e.g., `1`).
   - Add `Lifecycle` field with state enum.
@@ -249,7 +249,7 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
   - JSON remains human-readable; new fields additive.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestInventorySchema -v` → PASS
 
-- [ ] **2.8 GREEN**: Implement backup root validation and collision detection in transaction
+- [x] **2.8 GREEN**: Implement backup root validation and collision detection in transaction
   - File: `cli/pkg/installer/transaction/transaction.go`
   - In `Prepare`: validate backup root chain via `SafeFS.OpenDirectoryChain` before writing anything.
   - Revalidate root descriptor before each backup creation and inventory replacement.
@@ -259,19 +259,19 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### TRIANGULATE — Edge cases
 
-- [ ] **2.9 TRIANGULATE**: Intermediate symlink insertion at each backup root level
+- [x] **2.9 TRIANGULATE**: Intermediate symlink insertion at each backup root level
   - File: `cli/pkg/installer/transaction/transaction_test.go`
   - For each directory in the backup root chain, insert a symlink replacing the real directory.
   - Assert detection at each level; no backup written through the symlink.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestBackupRootIntermediateSymlink -v` → PASS
 
-- [ ] **2.10 TRIANGULATE**: Foreign parent ownership and mode
+- [x] **2.10 TRIANGULATE**: Foreign parent ownership and mode
   - File: `cli/pkg/installer/transaction/transaction_test.go`
   - Create backup parent owned by different user or with group-write permission.
   - Assert refused with specific error naming the violating component.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -run TestBackupRootUnsafeParent -v` → PASS
 
-- [ ] **2.11 TRIANGULATE**: Inventory temp file name recognition
+- [x] **2.11 TRIANGULATE**: Inventory temp file name recognition
   - File: `cli/pkg/installer/transaction/inventory_test.go`
   - Assert temp file name is recognizable as non-authoritative (e.g., `.inventory.json.tmp.<random>`).
   - Assert recovery never reads temp name as inventory.
@@ -279,12 +279,12 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 
 ### REFACTOR — Clean up and document
 
-- [ ] **2.12 REFACTOR**: Consolidate root descriptor revalidation
+- [x] **2.12 REFACTOR**: Consolidate root descriptor revalidation
   - File: `cli/pkg/installer/transaction/filesystem.go`
   - Extract root revalidation (open chain, check ownership, check permissions) into a single reusable helper called before each backup creation and inventory replacement.
   - Run: `cd cli && go test ./pkg/installer/transaction/ -v` → all PASS
 
-- [ ] **2.13 REFACTOR**: Review inventory schema forward compatibility
+- [x] **2.13 REFACTOR**: Review inventory schema forward compatibility
   - File: `cli/pkg/installer/transaction/inventory.go`
   - Ensure unknown fields in future versions are ignored (not errored) when reading.
   - Add doc comment on version field and additive-only policy.
@@ -293,6 +293,15 @@ All work under `cli/`. Test command: `cd cli && go test ./...`. Strict TDD activ
 **PR 2 verification**: `cd cli && go test ./pkg/installer/transaction/ -v` → all PASS. `go vet ./...` → clean. `git diff --stat` (vs PR 1 branch) → ≤280 lines.
 
 ---
+
+### PR 2 completion evidence
+
+- [x] Inventory persistence retains a validated backup-root descriptor and uses `openat`/`renameat` against that descriptor; a substitution immediately before rename cannot redirect the write.
+- [x] Rollback persists `rolling-back`, each restored or failed entry outcome, then `rolled-back` or `recovery-incomplete`.
+- [x] TDD evidence: focused RED coverage was added for root substitution and persisted rollback outcomes; GREEN implementation passes `cd cli && go test ./pkg/installer/transaction -count=1`.
+- [x] Judgment Day correction: backup creation retains the validated root descriptor and copies through `openat`/`mkdirat` descriptor operations; substitution after root validation cannot redirect backups.
+- [x] Judgment Day correction: immediately after a durable backup, inventory persists `backed-up` plus its backup path before destination mutation; the checkpoint is regression-tested from its on-disk JSON.
+- [x] Judgment Day correction: backup content and metadata are descriptor-relatively synced after final chmod, every completed backup directory is synced after its entries, and the root is synced after entry creation. Failure injection at every required sync proves neither checkpoint nor mutation proceeds.
 
 ## PR 3 — Recoverable Swaps and Rollback
 
