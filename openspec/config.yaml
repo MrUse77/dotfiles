@@ -1,0 +1,104 @@
+schema: spec-driven
+
+context: |
+  Project: dotfiles — Personal Arch Linux dotfiles with Hyprland
+  Root path: /home/agustin/Dev/dotfiles
+
+  Stack overview:
+    - Window manager: Hyprland (Wayland compositor)
+    - Terminal: Ghostty + Zellij
+    - Shell: Zsh + Oh My Posh
+    - Editor: Neovim (submodule: MrUse77/Nvim-config)
+    - Bar: Waybar
+    - Notifications: Dunst
+    - File manager: Thunar + Yazi
+    - Theme: TokyoNight
+    - Installer CLI: Go 1.26.5, Cobra, Charmbracelet Huh/Bubbletea
+    - Zsh plugins: fzf-tab, zsh-autosuggestions, zsh-history-substring-search, zsh-syntax-highlighting (submodules)
+    - Dotfiles managed via GNU Stow
+
+  Subproject: cli/ — Go CLI installer (github.com/MrUse77/dots-cli)
+    - Has its own openspec/config.yaml with strict_tdd: true
+    - Changes: installer-tui, installer-logic, archive/theme-engine
+
+testing:
+  strict_tdd: false
+  detected: "2026-07-12"
+  note: >
+    The root project is a configuration repository without unit-testable code.
+    strict_tdd is disabled at root level. The cli/ subproject has strict_tdd enabled
+    with its own testing configuration.
+  runner:
+    framework: "docker / shell"
+    integration:
+      available: true
+      command: "bash test.sh"
+      description: >
+        Builds an Arch Linux Docker container, mounts the repo, and runs the
+        installer interactively inside the container for isolated testing.
+    unit:
+      available: false
+      tool: "—"
+    e2e:
+      available: false
+      tool: "—"
+  coverage:
+    available: false
+    description: No coverage tooling at root level. cli/ uses go test -cover.
+  quality:
+    linter:
+      available: true
+      command: "go vet ./..."
+      scope: "cli/"
+    type_checker:
+      available: true
+      command: "go build ./..."
+      scope: "cli/"
+    formatter:
+      available: true
+      command: "go fmt ./..."
+      scope: "cli/"
+
+rules:
+  proposal:
+    - Include scope boundaries: config-only vs. CLI changes
+    - Flag when changes affect both root config and cli/
+    - Reference existing subproject changes (cli/openspec/changes/) when relevant
+  specs:
+    - Use Given/When/Then for scenarios where behavior changes
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include before/after state for config changes
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Separate config tasks from Go CLI tasks
+  apply:
+    guidelines:
+      - Follow existing file naming and structure conventions
+    test_command: "bash test.sh"
+  verify:
+    test_command: "bash test.sh"
+    build_command: "cd cli && go build ./..."
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas (config changes affect user environment)
+
+components:
+  - path: cli/
+    type: go-cli
+    openspec: cli/openspec/config.yaml
+    strict_tdd: true
+  - path: .config/
+    type: config-files
+    description: "Hyprland, Waybar, Ghostty, Neovim, and other application configs"
+  - path: .zshrc
+    type: config-file
+    description: "Zsh shell configuration"
+  - path: assets/
+    type: static-assets
+    description: "Fonts and cursor themes"
+  - path: oh-my-posh/
+    type: config-files
+    description: "Oh My Posh prompt themes"
