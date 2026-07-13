@@ -93,7 +93,16 @@ type InstallationPlan struct {
 // NewInstallationPlan constructs a plan from internal direct targets. Targets with
 // an empty SourceDigest retain legacy unbound execution semantics.
 func NewInstallationPlan(runID string, targets []Target) (InstallationPlan, error) {
-	p := InstallationPlan{RunID: runID, managedTargets: cloneTargets(targets)}
+	return newInstallationPlan(runID, targets, nil)
+}
+
+// NewInstallationPlanWithActions constructs a plan with managed targets and reviewed external actions.
+func NewInstallationPlanWithActions(runID string, targets []Target, actions []ExternalAction) (InstallationPlan, error) {
+	return newInstallationPlan(runID, targets, actions)
+}
+
+func newInstallationPlan(runID string, targets []Target, actions []ExternalAction) (InstallationPlan, error) {
+	p := InstallationPlan{RunID: runID, managedTargets: cloneTargets(targets), externalActions: cloneActions(actions)}
 	fp, err := fingerprint(&p)
 	if err != nil {
 		return InstallationPlan{}, &FingerprintError{Cause: err}

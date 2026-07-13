@@ -150,3 +150,5 @@ type ExternalActionError struct {
 func (e *ExternalActionError) Error() string {
 	return fmt.Sprintf("external action %q failed: %v", e.Action.Description, e.Cause)
 }
+
+func (e *ExternalActionError) Unwrap() error { return e.Cause }
