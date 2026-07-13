@@ -93,7 +93,6 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 		}
 		t.ResolvedSource = resolved
 		t.SourceDigest = digest
-
 		if err := validateDestinationParent(t.Destination, destSet); err != nil {
 			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: err}
 		}

@@ -206,13 +206,24 @@ func cloneTargets(ts []Target) []Target {
 	return out
 }
 
+// SourceDigestForPath returns the content digest for a regular file or directory.
+func SourceDigestForPath(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() && !info.IsDir() {
+		return "", fmt.Errorf("source %q is not a regular file or directory", path)
+	}
+	return sourceDigest(path, info)
+}
+
 func sourceDigest(path string, info os.FileInfo) (string, error) {
 	if info.IsDir() {
 		return directoryDigest(path)
 	}
 	return fileDigest(path)
 }
-
 func cloneActions(as []ExternalAction) []ExternalAction {
 	out := make([]ExternalAction, len(as))
 	for i, a := range as {

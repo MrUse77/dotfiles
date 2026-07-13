@@ -8,15 +8,15 @@
 | 400-line budget risk | High |
 | Chained PRs recommended | Yes |
 | Suggested split | PR 1 plan/report contracts → PR 2 filesystem transaction → PR 3 external action catalog/executor → PR 4 TUI and Cobra cutover |
-| Delivery strategy | single-pr |
-| Chain strategy | pending |
+| Delivery strategy | feature-branch-chain |
+| Chain strategy | feature-branch-chain |
 
-Decision needed before apply: Yes
+Decision needed before apply: No
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: feature-branch-chain
 400-line budget risk: High
 
-**Decision required:** approve a `size:exception` before applying this as the requested single PR, or change delivery strategy to chained PRs and choose `stacked-to-main` or `feature-branch-chain`. Do not begin implementation until this decision is recorded.
+The delivery decision is recorded in `state.yaml`; work proceeds one PR slice at a time in dependency order.
 
 ## Validation Baseline
 
@@ -53,11 +53,11 @@ Strict TDD is active: each work unit follows **RED → GREEN → TRIANGULATE →
 **Finish boundary:** managed targets are safely backed up, staged, mutated, drift-checked, reported, and rolled back with retained inventories; no external commands run here.
 **Rollback:** revert `cli/pkg/installer/transaction/` and its tests; it is isolated behind its transaction interface.
 
-- [ ] 2.1 **RED — inventory and backup-before-write tests.** Add failing `t.TempDir()` tests in `cli/pkg/installer/transaction/transaction_test.go` for file, directory, symlink, absent, and root-level-file targets; deterministic `<parent>/.dots-backups/<RunID>/<escaped-target>` locations; collision rejection; backup readability/digest validation; and no destination mutation when backup preparation fails. Run `go test ./pkg/installer/transaction -run 'Test(Prepare|Backup)'` and confirm RED.
-- [ ] 2.2 **GREEN — safe inventory, backup, and staging implementation.** Add `cli/pkg/installer/transaction/transaction.go`, `filesystem.go`, and `inventory.go`; define injectable `Filesystem` and implement direct `os`, `io`, `filepath`, and `os.Symlink` operations only. Create mode-appropriate retained inventory entries, safely copy content/modes/symlink values, reject impossible same-filesystem atomic layouts, and never overwrite a collision. Run `go test ./pkg/installer/transaction`.
-- [ ] 2.3 **TRIANGULATE — atomic mutation and drift tests.** Extend `transaction_test.go` for special-character paths, file staging/rename, directory staging/swap, absent target creation, no delete-then-copy fallback, current-state mismatch before mutation, and absence changing to present. Implement bound pre-state checks immediately before each mutation and append a target to `mutated` as soon as its original is moved or destination changes. Run `go test ./pkg/installer/transaction -run 'Test(Mutate|Drift)'`.
-- [ ] 2.4 **RED/GREEN — rollback completeness tests.** Add failing tests in `cli/pkg/installer/transaction/rollback_test.go` for failure at the first target, failure after multiple mutations, reverse restoration order, partially changed current target, continued restoration after one restore failure, backup retention after success/rollback, and aggregate `RollbackError` with manual recovery paths. Implement rollback in reverse order, restoring from retained backups (or removing originally absent targets), continuing after errors, and reporting all outcomes. Run `go test ./pkg/installer/transaction`.
-- [ ] 2.5 **REFACTOR/verify work unit.** Refactor only after all transaction scenarios pass; run `go test ./pkg/installer/transaction`, `go vet ./pkg/installer/transaction`, and `git diff --check`. Commit tests with behavior, e.g. `feat(installer): transact managed file mutations safely`.
+- [x] 2.1 **RED — inventory and backup-before-write tests.** Add failing `t.TempDir()` tests in `cli/pkg/installer/transaction/transaction_test.go` for file, directory, symlink, absent, and root-level-file targets; deterministic `<parent>/.dots-backups/<RunID>/<escaped-target>` locations; collision rejection; backup readability/digest validation; and no destination mutation when backup preparation fails. Run `go test ./pkg/installer/transaction -run 'Test(Prepare|Backup)'` and confirm RED.
+- [x] 2.2 **GREEN — safe inventory, backup, and staging implementation.** Add `cli/pkg/installer/transaction/transaction.go`, `filesystem.go`, and `inventory.go`; define injectable `Filesystem` and implement direct `os`, `io`, `filepath`, and `os.Symlink` operations only. Create mode-appropriate retained inventory entries, safely copy content/modes/symlink values, reject impossible same-filesystem atomic layouts, and never overwrite a collision. Run `go test ./pkg/installer/transaction`.
+- [x] 2.3 **TRIANGULATE — atomic mutation and drift tests.** Extend `transaction_test.go` for special-character paths, file staging/rename, directory staging/swap, absent target creation, no delete-then-copy fallback, current-state mismatch before mutation, and absence changing to present. Implement bound pre-state checks immediately before each mutation and append a target to `mutated` as soon as its original is moved or destination changes. Run `go test ./pkg/installer/transaction -run 'Test(Mutate|Drift)'`.
+- [x] 2.4 **RED/GREEN — rollback completeness tests.** Add failing tests in `cli/pkg/installer/transaction/rollback_test.go` for failure at the first target, failure after multiple mutations, reverse restoration order, partially changed current target, continued restoration after one restore failure, backup retention after success/rollback, and aggregate `RollbackError` with manual recovery paths. Implement rollback in reverse order, restoring from retained backups (or removing originally absent targets), continuing after errors, and reporting all outcomes. Run `go test ./pkg/installer/transaction`.
+- [x] 2.5 **REFACTOR/verify work unit.** Refactor only after all transaction scenarios pass; run `go test ./pkg/installer/transaction`, `go vet ./pkg/installer/transaction`, and `git diff --check`. Commit tests with behavior, e.g. `feat(installer): transact managed file mutations safely`.
 
 ## Work Unit 3 — Structured External Actions and Executor Ordering (PR 3)
 
