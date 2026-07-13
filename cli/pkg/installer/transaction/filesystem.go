@@ -117,7 +117,7 @@ func copyTree(fs Filesystem, src, dst string) error {
 
 		switch {
 		case mode.IsRegular():
-			if err := copyFile(fs, srcPath, dstPath, mode.Perm()); err != nil {
+			if err := copyFile(fs, srcPath, dstPath, chmodMode(mode)); err != nil {
 				return err
 			}
 		case mode.IsDir():
@@ -126,6 +126,9 @@ func copyTree(fs Filesystem, src, dst string) error {
 			}
 			if err := copyTree(fs, srcPath, dstPath); err != nil {
 				return err
+			}
+			if err := fs.Chmod(dstPath, chmodMode(mode)); err != nil {
+				return fmt.Errorf("chmod directory %q: %w", dstPath, err)
 			}
 		case mode&os.ModeSymlink != 0:
 			link, err := fs.Readlink(srcPath)
@@ -140,6 +143,10 @@ func copyTree(fs Filesystem, src, dst string) error {
 		}
 	}
 	return nil
+}
+
+func chmodMode(mode os.FileMode) os.FileMode {
+	return mode & (os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
 }
 
 // pathExists reports whether path exists on fs.

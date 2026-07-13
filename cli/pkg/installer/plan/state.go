@@ -43,14 +43,14 @@ func (r *defaultStateReader) Read(path string) (PreState, error) {
 		if err != nil {
 			return PreState{}, fmt.Errorf("digest file %q: %w", path, err)
 		}
-		return PreState{Type: StateFile, Mode: mode.Perm(), Digest: digest}, nil
+		return PreState{Type: StateFile, Mode: supportedMode(mode), Digest: digest}, nil
 
 	case mode.IsDir():
 		digest, err := directoryDigest(path)
 		if err != nil {
 			return PreState{}, fmt.Errorf("digest directory %q: %w", path, err)
 		}
-		return PreState{Type: StateDirectory, Mode: mode.Perm(), Digest: digest}, nil
+		return PreState{Type: StateDirectory, Mode: supportedMode(mode), Digest: digest}, nil
 
 	case mode&os.ModeSymlink != 0:
 		link, err := os.Readlink(path)
@@ -58,7 +58,7 @@ func (r *defaultStateReader) Read(path string) (PreState, error) {
 			return PreState{}, fmt.Errorf("readlink %q: %w", path, err)
 		}
 		digest := linkDigest(link)
-		return PreState{Type: StateSymlink, Mode: mode.Perm(), LinkValue: link, Digest: digest}, nil
+		return PreState{Type: StateSymlink, Mode: supportedMode(mode), LinkValue: link, Digest: digest}, nil
 
 	default:
 		return PreState{}, fmt.Errorf("unsupported file type at %q: %v", path, mode)
@@ -165,6 +165,11 @@ func collectDirectoryEntries(root string) ([]dirEntry, error) {
 		return entries[i].RelativePath < entries[j].RelativePath
 	})
 	return entries, nil
+}
+
+// supportedMode returns every chmod-persistable mode bit captured by the installer.
+func supportedMode(mode os.FileMode) os.FileMode {
+	return mode & (os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
 }
 
 func entryType(mode os.FileMode) string {

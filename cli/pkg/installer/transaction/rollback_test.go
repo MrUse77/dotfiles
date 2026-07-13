@@ -271,7 +271,7 @@ func TestTransaction_Rollback_BackupsRetainedAfterSuccess(t *testing.T) {
 	}
 }
 
-func TestTransaction_Rollback_BackupsRetainedAfterRollback(t *testing.T) {
+func TestTransaction_Rollback_SourceDriftDoesNotCreateBackup(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 
@@ -294,8 +294,8 @@ func TestTransaction_Rollback_BackupsRetainedAfterRollback(t *testing.T) {
 	}
 
 	entry := entryFor(t, tx.Inventory(), dest)
-	if _, err := os.Stat(entry.BackupPath); err != nil {
-		t.Errorf("backup was not retained after rollback: %v", err)
+	if _, err := os.Stat(entry.BackupPath); !os.IsNotExist(err) {
+		t.Errorf("backup was created before source binding validation: %v", err)
 	}
 }
 

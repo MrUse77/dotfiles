@@ -83,16 +83,13 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 			t.Destination = filepath.Join(homeDir, t.Destination)
 		}
 
-		resolved, info, err := resolveSource(t.Source)
-		if err != nil {
-			return InstallationPlan{}, &PlanError{Phase: "source-check", Cause: err}
-		}
-		digest, err := sourceDigest(resolved, info)
+		resolved, binding, err := buildSourceBinding(t.Source, t.Kind)
 		if err != nil {
 			return InstallationPlan{}, &PlanError{Phase: "source-check", Cause: err}
 		}
 		t.ResolvedSource = resolved
-		t.SourceDigest = digest
+		t.SourceDigest = binding.Digest
+		t.SourceBinding = binding
 		if err := validateDestinationParent(t.Destination, destSet); err != nil {
 			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: err}
 		}

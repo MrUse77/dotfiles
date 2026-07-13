@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -415,6 +416,43 @@ func TestTransaction_Execute_SymlinkTarget(t *testing.T) {
 	}
 }
 
+func TestTransaction_Execute_Drift_DeclaredSourceSymlinkSwappedAfterPlan(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	reviewed := filepath.Join(repo, "reviewed")
+	mustWriteFile(t, reviewed, []byte("reviewed content"))
+	attacker := filepath.Join(repo, "attacker")
+	mustWriteFile(t, attacker, []byte("attacker content"))
+	source := filepath.Join(repo, "source")
+	if err := os.Symlink(reviewed, source); err != nil {
+		t.Fatalf("create source symlink: %v", err)
+	}
+	destination := filepath.Join(home, "destination")
+	mustWriteFile(t, destination, []byte("original"))
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+	if err := os.Remove(source); err != nil {
+		t.Fatalf("remove source symlink: %v", err)
+	}
+	if err := os.Symlink(attacker, source); err != nil {
+		t.Fatalf("swap source symlink: %v", err)
+	}
+
+	tx := New(p)
+	_, err := tx.Execute()
+	var drift *report.PlanDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("Execute() error = %v, want PlanDriftError", err)
+	}
+	if got := readFileString(t, destination); got != "original" {
+		t.Errorf("destination = %q, want original", got)
+	}
+	if _, err := os.Lstat(tx.Inventory().Entries[0].BackupPath); !os.IsNotExist(err) {
+		t.Errorf("backup was created before source validation: %v", err)
+	}
+}
+
 func TestTransaction_Execute_Drift_SourceChangedAfterPlan(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
@@ -666,10 +704,310 @@ func TestTransaction_Commit_BackupPathCollisionAfterPrepare(t *testing.T) {
 	}
 }
 
+func TestTransaction_Execute_SourceDriftBeforeBackup(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("reviewed"))
+	attacker := filepath.Join(repo, "attacker")
+	mustWriteFile(t, attacker, []byte("attacker"))
+	destination := filepath.Join(home, "destination")
+	mustWriteFile(t, destination, []byte("original"))
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+	if err := os.Remove(source); err != nil {
+		t.Fatalf("remove source: %v", err)
+	}
+	if err := os.Symlink(attacker, source); err != nil {
+		t.Fatalf("replace source with symlink: %v", err)
+	}
+
+	tx := New(p)
+	_, err := tx.Execute()
+	var drift *report.PlanDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("Execute() error = %v, want PlanDriftError", err)
+	}
+	if got := readFileString(t, destination); got != "original" {
+		t.Errorf("destination = %q, want original", got)
+	}
+	if _, err := os.Lstat(tx.Inventory().Entries[0].BackupPath); !os.IsNotExist(err) {
+		t.Errorf("backup was created before source validation: %v", err)
+	}
+}
+
+func TestTransaction_Execute_LegacyDirectTarget(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("legacy"))
+	destination := filepath.Join(home, "destination")
+
+	p, err := plan.NewInstallationPlan("legacy", []plan.Target{{
+		Source: source, Destination: destination, Kind: plan.CopyFile, PreState: plan.PreState{Type: plan.StateAbsent},
+		BackupPath: plan.BackupPath(filepath.Dir(destination), "legacy", destination),
+	}})
+	if err != nil {
+		t.Fatalf("NewInstallationPlan() error = %v", err)
+	}
+	if _, err := New(p).Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if got := readFileString(t, destination); got != "legacy" {
+		t.Errorf("destination = %q, want legacy", got)
+	}
+}
+
+func TestTransaction_Execute_ExactFileMode(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("content"))
+	if err := os.Chmod(source, os.FileMode(0o755)|os.ModeSetuid); err != nil {
+		t.Fatalf("chmod source: %v", err)
+	}
+	destination := filepath.Join(home, "destination")
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+	if _, err := New(p).Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	info, err := os.Lstat(destination)
+	if err != nil {
+		t.Fatalf("lstat destination: %v", err)
+	}
+	if got, want := info.Mode(), os.FileMode(0o755)|os.ModeSetuid; got != want {
+		t.Errorf("destination mode = %#o, want %#o", got, want)
+	}
+}
+
+func TestTransaction_Execute_ExactDirectoryMode(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	srcDir := filepath.Join(repo, "config")
+	mustMkdir(t, filepath.Join(srcDir, "sub"))
+	mustWriteFile(t, filepath.Join(srcDir, "sub", "file"), []byte("x"))
+	if err := os.Chmod(srcDir, os.FileMode(0o755)|os.ModeSticky); err != nil {
+		t.Fatalf("chmod source: %v", err)
+	}
+	if err := os.Chmod(filepath.Join(srcDir, "sub"), os.FileMode(0o755)|os.ModeSetgid); err != nil {
+		t.Fatalf("chmod sub: %v", err)
+	}
+	destDir := filepath.Join(home, ".config")
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: srcDir, Destination: destDir, Kind: plan.CopyTree}})
+	if _, err := New(p).Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	mask := os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+	info, err := os.Lstat(destDir)
+	if err != nil {
+		t.Fatalf("lstat destination: %v", err)
+	}
+	if got, want := info.Mode()&mask, os.FileMode(0o755)|os.ModeSticky; got != want {
+		t.Errorf("destination mode = %#o, want %#o", got, want)
+	}
+	info, err = os.Lstat(filepath.Join(destDir, "sub"))
+	if err != nil {
+		t.Fatalf("lstat sub: %v", err)
+	}
+	if got, want := info.Mode()&mask, os.FileMode(0o755)|os.ModeSetgid; got != want {
+		t.Errorf("sub mode = %#o, want %#o", got, want)
+	}
+}
+
+func TestTransaction_Execute_ExactBackupFileModesUnderUmask(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("new"))
+	if err := os.Chmod(source, 0o755|os.ModeSetuid); err != nil {
+		t.Fatalf("chmod source: %v", err)
+	}
+	destination := filepath.Join(home, "destination")
+	mustWriteFile(t, destination, []byte("old"))
+	if err := os.Chmod(destination, 0o640); err != nil {
+		t.Fatalf("chmod destination: %v", err)
+	}
+
+	oldUmask := syscall.Umask(0o077)
+	defer syscall.Umask(oldUmask)
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+	tx := New(p)
+	if _, err := tx.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	mask := os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+	assertMode := func(path string, want os.FileMode) {
+		t.Helper()
+		info, err := os.Lstat(path)
+		if err != nil {
+			t.Fatalf("lstat %s: %v", path, err)
+		}
+		if got := info.Mode() & mask; got != want {
+			t.Errorf("mode for %s = %#o, want %#o", path, got, want)
+		}
+	}
+	assertMode(destination, 0o755|os.ModeSetuid)
+	assertMode(entryFor(t, tx.Inventory(), destination).BackupPath, 0o640)
+}
+
+func TestTransaction_Execute_ExactBackupDirectoryModes(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	source := filepath.Join(repo, "source")
+	sourceNested := filepath.Join(source, "nested")
+	mustMkdir(t, sourceNested)
+	mustWriteFile(t, filepath.Join(sourceNested, "new.conf"), []byte("new"))
+	if err := os.Chmod(source, 0o750|os.ModeSticky); err != nil {
+		t.Fatalf("chmod source: %v", err)
+	}
+	if err := os.Chmod(sourceNested, 0o750|os.ModeSetgid); err != nil {
+		t.Fatalf("chmod source nested: %v", err)
+	}
+
+	destination := filepath.Join(home, "destination")
+	destinationNested := filepath.Join(destination, "nested")
+	mustMkdir(t, destinationNested)
+	mustWriteFile(t, filepath.Join(destinationNested, "old.conf"), []byte("old"))
+	if err := os.Chmod(destination, 0o750|os.ModeSticky); err != nil {
+		t.Fatalf("chmod destination: %v", err)
+	}
+	if err := os.Chmod(destinationNested, 0o750|os.ModeSetgid); err != nil {
+		t.Fatalf("chmod destination nested: %v", err)
+	}
+
+	oldUmask := syscall.Umask(0o077)
+	defer syscall.Umask(oldUmask)
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyTree}})
+	tx := New(p)
+	if _, err := tx.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	mask := os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+	assertMode := func(path string, want os.FileMode) {
+		t.Helper()
+		info, err := os.Lstat(path)
+		if err != nil {
+			t.Fatalf("lstat %s: %v", path, err)
+		}
+		if got := info.Mode() & mask; got != want {
+			t.Errorf("mode for %s = %#o, want %#o", path, got, want)
+		}
+	}
+
+	assertMode(destination, 0o750|os.ModeSticky)
+	assertMode(filepath.Join(destination, "nested"), 0o750|os.ModeSetgid)
+	backup := entryFor(t, tx.Inventory(), destination).BackupPath
+	assertMode(backup, 0o750|os.ModeSticky)
+	assertMode(filepath.Join(backup, "nested"), 0o750|os.ModeSetgid)
+}
+
+func TestTransaction_Execute_DirectorySourceDrift(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	srcDir := filepath.Join(repo, "config")
+	mustMkdir(t, srcDir)
+	mustWriteFile(t, filepath.Join(srcDir, "conf"), []byte("reviewed"))
+	destDir := filepath.Join(home, ".config")
+	mustMkdir(t, destDir)
+	mustWriteFile(t, filepath.Join(destDir, "conf"), []byte("old"))
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: srcDir, Destination: destDir, Kind: plan.CopyTree}})
+
+	attacker := filepath.Join(repo, "attacker")
+	mustWriteFile(t, attacker, []byte("attacker"))
+	if err := os.Remove(filepath.Join(srcDir, "conf")); err != nil {
+		t.Fatalf("remove source file: %v", err)
+	}
+	if err := os.Symlink(attacker, filepath.Join(srcDir, "conf")); err != nil {
+		t.Fatalf("replace with symlink: %v", err)
+	}
+
+	tx := New(p)
+	_, err := tx.Execute()
+	var drift *report.PlanDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("Execute() error = %v, want PlanDriftError", err)
+	}
+	if got := readFileString(t, filepath.Join(destDir, "conf")); got != "old" {
+		t.Errorf("destination = %q, want old", got)
+	}
+	if _, err := os.Lstat(tx.Inventory().Entries[0].BackupPath); !os.IsNotExist(err) {
+		t.Errorf("backup was created before source validation: %v", err)
+	}
+}
+
+func TestTransaction_Execute_Drift_RootSourceModeChangedAfterPlan(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		kind       plan.MutationKind
+		setup      func(*testing.T, string)
+		destination func(*testing.T, string)
+	}{
+		{
+			name: "file",
+			kind: plan.CopyFile,
+			setup: func(t *testing.T, source string) { mustWriteFile(t, source, []byte("reviewed")) },
+			destination: func(t *testing.T, destination string) { mustWriteFile(t, destination, []byte("original")) },
+		},
+		{
+			name: "directory",
+			kind: plan.CopyTree,
+			setup: func(t *testing.T, source string) {
+				mustMkdir(t, source)
+				mustWriteFile(t, filepath.Join(source, "config"), []byte("reviewed"))
+			},
+			destination: func(t *testing.T, destination string) {
+				mustMkdir(t, destination)
+				mustWriteFile(t, filepath.Join(destination, "config"), []byte("original"))
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := t.TempDir()
+			home := t.TempDir()
+			source := filepath.Join(repo, "source")
+			destination := filepath.Join(home, "destination")
+			tt.setup(t, source)
+			tt.destination(t, destination)
+
+			p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: tt.kind}})
+			if err := os.Chmod(source, 0o700); err != nil {
+				t.Fatalf("chmod source: %v", err)
+			}
+
+			tx := New(p)
+			_, err := tx.Execute()
+			var drift *report.PlanDriftError
+			if !errors.As(err, &drift) {
+				t.Fatalf("Execute() error = %v, want PlanDriftError", err)
+			}
+			if _, err := os.Lstat(tx.Inventory().Entries[0].BackupPath); !os.IsNotExist(err) {
+				t.Errorf("backup was created before source validation: %v", err)
+			}
+			if tt.kind == plan.CopyFile {
+				if got := readFileString(t, destination); got != "original" {
+					t.Errorf("destination = %q, want original", got)
+				}
+				return
+			}
+			if got := readFileString(t, filepath.Join(destination, "config")); got != "original" {
+				t.Errorf("destination = %q, want original", got)
+			}
+		})
+	}
+}
+
 // ---------- review correction: review-ff6ca3152ae6ea7c ----------
 
-// RISK-001: symlink commit content must be bound during Prepare so Commit cannot
-// re-read a source link that changed after the plan was reviewed.
+// RISK-001: a symlink source must fail if its link value changes after planning.
 func TestTransaction_Commit_SymlinkUsesBoundLinkValue(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
@@ -709,16 +1047,63 @@ func TestTransaction_Commit_SymlinkUsesBoundLinkValue(t *testing.T) {
 		t.Fatalf("relink source: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("Commit() error = %v", err)
+	err := tx.Commit()
+	var drift *report.PlanDriftError
+	if !errors.As(err, &drift) {
+		t.Fatalf("Commit() error = %v, want PlanDriftError", err)
 	}
-
 	got, err := os.Readlink(dest)
 	if err != nil {
 		t.Fatalf("readlink dest: %v", err)
 	}
-	if got != firstValue {
-		t.Errorf("dest link = %q, want bound value %q", got, firstValue)
+	if got != oldValue {
+		t.Errorf("dest link = %q, want original value %q", got, oldValue)
+	}
+}
+
+func TestTransaction_Commit_SymlinkConsumesPlannerBoundLinkValue(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	reviewedValue := filepath.Join(repo, "reviewed-real")
+	mustWriteFile(t, reviewedValue, []byte("reviewed"))
+	stalePreparedValue := filepath.Join(repo, "stale-prepared-real")
+	mustWriteFile(t, stalePreparedValue, []byte("stale"))
+
+	src := filepath.Join(repo, "link-src")
+	if err := os.Symlink(reviewedValue, src); err != nil {
+		t.Fatalf("symlink source: %v", err)
+	}
+	dest := filepath.Join(home, "link-dest")
+
+	p := buildPlan(t, repo, home, []plan.Target{{
+		Source: src, Destination: dest, Kind: plan.Symlink,
+	}})
+
+	// Simulate the X → Y → X link-value transition without replacing the
+	// symlink inode that the planner bound. Prepare observes stale Y, while
+	// commit validation observes the reviewed X value again.
+	fs := &readlinkSequenceFS{
+		Filesystem: OSFilesystem(),
+		values:     []string{stalePreparedValue, reviewedValue},
+	}
+	tx := New(p, WithFilesystem(fs))
+	if err := tx.Prepare(); err != nil {
+		t.Fatalf("Prepare() error = %v", err)
+	}
+	if got := entryFor(t, tx.Inventory(), dest).LinkValue; got != stalePreparedValue {
+		t.Fatalf("prepared link value = %q, want stale value %q", got, stalePreparedValue)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+	got, err := os.Readlink(dest)
+	if err != nil {
+		t.Fatalf("readlink destination: %v", err)
+	}
+	if got != reviewedValue {
+		t.Errorf("destination link = %q, want reviewed planner value %q", got, reviewedValue)
 	}
 }
 
@@ -772,6 +1157,20 @@ func TestTransaction_Commit_DirectoryFinalRenameFailureRestoresOriginal(t *testi
 	if entry.Status == report.TargetMutated {
 		t.Error("directory target recorded as mutated despite failed commit")
 	}
+}
+
+type readlinkSequenceFS struct {
+	Filesystem
+	values []string
+}
+
+func (f *readlinkSequenceFS) Readlink(name string) (string, error) {
+	if len(f.values) == 0 {
+		return f.Filesystem.Readlink(name)
+	}
+	value := f.values[0]
+	f.values = f.values[1:]
+	return value, nil
 }
 
 // countingFS records destructive operations on destination paths.

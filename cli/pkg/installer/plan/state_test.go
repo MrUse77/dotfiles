@@ -48,6 +48,22 @@ func TestStateReader_File(t *testing.T) {
 	}
 }
 
+func TestExactModeCapture(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "special")
+	mustWriteFile(t, path, []byte("content"))
+	if err := os.Chmod(path, os.FileMode(0o755)|os.ModeSetuid); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+
+	state, err := DefaultStateReader().Read(path)
+	if err != nil {
+		t.Fatalf("Read() error = %v", err)
+	}
+	if got, want := state.Mode, os.FileMode(0o755)|os.ModeSetuid; got != want {
+		t.Errorf("Mode = %#o, want %#o", got, want)
+	}
+}
+
 func TestStateReader_DirectoryDigestDeterministic(t *testing.T) {
 	reader := DefaultStateReader()
 

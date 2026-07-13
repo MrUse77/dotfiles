@@ -2,12 +2,19 @@ package transaction
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
+	"strings"
+	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 	"github.com/MrUse77/dots-cli/pkg/installer/report"
@@ -211,20 +218,134 @@ func (t *Transaction) Execute() (*report.ExecutionReport, error) {
 	return t.buildReport(nil), nil
 }
 
-func (t *Transaction) validateSourceDigest(tgt plan.Target) error {
+func (t *Transaction) validateSourceDigest(tgt plan.Target) (*os.File, error) {
 	if tgt.SourceDigest == "" {
-		return nil
+		return nil, nil
 	}
-	actual, err := plan.SourceDigestForPath(resolvedSource(tgt))
-	if err == nil && actual == tgt.SourceDigest {
-		return nil
+	binding := tgt.SourceBinding
+	if binding.Digest == "" || binding.Digest != tgt.SourceDigest {
+		return nil, t.planDrift(tgt)
 	}
+	if binding.PathIdentity != (plan.FileIdentity{}) {
+		info, err := os.Lstat(tgt.Source)
+		if err != nil || !matchesIdentity(info, binding.PathIdentity) {
+			return nil, t.planDrift(tgt)
+		}
+	}
+	if binding.LinkDigest != "" {
+		link, err := t.fs.Readlink(tgt.Source)
+		if err != nil || digestLink(link) != binding.LinkDigest {
+			return nil, t.planDrift(tgt)
+		}
+	}
+	source := resolvedSource(tgt)
+	switch binding.Kind {
+	case "file":
+		file, err := openSourceFile(source)
+		if err != nil {
+			return nil, t.planDrift(tgt)
+		}
+		info, err := file.Stat()
+		if err != nil || !info.Mode().IsRegular() || !matchesIdentity(info, binding.Identity) || chmodMode(info.Mode()) != binding.Mode {
+			_ = file.Close()
+			return nil, t.planDrift(tgt)
+		}
+		digest, err := digestOpenFile(file)
+		if err != nil || digest != binding.Digest {
+			_ = file.Close()
+			return nil, t.planDrift(tgt)
+		}
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			_ = file.Close()
+			return nil, t.planDrift(tgt)
+		}
+		return file, nil
+
+	case "directory":
+		dir, err := openSourceDir(source)
+		if err != nil {
+			return nil, t.planDrift(tgt)
+		}
+		info, err := dir.Stat()
+		if err != nil || !info.IsDir() || !matchesIdentity(info, binding.Identity) || chmodMode(info.Mode()) != binding.Mode {
+			_ = dir.Close()
+			return nil, t.planDrift(tgt)
+		}
+		if err := t.verifyTreeManifest(dir, "", tgt); err != nil {
+			_ = dir.Close()
+			return nil, t.planDrift(tgt)
+		}
+		// Rewind and consume the verified descriptor instead of reopening the
+		// mutable source path after validation.
+		if _, err := dir.Seek(0, io.SeekStart); err != nil {
+			_ = dir.Close()
+			return nil, t.planDrift(tgt)
+		}
+		return dir, nil
+
+	case "symlink":
+		link, err := t.fs.Readlink(tgt.Source)
+		if err != nil || link != binding.LinkValue {
+			return nil, t.planDrift(tgt)
+		}
+		return nil, nil
+	}
+
+	return nil, t.planDrift(tgt)
+}
+
+func (t *Transaction) planDrift(tgt plan.Target) error {
 	drift := &report.PlanDriftError{Target: tgt}
 	if entry := t.inventoryEntry(tgt.Destination); entry != nil {
 		entry.Status = report.TargetFailed
 		entry.Error = drift
 	}
 	return drift
+}
+
+func matchesIdentity(info os.FileInfo, want plan.FileIdentity) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false
+	}
+	return uint64(stat.Dev) == want.Device && uint64(stat.Ino) == want.Inode
+}
+
+func matchesIdentityFromStat(stat *unix.Stat_t, want plan.FileIdentity) bool {
+	return uint64(stat.Dev) == want.Device && uint64(stat.Ino) == want.Inode
+}
+
+func identityFromStat(stat *unix.Stat_t) plan.FileIdentity {
+	return plan.FileIdentity{Device: uint64(stat.Dev), Inode: uint64(stat.Ino)}
+}
+
+func digestOpenFile(file *os.File) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func digestLink(link string) string {
+	sum := sha256.Sum256([]byte(link))
+	return hex.EncodeToString(sum[:])
+}
+
+func openSourceFile(path string) (*os.File, error) {
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(fd), path), nil
+}
+
+func openSourceDir(path string) (*os.File, error) {
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_DIRECTORY, 0)
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(fd), path), nil
 }
 
 func (t *Transaction) ensureBackupRoot(root string) error {
@@ -264,6 +385,14 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 		return entry.Error
 	}
 
+	boundSource, err := t.validateSourceDigest(tgt)
+	if err != nil {
+		return err
+	}
+	if boundSource != nil {
+		defer boundSource.Close()
+	}
+
 	root := filepath.Dir(tgt.BackupPath)
 	if err := t.ensureBackupRoot(root); err != nil {
 		entry.Status = report.TargetFailed
@@ -289,27 +418,33 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 			return entry.Error
 		}
 	}
-	if err := t.validateSourceDigest(tgt); err != nil {
-		return err
-	}
-
 	parent := filepath.Dir(tgt.Destination)
 	base := filepath.Base(tgt.Destination)
 
 	var commitErr error
+	linkValue := entry.LinkValue
+	if tgt.Kind == plan.Symlink && tgt.SourceDigest != "" {
+		// Planner-bound symlinks commit the value that validation just matched,
+		// never the mutable value captured during Prepare.
+		linkValue = tgt.SourceBinding.LinkValue
+	}
 	switch tgt.Kind {
 	case plan.CopyFile:
-		commitErr = t.commitFile(tgt, parent, base)
+		commitErr = t.commitFile(tgt, boundSource, parent, base)
 	case plan.CopyTree:
-		commitErr = t.commitTree(tgt, parent, base)
+		commitErr = t.commitTree(tgt, boundSource, parent, base)
 	case plan.Symlink:
-		commitErr = t.commitSymlink(tgt, entry.LinkValue, parent, base)
+		commitErr = t.commitSymlink(tgt, linkValue, parent, base)
 	default:
 		commitErr = fmt.Errorf("unsupported mutation kind %q", tgt.Kind)
 	}
 
 	if commitErr != nil {
 		entry.Status = report.TargetFailed
+		if _, ok := commitErr.(*report.PlanDriftError); ok {
+			entry.Error = commitErr
+			return commitErr
+		}
 		entry.Error = &report.MutationError{Target: tgt, Cause: commitErr}
 		return entry.Error
 	}
@@ -329,6 +464,10 @@ func (t *Transaction) backupTarget(tgt plan.Target) error {
 		if err := copyTree(t.fs, tgt.Destination, tgt.BackupPath); err != nil {
 			_ = t.fs.RemoveAll(tgt.BackupPath)
 			return fmt.Errorf("copy tree backup: %w", err)
+		}
+		if err := t.fs.Chmod(tgt.BackupPath, chmodMode(tgt.PreState.Mode)); err != nil {
+			_ = t.fs.RemoveAll(tgt.BackupPath)
+			return fmt.Errorf("chmod backup directory: %w", err)
 		}
 		return nil
 	case plan.StateSymlink:
@@ -449,34 +588,41 @@ func (t *Transaction) restoreSymlink(tgt plan.Target, parent, base string) error
 	return nil
 }
 
-func (t *Transaction) commitFile(tgt plan.Target, parent, base string) error {
+func (t *Transaction) commitFile(tgt plan.Target, boundFile *os.File, parent, base string) error {
 	source := resolvedSource(tgt)
-	info, err := t.fs.Lstat(source)
-	if err != nil {
-		return fmt.Errorf("stat source: %w", err)
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("source %q is not a regular file", source)
+	var in io.Reader
+	var mode os.FileMode
+	if boundFile != nil {
+		info, err := boundFile.Stat()
+		if err != nil {
+			return fmt.Errorf("stat bound source: %w", err)
+		}
+		in, mode = boundFile, chmodMode(info.Mode())
+	} else {
+		info, err := t.fs.Lstat(source)
+		if err != nil {
+			return fmt.Errorf("stat source: %w", err)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("source %q is not a regular file", source)
+		}
+		opened, err := t.fs.Open(source)
+		if err != nil {
+			return fmt.Errorf("open source: %w", err)
+		}
+		defer opened.Close()
+		in, mode = opened, chmodMode(info.Mode())
 	}
 
 	tmp, tmpName, err := t.fs.CreateTemp(parent, "."+base+".dots-staging-*")
 	if err != nil {
 		return fmt.Errorf("stage file: %w", err)
 	}
-
-	in, err := t.fs.Open(source)
-	if err != nil {
-		_ = tmp.Close()
-		_ = t.fs.Remove(tmpName)
-		return fmt.Errorf("open source: %w", err)
-	}
 	if _, err := io.Copy(tmp, in); err != nil {
-		_ = in.Close()
 		_ = tmp.Close()
 		_ = t.fs.Remove(tmpName)
 		return fmt.Errorf("copy source: %w", err)
 	}
-	_ = in.Close()
 	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
 		_ = t.fs.Remove(tmpName)
@@ -486,7 +632,7 @@ func (t *Transaction) commitFile(tgt plan.Target, parent, base string) error {
 		_ = t.fs.Remove(tmpName)
 		return fmt.Errorf("close staging file: %w", err)
 	}
-	if err := t.fs.Chmod(tmpName, info.Mode().Perm()); err != nil {
+	if err := t.fs.Chmod(tmpName, mode); err != nil {
 		_ = t.fs.Remove(tmpName)
 		return fmt.Errorf("chmod staging file: %w", err)
 	}
@@ -499,9 +645,15 @@ func (t *Transaction) commitFile(tgt plan.Target, parent, base string) error {
 	return nil
 }
 
-func (t *Transaction) commitTree(tgt plan.Target, parent, base string) error {
+func (t *Transaction) commitTree(tgt plan.Target, boundSource *os.File, parent, base string) error {
 	source := resolvedSource(tgt)
-	info, err := t.fs.Lstat(source)
+	var info os.FileInfo
+	var err error
+	if boundSource != nil {
+		info, err = boundSource.Stat()
+	} else {
+		info, err = t.fs.Lstat(source)
+	}
 	if err != nil {
 		return fmt.Errorf("stat source: %w", err)
 	}
@@ -514,11 +666,21 @@ func (t *Transaction) commitTree(tgt plan.Target, parent, base string) error {
 		return fmt.Errorf("stage directory: %w", err)
 	}
 
-	if err := copyTree(t.fs, source, tmpDir); err != nil {
-		_ = t.fs.RemoveAll(tmpDir)
-		return fmt.Errorf("copy tree: %w", err)
+	if boundSource != nil {
+		if err := t.copyTreeBound(boundSource, "", tmpDir, tgt); err != nil {
+			_ = t.fs.RemoveAll(tmpDir)
+			if _, ok := err.(*report.PlanDriftError); ok {
+				return err
+			}
+			return fmt.Errorf("copy tree: %w", err)
+		}
+	} else {
+		if err := copyTree(t.fs, source, tmpDir); err != nil {
+			_ = t.fs.RemoveAll(tmpDir)
+			return fmt.Errorf("copy tree: %w", err)
+		}
 	}
-	if err := t.fs.Chmod(tmpDir, info.Mode().Perm()); err != nil {
+	if err := t.fs.Chmod(tmpDir, chmodMode(info.Mode())); err != nil {
 		_ = t.fs.RemoveAll(tmpDir)
 		return fmt.Errorf("chmod staging directory: %w", err)
 	}
@@ -544,6 +706,295 @@ func (t *Transaction) commitTree(tgt plan.Target, parent, base string) error {
 		}
 		t.mutated = append(t.mutated, tgt)
 	}
+	return nil
+}
+
+// copyTreeBound copies the tree rooted at srcDir to dst while verifying each
+// entry against the planner-built manifest. Source-side operations are
+// descriptor-relative so a substituted symlink inside the source tree is never
+// followed. A manifest mismatch is returned as a PlanDriftError for the target.
+func (t *Transaction) copyTreeBound(srcDir *os.File, prefix, dst string, tgt plan.Target) error {
+	manifest := tgt.SourceBinding.TreeManifest
+	expected := make(map[string]plan.TreeManifestEntry, len(manifest))
+	for _, e := range manifest {
+		expected[e.RelativePath] = e
+	}
+
+	entries, err := srcDir.ReadDir(-1)
+	if err != nil {
+		return fmt.Errorf("read directory: %w", err)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	seen := make(map[string]struct{})
+	for _, e := range entries {
+		name := e.Name()
+		if name == "." || name == ".." {
+			continue
+		}
+
+		rel := name
+		if prefix != "" {
+			rel = path.Join(prefix, name)
+		}
+		seen[rel] = struct{}{}
+
+		want, ok := expected[rel]
+		if !ok {
+			return &report.PlanDriftError{Target: tgt}
+		}
+
+		var stat unix.Stat_t
+		if err := unix.Fstatat(int(srcDir.Fd()), name, &stat, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			return fmt.Errorf("stat %q: %w", rel, err)
+		}
+		mode := plan.FileModeFromUnix(stat.Mode)
+
+		dstPath := filepath.Join(dst, name)
+		switch want.Kind {
+		case "file":
+			if !mode.IsRegular() || !matchesIdentityFromStat(&stat, want.Identity) || chmodMode(mode) != want.Mode {
+				return &report.PlanDriftError{Target: tgt}
+			}
+
+			fd, err := unix.Openat(int(srcDir.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+			if err != nil {
+				return fmt.Errorf("open %q: %w", rel, err)
+			}
+			f := os.NewFile(uintptr(fd), name)
+			digest, err := digestOpenFile(f)
+			if err != nil {
+				_ = f.Close()
+				return fmt.Errorf("digest %q: %w", rel, err)
+			}
+			if digest != want.Digest {
+				_ = f.Close()
+				return &report.PlanDriftError{Target: tgt}
+			}
+			if _, err := f.Seek(0, io.SeekStart); err != nil {
+				_ = f.Close()
+				return fmt.Errorf("seek %q: %w", rel, err)
+			}
+
+			out, outName, err := t.fs.CreateTemp(dst, "."+name+".dots-staging-*")
+			if err != nil {
+				_ = f.Close()
+				return fmt.Errorf("stage %q: %w", rel, err)
+			}
+			if _, err := io.Copy(out, f); err != nil {
+				_ = f.Close()
+				_ = out.Close()
+				_ = t.fs.Remove(outName)
+				return fmt.Errorf("copy %q: %w", rel, err)
+			}
+			_ = f.Close()
+			if err := out.Sync(); err != nil {
+				_ = out.Close()
+				_ = t.fs.Remove(outName)
+				return fmt.Errorf("sync %q: %w", rel, err)
+			}
+			if err := out.Close(); err != nil {
+				_ = t.fs.Remove(outName)
+				return fmt.Errorf("close %q: %w", rel, err)
+			}
+			if err := t.fs.Chmod(outName, want.Mode); err != nil {
+				_ = t.fs.Remove(outName)
+				return fmt.Errorf("chmod %q: %w", rel, err)
+			}
+			if err := t.fs.Rename(outName, dstPath); err != nil {
+				_ = t.fs.Remove(outName)
+				return fmt.Errorf("commit %q: %w", rel, err)
+			}
+
+		case "directory":
+			if !mode.IsDir() || !matchesIdentityFromStat(&stat, want.Identity) {
+				return &report.PlanDriftError{Target: tgt}
+			}
+
+			if err := t.fs.Mkdir(dstPath, want.Mode); err != nil {
+				return fmt.Errorf("mkdir %q: %w", rel, err)
+			}
+			fd, err := unix.Openat(int(srcDir.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_DIRECTORY, 0)
+			if err != nil {
+				return fmt.Errorf("open directory %q: %w", rel, err)
+			}
+			sub := os.NewFile(uintptr(fd), name)
+			if err := t.copyTreeBound(sub, rel, dstPath, tgt); err != nil {
+				_ = sub.Close()
+				return err
+			}
+			_ = sub.Close()
+			if err := t.fs.Chmod(dstPath, want.Mode); err != nil {
+				return fmt.Errorf("chmod directory %q: %w", rel, err)
+			}
+
+		case "symlink":
+			if mode&os.ModeSymlink == 0 {
+				return &report.PlanDriftError{Target: tgt}
+			}
+			buf := make([]byte, 4096)
+			n, err := unix.Readlinkat(int(srcDir.Fd()), name, buf)
+			if err != nil {
+				return fmt.Errorf("readlink %q: %w", rel, err)
+			}
+			link := string(buf[:n])
+			if link != want.LinkValue {
+				return &report.PlanDriftError{Target: tgt}
+			}
+			if err := t.fs.Symlink(link, dstPath); err != nil {
+				return fmt.Errorf("symlink %q: %w", rel, err)
+			}
+
+		default:
+			return &report.PlanDriftError{Target: tgt}
+		}
+	}
+
+	for _, want := range manifest {
+		var isDirectChild bool
+		if prefix == "" {
+			isDirectChild = !strings.Contains(want.RelativePath, "/")
+		} else {
+			if strings.HasPrefix(want.RelativePath, prefix+"/") {
+				rest := strings.TrimPrefix(want.RelativePath, prefix+"/")
+				isDirectChild = !strings.Contains(rest, "/")
+			}
+		}
+		if !isDirectChild {
+			continue
+		}
+		if _, ok := seen[want.RelativePath]; !ok {
+			return &report.PlanDriftError{Target: tgt}
+		}
+	}
+
+	return nil
+}
+
+// verifyTreeManifest checks that the directory tree rooted at srcDir matches the
+// planner-built manifest without copying anything. It is used before backup so
+// that content drift inside a source directory is caught before any destination
+// mutation.
+func (t *Transaction) verifyTreeManifest(srcDir *os.File, prefix string, tgt plan.Target) error {
+	manifest := tgt.SourceBinding.TreeManifest
+	expected := make(map[string]plan.TreeManifestEntry, len(manifest))
+	for _, e := range manifest {
+		expected[e.RelativePath] = e
+	}
+
+	entries, err := srcDir.ReadDir(-1)
+	if err != nil {
+		return fmt.Errorf("read directory: %w", err)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	seen := make(map[string]struct{})
+	for _, e := range entries {
+		name := e.Name()
+		if name == "." || name == ".." {
+			continue
+		}
+
+		rel := name
+		if prefix != "" {
+			rel = path.Join(prefix, name)
+		}
+		seen[rel] = struct{}{}
+
+		want, ok := expected[rel]
+		if !ok {
+			return fmt.Errorf("unexpected entry %q", rel)
+		}
+
+		var stat unix.Stat_t
+		if err := unix.Fstatat(int(srcDir.Fd()), name, &stat, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			return fmt.Errorf("stat %q: %w", rel, err)
+		}
+		mode := plan.FileModeFromUnix(stat.Mode)
+
+		switch want.Kind {
+		case "file":
+			if !mode.IsRegular() {
+				return fmt.Errorf("entry %q type drift: got %v", rel, mode)
+			}
+			if !matchesIdentityFromStat(&stat, want.Identity) {
+				return fmt.Errorf("entry %q identity drift: got %v want %v", rel, identityFromStat(&stat), want.Identity)
+			}
+			if chmodMode(mode) != want.Mode {
+				return fmt.Errorf("entry %q mode drift: got %#o want %#o", rel, chmodMode(mode), want.Mode)
+			}
+			fd, err := unix.Openat(int(srcDir.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+			if err != nil {
+				return fmt.Errorf("open %q: %w", rel, err)
+			}
+			f := os.NewFile(uintptr(fd), name)
+			digest, err := digestOpenFile(f)
+			_ = f.Close()
+			if err != nil {
+				return fmt.Errorf("digest %q: %w", rel, err)
+			}
+			if digest != want.Digest {
+				return fmt.Errorf("entry %q digest drift", rel)
+			}
+
+		case "directory":
+			if !mode.IsDir() {
+				return fmt.Errorf("entry %q type drift: got %v", rel, mode)
+			}
+			if !matchesIdentityFromStat(&stat, want.Identity) {
+				return fmt.Errorf("entry %q identity drift: got %v want %v", rel, identityFromStat(&stat), want.Identity)
+			}
+			fd, err := unix.Openat(int(srcDir.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_DIRECTORY, 0)
+			if err != nil {
+				return fmt.Errorf("open directory %q: %w", rel, err)
+			}
+			sub := os.NewFile(uintptr(fd), name)
+			if err := t.verifyTreeManifest(sub, rel, tgt); err != nil {
+				_ = sub.Close()
+				return err
+			}
+			_ = sub.Close()
+
+		case "symlink":
+			if mode&os.ModeSymlink == 0 {
+				return fmt.Errorf("entry %q type drift: got %v", rel, mode)
+			}
+			buf := make([]byte, 4096)
+			n, err := unix.Readlinkat(int(srcDir.Fd()), name, buf)
+			if err != nil {
+				return fmt.Errorf("readlink %q: %w", rel, err)
+			}
+			if string(buf[:n]) != want.LinkValue {
+				return fmt.Errorf("entry %q symlink value drift", rel)
+			}
+
+		default:
+			return fmt.Errorf("unsupported manifest kind %q for %q", want.Kind, rel)
+		}
+	}
+
+	for _, want := range manifest {
+		var isDirectChild bool
+		if prefix == "" {
+			isDirectChild = !strings.Contains(want.RelativePath, "/")
+		} else {
+			if strings.HasPrefix(want.RelativePath, prefix+"/") {
+				rest := strings.TrimPrefix(want.RelativePath, prefix+"/")
+				isDirectChild = !strings.Contains(rest, "/")
+			}
+		}
+		if !isDirectChild {
+			continue
+		}
+		if _, ok := seen[want.RelativePath]; !ok {
+			return fmt.Errorf("missing entry %q", want.RelativePath)
+		}
+	}
+
 	return nil
 }
 
