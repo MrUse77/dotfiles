@@ -3,205 +3,71 @@
 ## Status
 
 - **Change:** safe-dotfiles-installer
-- **Artifact store:** openspec
-- **Current phase:** apply
-- **Work unit:** 2 of 4 (tasks 2.1–2.5)
-- **Apply state:** ready
+- **Artifact store:** openspec (authoritative repository-local store)
+- **Current phase:** verify
+- **Apply state:** all work units complete; verification pending report
+- **Authoritative completion:** Work Units 1–4 are complete. Work Unit 4 merged through PR #14 (`83ede74`); the current branch contains only the task-checkbox reconciliation.
 
 ## Completed Tasks
 
-- [x] 1.1 RED — plan contracts and canonical fingerprint tests
-- [x] 1.2 GREEN — immutable plan model and read-only planner seams
-- [x] 1.3 TRIANGULATE — pre-state discovery boundaries
-- [x] 1.4 RED/GREEN — execution report contracts
-- [x] 1.5 REFACTOR/verify work unit
-- [x] 2.1 RED — inventory and backup-before-write tests
-- [x] 2.2 GREEN — safe inventory, backup, and staging implementation
-- [x] 2.3 TRIANGULATE — atomic mutation and drift tests
-- [x] 2.4 RED/GREEN — rollback completeness tests
-- [x] 2.5 REFACTOR/verify work unit
+All 25 implementation and apply-gate checkboxes in `tasks.md` are complete:
 
-Task checkboxes were updated in `openspec/changes/safe-dotfiles-installer/tasks.md`.
+- Work Unit 1: 1.1–1.5 — immutable plan and typed reporting.
+- Work Unit 2: 2.1–2.5 — recoverable filesystem transaction.
+- Work Unit 3: 3.1–3.6 — structured external actions and executor ordering.
+- Work Unit 4: 4.1–4.6 — review UI and Cobra cutover.
+- Apply gate: delivery decision recorded; chained delivery followed; single-PR exception explicitly not applicable.
 
-## Files Changed
+## Files Changed and Delivery Boundary
 
-New files under `cli/pkg/installer/transaction/`:
-
-- `cli/pkg/installer/transaction/transaction.go` — `Transaction`, `Prepare`, `Commit`, `Rollback`, `Execute`, drift checks, atomic staging, and report building
-- `cli/pkg/installer/transaction/filesystem.go` — injectable `Filesystem`/`File` seams and `copyFile`/`copyTree` helpers using only `os`, `io`, `filepath`, and `os.Symlink`
-- `cli/pkg/installer/transaction/inventory.go` — retained `Inventory`, `InventoryEntry`, and `persistInventory`
-- `cli/pkg/installer/transaction/transaction_test.go` — inventory, backup-before-write, atomic mutation, drift, and staging tests
-- `cli/pkg/installer/transaction/rollback_test.go` — reverse-order rollback, continued rollback after failure, and backup-retention tests
-
-Updated OpenSpec artifact:
-
-- `openspec/changes/safe-dotfiles-installer/tasks.md` — checked off tasks 2.1–2.5
-
-No existing production code outside `cli/pkg/installer/transaction/` was modified. No commit was made per the parent instruction.
+- **PR/work-unit chain:** `feature-branch-chain` as recorded in `tasks.md` and `state.yaml`.
+- **Work Unit 1:** plan/report contracts (PR #10 baseline and follow-up corrections).
+- **Work Unit 2:** transaction/inventory/rollback implementation and tests (PR #12).
+- **Work Unit 3:** action catalog, structured external runner, executor, and focused tests (PR #13, `1719235`).
+- **Work Unit 4:** review UI, Cobra composition, and focused tests (PR #14, `d1b00b0`, merged as `83ede74`).
+- **Current branch:** only `openspec/changes/safe-dotfiles-installer/tasks.md` checkbox reconciliation; no product-code changes.
 
 ## TDD Cycle Evidence
 
-### RED — 2.1 / 2.3 / 2.4
+The historical record below is deliberately conservative. It preserves the earlier detailed evidence and records what can be proven from the artifact, commit history, present test files, and current GREEN run. It does not reconstruct unrecorded chronological RED/TRIANGULATE runs.
 
-Initial test run failed because the transaction package did not exist:
+| Work unit / tasks | RED evidence | GREEN evidence | TRIANGULATE / REFACTOR evidence | Current status |
+|---|---|---|---|---|
+| 1 / 1.1–1.5 | Recorded in the historical narrative below for plan/report contracts. | Historical package runs recorded; present suites pass. | Historical boundary/refactor narrative recorded. | Complete; current full suite GREEN. |
+| 2 / 2.1–2.5 | Recorded in the historical narrative below for transaction scenarios. | Historical transaction/full-suite runs recorded; present suites pass. | Historical boundary/refactor narrative recorded. | Complete; current full suite GREEN. |
+| 3 / 3.1–3.6 | **Recovered delegated-worker evidence (not originally persisted at apply time):** catalog slice RED observed because `NewActionCatalog` was undefined; executor slice RED focused test failed before `NewExecutor` existed; direct-copy slice RED focused test initially failed before implementation. | **Recovered delegated-worker evidence:** catalog GREEN `cd cli && go test ./pkg/installer -run 'Test(ActionCatalog|ManagedTargets)' -count=1` passed; executor GREEN `cd cli && go test ./pkg/installer -run 'TestExecutor'` passed; direct-copy focused GREEN passed. | **Recovered delegated-worker evidence:** catalog/executor TRIANGULATE/REFACTOR `cd cli && go test ./pkg/installer/...` passed; direct-copy TRIANGULATE/REFACTOR full installer tests and managed font/icon shell-copy grep passed. Direct-copy validation: `cd cli && go test ./pkg/installer -count=1`, `cd cli && go test ./pkg/installer/...`, and managed font/icon shell-copy grep passed. | Complete; recovered execution evidence is now preserved with provenance; current full suite GREEN. |
+| 4 / 4.1–4.6 | **Recovered delegated-worker evidence (not originally persisted at apply time):** RED observed focused review test failure before fixing rendered-state mutation. Later bounded correction RED focused cancellation tests failed under previous aborted behavior. | **Recovered delegated-worker evidence:** focused UI tests passed after the rendered-state fix; focused cancellation tests passed after the bounded correction. | **Recovered delegated-worker evidence:** TRIANGULATE/REFACTOR command tests, full installer tests, formatting, vet, build, and diff checks passed; the bounded correction was followed by full validation. | Complete; recovered execution evidence is now preserved with provenance; current full suite GREEN. |
 
-```text
-$ cd cli && go test ./pkg/installer/transaction -run 'Test(Prepare|Execute|Rollback)'
-# github.com/MrUse77/dots-cli/pkg/installer/transaction [github.com/MrUse77/dots-cli/pkg/installer/transaction.test]
-pkg/installer/transaction/rollback_test.go:35:8: undefined: New
-pkg/installer/transaction/transaction_test.go:81:34: undefined: Inventory
-...
-```
+### Current Validation
 
-### GREEN — 2.2 / 2.4
-
-After adding `transaction.go`, `filesystem.go`, and `inventory.go`, the transaction suite passed:
+Run from `cli/` on 2026-07-13:
 
 ```text
-$ cd cli && go test ./pkg/installer/transaction -v
-ok  	github.com/MrUse77/dots-cli/pkg/installer/transaction	0.010s
-```
-
-### TRIANGULATE — 2.3 / 2.4
-
-Extended tests covered:
-
-- file, directory, symlink, and absent target mutations
-- special-character and root-level-file paths
-- backup collision rejection
-- drift detection for changed files and absent targets that became present
-- failure at the first target, after multiple mutations, and reverse restoration order
-- continued rollback after one restore failure
-- backup retention after both success and rollback
-- no `Remove(dest)` fallback during mutation
-
-### REFACTOR — 2.5
-
-- Extracted `backupTarget` and `restoreFromBackup` helpers to keep `mutateTarget` and `Rollback` readable.
-- Staged file and symlink restores through a sibling temp path so a failed restore never leaves the destination missing.
-- Used `t.TempDir()` for every filesystem test; no real home directory or external commands are invoked.
-- Ran `go fmt`, `go vet`, and `git diff --check`; no issues.
-
-New files under `cli/pkg/installer/`:
-
-- `cli/pkg/installer/plan/plan.go` — immutable plan model, fingerprint, validation, and error types
-- `cli/pkg/installer/plan/planner.go` — read-only `Planner` with injectable seams
-- `cli/pkg/installer/plan/state.go` — `StateReader` and deterministic pre-state digests
-- `cli/pkg/installer/plan/plan_test.go` — plan/fingerprint/validation tests
-- `cli/pkg/installer/plan/state_test.go` — pre-state boundary tests
-- `cli/pkg/installer/report/report.go` — pure typed `ExecutionReport` and error types
-- `cli/pkg/installer/report/report_test.go` — report/error contract tests
-
-Updated OpenSpec artifact:
-
-- `openspec/changes/safe-dotfiles-installer/tasks.md` — checked off tasks 1.1–1.5
-
-No existing production code under `cli/` was modified. No commit was made per the parent instruction.
-
-## TDD Cycle Evidence
-
-### RED — 1.1 / 1.4
-
-Initial test run failed because the plan/report contracts did not exist:
-
-```text
-$ go test ./pkg/installer/plan ./pkg/installer/report
-pkg/installer/plan: no non-test Go files in .../cli/pkg/installer/plan
-# github.com/MrUse77/dots-cli/pkg/installer/plan [github.com/MrUse77/dots-cli/pkg/installer/plan.test]
-pkg/installer/plan/plan_test.go:24:12: undefined: Target
-pkg/installer/plan/plan_test.go:28:66: undefined: Options
-...
-```
-
-### GREEN — 1.2 / 1.4
-
-After adding `plan.go`, `planner.go`, `state.go`, and `report.go`, the same suites passed:
-
-```text
-$ go test ./pkg/installer/plan ./pkg/installer/report
-ok  	github.com/MrUse77/dots-cli/pkg/installer/plan
-ok  	github.com/MrUse77/dots-cli/pkg/installer/report
-```
-
-### TRIANGULATE — 1.3
-
-Extended boundary cases in `state_test.go` (absent/file/dir/symlink, special files, unreadable files, deterministic directory digest across creation order) and the existing planner tests (missing source, prerequisite failure without mutation). All passed after implementing `state.go`.
-
-### REFACTOR — 1.5
-
-- Removed duplication by sharing fake helpers inside test packages.
-- Renamed overlapping constants (`Symlink` collision between `MutationKind` and `PreStateType`) to `StateSymlink`, `StateFile`, etc.
-- Reformatted with `go fmt`.
-- Verified with `go vet` and `git diff --check`.
-
-## Verification Commands and Results
-
-```bash
-cd cli
-go test ./pkg/installer/transaction
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/transaction
-
-go vet ./pkg/installer/transaction
-# (no output)
-
-go test ./...
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/plan
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/report
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/transaction
-
-go vet ./...
-# (no output)
-
-go build ./...
-
-go test ./pkg/installer/plan ./pkg/installer/report
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/plan
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/report
-
-go vet ./pkg/installer/plan ./pkg/installer/report
-# (no output)
-
-git diff --check
-# (no output)
-
-# Broader regression check:
-go test ./...
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/plan
-# ok  	github.com/MrUse77/dots-cli/pkg/installer/report
-# ?   	github.com/MrUse77/dots-cli/cmd	[no test files]
-# ?   	github.com/MrUse77/dots-cli/pkg/installer	[no test files]
-# ?   	github.com/MrUse77/dots-cli/pkg/theme	[no test files]
+$ go fmt ./...
+$ go test ./...
+PASS: cmd, installer, external, plan, report, transaction, ui
+$ go test -cover ./...
+PASS (package coverage: cmd 36.5%, installer 32.3%, external 81.8%, plan 81.3%, report 75.0%, transaction 66.1%, ui 81.7%)
+$ go vet ./...
+PASS (no output)
+$ go build ./...
+PASS
+$ git diff --check
+PASS (no output)
 ```
 
 ## Deviations from Design
 
-
-- The implementation copies each existing target to its retained backup entry before mutation, then atomically replaces the target. Rollback restores from the retained copy, so backups remain on disk after rollback. This satisfies the proposal rule that backups must remain available after rollback while still using atomic sibling renames for mutation.
-- Directory mutation uses a temporary trash path for the original tree so the staged directory can be renamed into place; the trash is removed on success and is not required for rollback because the retained backup copy is authoritative.
-- The persisted inventory file is written inside the first target's backup root (`<parent>/.dots-backups/<RunID>/inventory.json`). Each backup root is adjacent to its target parent, satisfying the same-filesystem atomic-rename requirement.
+- Backup path escaping uses hex encoding of the cleaned absolute destination; it remains reversible and path-safe.
+- The transaction retains backup copies and restores from those copies; backup inventory persists after success and rollback.
+- The inventory is stored in the first target backup root. This remains adjacent to a managed target and is retained for recovery.
+- No implementation deviation was recorded for Work Units 3–4. Their recovered execution evidence is recorded in the TDD Cycle Evidence table above. **Provenance:** this evidence was recovered verbatim from delegated worker handoffs after apply; it was not originally persisted at apply time.
 
 ## Remaining Tasks
 
-Work Unit 3 (tasks 3.1–3.6): structured external actions and executor ordering.
+None. There are no unchecked implementation task markers in `tasks.md`.
 
-```text
-- [ ] 3.1 RED — external command boundary tests
-- [ ] 3.2 GREEN — external runner and classification model
-- [ ] 3.3 RED — catalog adaptation tests
-- [ ] 3.4 GREEN/TRIANGULATE — adapt current installer helpers behind the catalog
-- [ ] 3.5 RED/GREEN — executor sequencing tests and implementation
-- [ ] 3.6 REFACTOR/verify work unit
-
-- Kept `TargetDiscoverer` and `ActionCatalog` as interfaces with no default implementation for Work Unit 1; the real catalog discovery will be added in Work Unit 3.
-- Backup path escaping uses hex encoding of the cleaned absolute destination instead of base64; the design only required a reversible, path-safe encoding.
-- No commit was produced because the parent explicitly prohibited commits for this work unit.
-
-## Workload / PR Boundary
-
-
-This work unit is confined to the recoverable filesystem transaction package under `cli/pkg/installer/transaction/`. It does not touch `cmd/install.go`, existing installer helpers, or any non-`cli/` files. It is the second PR slice in the `feature-branch-chain` delivery strategy recorded in `state.yaml`.
-
----
+## Historical Review Correction Evidence (preserved verbatim)
 
 ## Review Correction: review-3c6a78d80a8f01c8
 
