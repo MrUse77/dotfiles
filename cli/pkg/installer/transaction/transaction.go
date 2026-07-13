@@ -62,15 +62,23 @@ func (t *Transaction) Inventory() *Inventory { return t.inventory }
 // Prepare allocates the inventory, creates backup roots, and checks for backup
 // collisions without mutating any managed target.
 func (t *Transaction) Prepare() error {
-	inv := &Inventory{RunID: t.plan.RunID}
+	inv := &Inventory{FormatVersion: InventoryFormatVersion, RunID: t.plan.RunID, Lifecycle: InventoryPrepared}
 	t.inventory = inv
 
+	seenBackups := make(map[string]plan.Target)
+	for _, tgt := range t.plan.ManagedTargets() {
+		if other, exists := seenBackups[tgt.BackupPath]; exists {
+			return fmt.Errorf("backup collision at %q for destinations %q and %q", tgt.BackupPath, other.Destination, tgt.Destination)
+		}
+		seenBackups[tgt.BackupPath] = tgt
+	}
 	for _, tgt := range t.plan.ManagedTargets() {
 		entry := InventoryEntry{
 			Target:     tgt,
 			Original:   tgt.PreState,
 			BackupPath: tgt.BackupPath,
 			Status:     report.TargetPending,
+			State:      EntryPending,
 		}
 		if tgt.Kind == plan.Symlink {
 			entry.LinkValue = boundSymlinkValue(t.fs, tgt.Source)
@@ -121,8 +129,13 @@ func (t *Transaction) Commit() error {
 			return err
 		}
 	}
+	t.inventory.Lifecycle = InventoryCommitting
+	if err := persistInventory(t.fs, t.inventory); err != nil {
+		return err
+	}
 	for i := range t.inventory.Entries {
 		if err := t.mutateTarget(&t.inventory.Entries[i]); err != nil {
+			t.inventory.Lifecycle = InventoryCommitFailed
 			if persistErr := persistInventory(t.fs, t.inventory); persistErr != nil {
 				return errors.Join(err, persistErr)
 			}
@@ -132,7 +145,8 @@ func (t *Transaction) Commit() error {
 			return persistErr
 		}
 	}
-	return nil
+	t.inventory.Lifecycle = InventoryCompleted
+	return persistInventory(t.fs, t.inventory)
 }
 
 // Rollback restores mutated targets in reverse order. It continues after
@@ -140,6 +154,12 @@ func (t *Transaction) Commit() error {
 // Backups are never deleted; the installer copies them back to the target path.
 func (t *Transaction) Rollback() error {
 	var failures []report.TargetOutcome
+	var persistFailures []error
+
+	t.inventory.Lifecycle = InventoryRollingBack
+	if err := persistInventory(t.fs, t.inventory); err != nil {
+		persistFailures = append(persistFailures, err)
+	}
 
 	for i := len(t.mutated) - 1; i >= 0; i-- {
 		tgt := t.mutated[i]
@@ -155,7 +175,11 @@ func (t *Transaction) Rollback() error {
 				})
 				if entry != nil {
 					entry.Status = report.TargetFailed
+					entry.State = EntryFailed
 					entry.Error = err
+				}
+				if err := persistInventory(t.fs, t.inventory); err != nil {
+					persistFailures = append(persistFailures, err)
 				}
 				continue
 			}
@@ -169,7 +193,11 @@ func (t *Transaction) Rollback() error {
 				})
 				if entry != nil {
 					entry.Status = report.TargetFailed
+					entry.State = EntryFailed
 					entry.Error = err
+				}
+				if err := persistInventory(t.fs, t.inventory); err != nil {
+					persistFailures = append(persistFailures, err)
 				}
 				continue
 			}
@@ -177,21 +205,31 @@ func (t *Transaction) Rollback() error {
 
 		if entry != nil {
 			entry.Status = report.TargetRestored
+			entry.State = EntryRestored
 			entry.Error = nil
 		}
-	}
-
-	if persistErr := persistInventory(t.fs, t.inventory); persistErr != nil {
-		if len(failures) > 0 {
-			return errors.Join(&report.RollbackError{Failures: failures}, persistErr)
+		if err := persistInventory(t.fs, t.inventory); err != nil {
+			persistFailures = append(persistFailures, err)
 		}
-		return persistErr
 	}
 
 	if len(failures) > 0 {
-		return &report.RollbackError{Failures: failures}
+		t.inventory.Lifecycle = InventoryRecoveryIncomplete
+	} else {
+		t.inventory.Lifecycle = InventoryRolledBack
 	}
-	return nil
+	if err := persistInventory(t.fs, t.inventory); err != nil {
+		persistFailures = append(persistFailures, err)
+	}
+
+	var result error
+	if len(failures) > 0 {
+		result = &report.RollbackError{Failures: failures}
+	}
+	if len(persistFailures) > 0 {
+		result = errors.Join(append([]error{result}, persistFailures...)...)
+	}
+	return result
 }
 
 // Execute runs Prepare, Commit, and Rollback as a single recoverable operation.
@@ -298,6 +336,7 @@ func (t *Transaction) planDrift(tgt plan.Target) error {
 	drift := &report.PlanDriftError{Target: tgt}
 	if entry := t.inventoryEntry(tgt.Destination); entry != nil {
 		entry.Status = report.TargetFailed
+		entry.State = EntrySourceDrift
 		entry.Error = drift
 	}
 	return drift
@@ -349,15 +388,147 @@ func openSourceDir(path string) (*os.File, error) {
 }
 
 func (t *Transaction) ensureBackupRoot(root string) error {
-	dotsBackups := filepath.Dir(root)
-	if err := t.fs.Mkdir(dotsBackups, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+	dir, err := openBackupRoot(root, true)
+	if dir != nil {
+		_ = dir.Close()
 	}
-	if err := t.fs.Mkdir(root, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+	return err
+}
+
+// validateBackupRoot reopens the existing root without following any component.
+// It is called before each backup and inventory write, not only during Prepare.
+func validateBackupRoot(root string) error {
+	dir, err := openBackupRoot(root, false)
+	if dir != nil {
+		_ = dir.Close()
 	}
-	_ = t.fs.Chmod(dotsBackups, 0o700)
-	_ = t.fs.Chmod(root, 0o700)
+	return err
+}
+
+func openBackupRoot(root string, create bool) (*os.File, error) {
+	root = filepath.Clean(root)
+	if filepath.Base(filepath.Dir(root)) == ".dots-backups" {
+		return openBackupRunRoot(root, create)
+	}
+	current := root
+	var missing []string
+	for {
+		info, err := os.Lstat(current)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return nil, fmt.Errorf("unsafe backup root component %q: symlink", current)
+			}
+			if !info.IsDir() {
+				return nil, fmt.Errorf("unsafe backup root component %q: not a directory", current)
+			}
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) || !create {
+			return nil, fmt.Errorf("backup root component %q: %w", current, err)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return nil, fmt.Errorf("backup root %q has no existing safe parent", root)
+		}
+		missing = append([]string{filepath.Base(current)}, missing...)
+		current = parent
+	}
+
+	fd, err := unix.Open(current, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open backup root parent %q: %w", current, err)
+	}
+	if err := validateBackupDirectory(fd, current, false); err != nil {
+		return nil, err
+	}
+	componentPath := current
+	for _, name := range missing {
+		componentPath = filepath.Join(componentPath, name)
+		if err := unix.Mkdirat(fd, name, 0o700); err != nil && !errors.Is(err, unix.EEXIST) {
+			return nil, fmt.Errorf("create backup root component %q: %w", componentPath, err)
+		}
+		var stat unix.Stat_t
+		if err := unix.Fstatat(fd, name, &stat, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			return nil, fmt.Errorf("stat backup root component %q: %w", componentPath, err)
+		}
+		if err := validateBackupStat(&stat, componentPath, true); err != nil {
+			return nil, err
+		}
+		next, err := unix.Openat(fd, name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+		if err != nil {
+			return nil, fmt.Errorf("open backup root component %q: %w", componentPath, err)
+		}
+		_ = unix.Close(fd)
+		fd = next
+	}
+	if err := validateBackupDirectory(fd, root, true); err != nil {
+		_ = unix.Close(fd)
+		return nil, err
+	}
+	return os.NewFile(uintptr(fd), root), nil
+}
+
+// openBackupRunRoot anchors traversal at the target's home directory, then opens
+// `.dots-backups` and the run ID exclusively through descriptor-relative calls.
+func openBackupRunRoot(root string, create bool) (*os.File, error) {
+	anchor := filepath.Dir(filepath.Dir(root))
+	parts := []string{".dots-backups", filepath.Base(root)}
+	fd, err := unix.Open(anchor, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open backup root parent %q: %w", anchor, err)
+	}
+	if err := validateBackupDirectory(fd, anchor, false); err != nil {
+		return nil, err
+	}
+	componentPath := anchor
+	for _, name := range parts {
+		componentPath = filepath.Join(componentPath, name)
+		var stat unix.Stat_t
+		err := unix.Fstatat(fd, name, &stat, unix.AT_SYMLINK_NOFOLLOW)
+		if errors.Is(err, unix.ENOENT) && create {
+			if err := unix.Mkdirat(fd, name, 0o700); err != nil && !errors.Is(err, unix.EEXIST) {
+				return nil, fmt.Errorf("create backup root component %q: %w", componentPath, err)
+			}
+			err = unix.Fstatat(fd, name, &stat, unix.AT_SYMLINK_NOFOLLOW)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("stat backup root component %q: %w", componentPath, err)
+		}
+		if err := validateBackupStat(&stat, componentPath, true); err != nil {
+			return nil, err
+		}
+		next, err := unix.Openat(fd, name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+		if err != nil {
+			return nil, fmt.Errorf("open backup root component %q: %w", componentPath, err)
+		}
+		_ = unix.Close(fd)
+		fd = next
+	}
+	return os.NewFile(uintptr(fd), root), nil
+}
+
+func validateBackupDirectory(fd int, component string, require0700 bool) error {
+	var stat unix.Stat_t
+	if err := unix.Fstat(fd, &stat); err != nil {
+		return fmt.Errorf("stat backup root component %q: %w", component, err)
+	}
+	return validateBackupStat(&stat, component, require0700)
+}
+
+func validateBackupStat(stat *unix.Stat_t, component string, require0700 bool) error {
+	if stat.Mode&unix.S_IFMT != unix.S_IFDIR {
+		return fmt.Errorf("unsafe backup root component %q: not a directory", component)
+	}
+	if int(stat.Uid) != os.Geteuid() {
+		return fmt.Errorf("unsafe backup root component %q: owner uid %d", component, stat.Uid)
+	}
+	perm := stat.Mode & 0o777
+	if perm&0o022 != 0 {
+		return fmt.Errorf("unsafe backup root component %q: group/world writable mode %#o", component, perm)
+	}
+	if require0700 && perm != 0o700 {
+		return fmt.Errorf("unsafe backup root component %q: mode %#o, want 0700", component, perm)
+	}
 	return nil
 }
 
@@ -417,6 +588,15 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 			entry.Error = &report.BackupError{Target: tgt, Cause: cause}
 			return entry.Error
 		}
+		// A durable checkpoint closes the crash window between retaining the
+		// original and the first destination mutation.
+		entry.State = EntryBackedUp
+		if err := persistInventory(t.fs, t.inventory); err != nil {
+			return err
+		}
+		if backupCheckpointPersisted != nil {
+			backupCheckpointPersisted()
+		}
 	}
 	parent := filepath.Dir(tgt.Destination)
 	base := filepath.Base(tgt.Destination)
@@ -450,38 +630,212 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 	}
 
 	entry.Status = report.TargetMutated
+	entry.State = EntryMutated
 	return nil
 }
 
+// backupBeforeCreate is a test seam for proving that a validated backup root is
+// never reopened by path while creating a backup.
+var backupBeforeCreate func()
+
+// backupSync is a test seam for backup durability failures.
+var backupSync = unix.Fsync
+
+// backupCheckpointPersisted is a test seam for the crash window after backup
+// durability and before the first destination mutation.
+var backupCheckpointPersisted func()
+
 func (t *Transaction) backupTarget(tgt plan.Target) error {
+	root, err := openBackupRoot(filepath.Dir(tgt.BackupPath), false)
+	if err != nil {
+		return fmt.Errorf("open backup root: %w", err)
+	}
+	defer root.Close()
+	if backupBeforeCreate != nil {
+		backupBeforeCreate()
+	}
+
+	name := filepath.Base(tgt.BackupPath)
 	switch tgt.PreState.Type {
 	case plan.StateFile:
-		return copyFile(t.fs, tgt.Destination, tgt.BackupPath, tgt.PreState.Mode)
+		if err := copyBackupFile(int(root.Fd()), name, tgt.Destination, tgt.PreState.Mode); err != nil {
+			return err
+		}
 	case plan.StateDirectory:
-		if err := t.fs.Mkdir(tgt.BackupPath, tgt.PreState.Mode); err != nil {
-			return fmt.Errorf("mkdir backup: %w", err)
+		if err := copyBackupDirectory(int(root.Fd()), name, tgt.Destination, tgt.PreState.Mode); err != nil {
+			return err
 		}
-		if err := copyTree(t.fs, tgt.Destination, tgt.BackupPath); err != nil {
-			_ = t.fs.RemoveAll(tgt.BackupPath)
-			return fmt.Errorf("copy tree backup: %w", err)
-		}
-		if err := t.fs.Chmod(tgt.BackupPath, chmodMode(tgt.PreState.Mode)); err != nil {
-			_ = t.fs.RemoveAll(tgt.BackupPath)
-			return fmt.Errorf("chmod backup directory: %w", err)
-		}
-		return nil
 	case plan.StateSymlink:
-		link, err := t.fs.Readlink(tgt.Destination)
+		link, err := os.Readlink(tgt.Destination)
 		if err != nil {
 			return fmt.Errorf("readlink backup: %w", err)
 		}
-		if err := t.fs.Symlink(link, tgt.BackupPath); err != nil {
+		if err := unix.Symlinkat(link, int(root.Fd()), name); err != nil {
 			return fmt.Errorf("symlink backup: %w", err)
 		}
-		return nil
 	default:
 		return fmt.Errorf("unsupported pre-state %q", tgt.PreState.Type)
 	}
+	if err := backupSync(int(root.Fd())); err != nil {
+		return fmt.Errorf("sync backup root: %w", err)
+	}
+	return nil
+}
+
+func copyBackupFile(rootFD int, name, source string, mode os.FileMode) error {
+	in, err := unix.Open(source, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer unix.Close(in)
+	return copyBackupFileAt(rootFD, name, in, mode)
+}
+
+func copyBackupFileAt(rootFD int, name string, sourceFD int, mode os.FileMode) error {
+	out, err := unix.Openat(rootFD, name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_CLOEXEC, uint32(mode.Perm()))
+	if err != nil {
+		return fmt.Errorf("create destination: %w", err)
+	}
+	output := os.NewFile(uintptr(out), name)
+	defer output.Close()
+	inputFD, err := unix.Dup(sourceFD)
+	if err != nil {
+		return fmt.Errorf("duplicate source descriptor: %w", err)
+	}
+	input := os.NewFile(uintptr(inputFD), "backup source")
+	defer input.Close()
+	if _, err := io.Copy(output, input); err != nil {
+		return fmt.Errorf("copy content: %w", err)
+	}
+	if err := unix.Fchmod(out, unixMode(mode)); err != nil {
+		return fmt.Errorf("chmod destination: %w", err)
+	}
+	if err := backupSync(out); err != nil {
+		return fmt.Errorf("sync destination: %w", err)
+	}
+	return nil
+}
+
+func copyBackupDirectory(rootFD int, name, source string, mode os.FileMode) error {
+	if err := unix.Mkdirat(rootFD, name, unixMode(mode)); err != nil {
+		return fmt.Errorf("mkdir backup: %w", err)
+	}
+	src, err := openSourceDir(source)
+	if err != nil {
+		return fmt.Errorf("open source directory: %w", err)
+	}
+	defer src.Close()
+	dstFD, err := unix.Openat(rootFD, name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("open backup directory: %w", err)
+	}
+	defer unix.Close(dstFD)
+	if err := copyBackupTree(int(src.Fd()), dstFD); err != nil {
+		return err
+	}
+	if err := unix.Fchmod(dstFD, unixMode(mode)); err != nil {
+		return fmt.Errorf("chmod backup directory: %w", err)
+	}
+	if err := backupSync(dstFD); err != nil {
+		return fmt.Errorf("sync backup directory: %w", err)
+	}
+	return nil
+}
+
+func copyBackupTree(srcFD, dstFD int) error {
+	readFD, err := unix.Dup(srcFD)
+	if err != nil {
+		return fmt.Errorf("duplicate source directory descriptor: %w", err)
+	}
+	src := os.NewFile(uintptr(readFD), "source directory")
+	defer src.Close()
+	entries, err := src.ReadDir(-1)
+	if err != nil {
+		return fmt.Errorf("read source directory: %w", err)
+	}
+	for _, entry := range entries {
+		var stat unix.Stat_t
+		if err := unix.Fstatat(srcFD, entry.Name(), &stat, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			return fmt.Errorf("stat source entry %q: %w", entry.Name(), err)
+		}
+		switch stat.Mode & unix.S_IFMT {
+		case unix.S_IFREG:
+			fileFD, err := unix.Openat(srcFD, entry.Name(), unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+			if err != nil {
+				return fmt.Errorf("open source entry %q: %w", entry.Name(), err)
+			}
+			err = copyBackupFileAt(dstFD, entry.Name(), fileFD, fileModeFromUnix(stat.Mode))
+			unix.Close(fileFD)
+			if err != nil {
+				return err
+			}
+		case unix.S_IFDIR:
+			if err := unix.Mkdirat(dstFD, entry.Name(), stat.Mode&0o777); err != nil {
+				return fmt.Errorf("mkdir backup entry %q: %w", entry.Name(), err)
+			}
+			childSrc, err := unix.Openat(srcFD, entry.Name(), unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+			if err != nil {
+				return err
+			}
+			childDst, err := unix.Openat(dstFD, entry.Name(), unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+			if err != nil {
+				unix.Close(childSrc)
+				return err
+			}
+			err = copyBackupTree(childSrc, childDst)
+			if err == nil {
+				err = unix.Fchmod(childDst, stat.Mode&(0o777|unix.S_ISUID|unix.S_ISGID|unix.S_ISVTX))
+			}
+			if err == nil {
+				err = backupSync(childDst)
+			}
+			unix.Close(childSrc)
+			unix.Close(childDst)
+			if err != nil {
+				return err
+			}
+		case unix.S_IFLNK:
+			buf := make([]byte, 4096)
+			n, err := unix.Readlinkat(srcFD, entry.Name(), buf)
+			if err != nil {
+				return err
+			}
+			if err := unix.Symlinkat(string(buf[:n]), dstFD, entry.Name()); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported source entry %q", entry.Name())
+		}
+	}
+	return nil
+}
+
+func fileModeFromUnix(mode uint32) os.FileMode {
+	result := os.FileMode(mode & 0o777)
+	if mode&unix.S_ISUID != 0 {
+		result |= os.ModeSetuid
+	}
+	if mode&unix.S_ISGID != 0 {
+		result |= os.ModeSetgid
+	}
+	if mode&unix.S_ISVTX != 0 {
+		result |= os.ModeSticky
+	}
+	return result
+}
+
+func unixMode(mode os.FileMode) uint32 {
+	result := uint32(mode.Perm())
+	if mode&os.ModeSetuid != 0 {
+		result |= unix.S_ISUID
+	}
+	if mode&os.ModeSetgid != 0 {
+		result |= unix.S_ISGID
+	}
+	if mode&os.ModeSticky != 0 {
+		result |= unix.S_ISVTX
+	}
+	return result
 }
 
 func (t *Transaction) restoreFromBackup(tgt plan.Target) error {

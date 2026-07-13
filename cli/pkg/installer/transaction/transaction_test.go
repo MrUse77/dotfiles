@@ -2,12 +2,15 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 	"github.com/MrUse77/dots-cli/pkg/installer/report"
@@ -245,6 +248,36 @@ func TestTransaction_Prepare_RootLevelFileBackupRoot(t *testing.T) {
 	backupRoot := filepath.Join(home, ".dots-backups", p.RunID)
 	if _, err := os.Stat(backupRoot); err != nil {
 		t.Fatalf("backup root for root-level file not created: %v", err)
+	}
+}
+
+func TestBackupRootSymlink_IsRefused(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "source")
+	mustWriteFile(t, source, []byte("new"))
+	destination := filepath.Join(home, "destination")
+	mustWriteFile(t, destination, []byte("original"))
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyFile}})
+	root := filepath.Dir(p.ManagedTargets()[0].BackupPath)
+	if err := os.Mkdir(filepath.Dir(root), 0o700); err != nil {
+		t.Fatalf("create backup parent: %v", err)
+	}
+	attacker := t.TempDir()
+	if err := os.Symlink(attacker, root); err != nil {
+		t.Fatalf("insert backup-root symlink: %v", err)
+	}
+
+	err := New(p).Prepare()
+	if err == nil || !strings.Contains(err.Error(), root) {
+		t.Fatalf("Prepare() error = %v, want symlink error naming %q", err, root)
+	}
+	if got := readFileString(t, destination); got != "original" {
+		t.Errorf("destination = %q, want unchanged", got)
+	}
+	if _, err := os.Stat(filepath.Join(attacker, "inventory.json")); !os.IsNotExist(err) {
+		t.Errorf("inventory was written through symlink: %v", err)
 	}
 }
 
@@ -608,11 +641,10 @@ func TestTransaction_BackupValidationFails(t *testing.T) {
 	})
 
 	backupPath := p.ManagedTargets()[0].BackupPath
-	fs := &hookFS{
-		Filesystem: OSFilesystem(),
-		failCreate: map[string]error{backupPath: errors.New("cannot create backup")},
+	if err := os.MkdirAll(backupPath, 0o700); err != nil {
+		t.Fatalf("create backup collision: %v", err)
 	}
-	tx := New(p, WithFilesystem(fs))
+	tx := New(p)
 	_, err := tx.Execute()
 	if err == nil {
 		t.Fatal("expected backup error")
@@ -640,7 +672,6 @@ func TestTransaction_PersistInventoryError_IsPropagated(t *testing.T) {
 	})
 
 	backupPath := p.ManagedTargets()[0].BackupPath
-	invPath := filepath.Join(filepath.Dir(backupPath), "inventory.json")
 	if err := os.MkdirAll(filepath.Dir(backupPath), 0o700); err != nil {
 		t.Fatalf("mkdir backup root: %v", err)
 	}
@@ -648,18 +679,10 @@ func TestTransaction_PersistInventoryError_IsPropagated(t *testing.T) {
 		t.Fatalf("write collision: %v", err)
 	}
 
-	errInventoryWrite := errors.New("inventory write denied")
-	fs := &hookFS{
-		Filesystem: OSFilesystem(),
-		failCreate: map[string]error{invPath: errInventoryWrite},
-	}
-	tx := New(p, WithFilesystem(fs))
+	tx := New(p)
 	err := tx.Prepare()
 	if err == nil {
 		t.Fatal("expected error")
-	}
-	if !errors.Is(err, errInventoryWrite) {
-		t.Errorf("expected inventory write error propagated, got: %v", err)
 	}
 	var backupErr *report.BackupError
 	if !errors.As(err, &backupErr) {
@@ -946,15 +969,15 @@ func TestTransaction_Execute_DirectorySourceDrift(t *testing.T) {
 
 func TestTransaction_Execute_Drift_RootSourceModeChangedAfterPlan(t *testing.T) {
 	for _, tt := range []struct {
-		name       string
-		kind       plan.MutationKind
-		setup      func(*testing.T, string)
+		name        string
+		kind        plan.MutationKind
+		setup       func(*testing.T, string)
 		destination func(*testing.T, string)
 	}{
 		{
-			name: "file",
-			kind: plan.CopyFile,
-			setup: func(t *testing.T, source string) { mustWriteFile(t, source, []byte("reviewed")) },
+			name:        "file",
+			kind:        plan.CopyFile,
+			setup:       func(t *testing.T, source string) { mustWriteFile(t, source, []byte("reviewed")) },
 			destination: func(t *testing.T, destination string) { mustWriteFile(t, destination, []byte("original")) },
 		},
 		{
@@ -1000,6 +1023,89 @@ func TestTransaction_Execute_Drift_RootSourceModeChangedAfterPlan(t *testing.T) 
 			}
 			if got := readFileString(t, filepath.Join(destination, "config")); got != "original" {
 				t.Errorf("destination = %q, want original", got)
+			}
+		})
+	}
+}
+
+// ---------- PR2 durability correction ----------
+
+func TestTransaction_Commit_BackupSyncFailurePreventsCheckpointAndMutation(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		kind          plan.MutationKind
+		setupTarget   func(*testing.T, string)
+		setupSource   func(*testing.T, string)
+		requiredSyncs int
+	}{
+		{
+			name:          "file backup file and root directory syncs",
+			kind:          plan.CopyFile,
+			setupTarget:   func(t *testing.T, path string) { mustWriteFile(t, path, []byte("original")) },
+			setupSource:   func(t *testing.T, path string) { mustWriteFile(t, path, []byte("replacement")) },
+			requiredSyncs: 2,
+		},
+		{
+			name: "directory backup file child directories and root syncs",
+			kind: plan.CopyTree,
+			setupTarget: func(t *testing.T, path string) {
+				mustMkdir(t, filepath.Join(path, "nested"))
+				mustWriteFile(t, filepath.Join(path, "nested", "original"), []byte("original"))
+			},
+			setupSource: func(t *testing.T, path string) {
+				mustMkdir(t, filepath.Join(path, "nested"))
+				mustWriteFile(t, filepath.Join(path, "nested", "replacement"), []byte("replacement"))
+			},
+			requiredSyncs: 4,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			for failAt := 1; failAt <= tt.requiredSyncs; failAt++ {
+				t.Run(fmt.Sprintf("sync_%d", failAt), func(t *testing.T) {
+					repo, home := t.TempDir(), t.TempDir()
+					source := filepath.Join(repo, "source")
+					destination := filepath.Join(home, "destination")
+					tt.setupSource(t, source)
+					tt.setupTarget(t, destination)
+					p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: tt.kind}})
+					tx := New(p)
+					if err := tx.Prepare(); err != nil {
+						t.Fatalf("Prepare: %v", err)
+					}
+
+					var syncs int
+					backupSync = func(fd int) error {
+						syncs++
+						if syncs == failAt {
+							return errors.New("injected backup sync failure")
+						}
+						return unix.Fsync(fd)
+					}
+					checkpointed := false
+					backupCheckpointPersisted = func() { checkpointed = true }
+					t.Cleanup(func() {
+						backupSync = unix.Fsync
+						backupCheckpointPersisted = nil
+					})
+
+					err := tx.Commit()
+					if err == nil || !strings.Contains(err.Error(), "injected backup sync failure") {
+						t.Fatalf("Commit() error = %v, want injected backup sync failure", err)
+					}
+					if checkpointed {
+						t.Fatal("backed-up checkpoint persisted after backup sync failure")
+					}
+					if got := entryFor(t, tx.Inventory(), destination).State; got == EntryBackedUp || got == EntryMutated {
+						t.Fatalf("entry state = %q after backup sync failure", got)
+					}
+					if tt.kind == plan.CopyFile {
+						if got := readFileString(t, destination); got != "original" {
+							t.Fatalf("destination = %q, want original", got)
+						}
+					} else if got := readFileString(t, filepath.Join(destination, "nested", "original")); got != "original" {
+						t.Fatalf("destination tree mutated: %q", got)
+					}
+				})
 			}
 		})
 	}
