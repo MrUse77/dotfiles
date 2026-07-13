@@ -1,0 +1,137 @@
+// Package report provides pure, typed execution outcomes for the installer.
+package report
+
+import (
+	"fmt"
+
+	"github.com/MrUse77/dots-cli/pkg/installer/plan"
+)
+
+// TargetStatus records the outcome of a managed target.
+type TargetStatus string
+
+const (
+	TargetPending  TargetStatus = "pending"
+	TargetBackedUp TargetStatus = "backed-up"
+	TargetMutated  TargetStatus = "mutated"
+	TargetRestored TargetStatus = "restored"
+	TargetFailed   TargetStatus = "failed"
+)
+
+// ActionStatus records the outcome of an external action.
+type ActionStatus string
+
+const (
+	ActionPending   ActionStatus = "pending"
+	ActionCompleted ActionStatus = "completed"
+	ActionFailed    ActionStatus = "failed"
+	ActionSkipped   ActionStatus = "skipped"
+)
+
+// TargetOutcome carries the result for one managed target.
+type TargetOutcome struct {
+	Destination string
+	Status      TargetStatus
+	BackupPath  string
+	Error       error
+}
+
+// ActionOutcome carries the result for one external action.
+type ActionOutcome struct {
+	Description string
+	Status      ActionStatus
+	Error       error
+}
+
+// RecoveryState describes whether automatic rollback left safe recovery work.
+type RecoveryState string
+
+const (
+	RecoveryComplete               RecoveryState = "complete"
+	RecoveryIncomplete             RecoveryState = "incomplete"
+	RecoveryManualRecoveryRequired RecoveryState = "manual-recovery-required"
+)
+
+// RecoveryArtifact names every retained path needed for manual recovery.
+type RecoveryArtifact struct {
+	Destination   string
+	BackupPath    string
+	StagePath     string
+	TrashPath     string
+	InventoryPath string
+}
+
+// ManualRecoveryNextAction is deliberately conservative: ambiguous paths are not safe to overwrite.
+const ManualRecoveryNextAction = "inspect named inventory and retained artifacts; do not delete or overwrite ambiguous paths"
+
+// ExecutionReport is the immutable, typed result of an installation attempt.
+type ExecutionReport struct {
+	Fingerprint        string
+	ManagedTargets     []TargetOutcome
+	ExternalActions    []ActionOutcome
+	BackupPaths        []string
+	PrimaryCause       error
+	RollbackFailures   []TargetOutcome
+	RecoveryState      RecoveryState
+	RecoveryArtifacts  []RecoveryArtifact
+	RecoveryNextAction string
+}
+
+// PlanError represents a failure during the planning phase.
+type PlanError struct {
+	Phase string
+	Cause error
+}
+
+func (e *PlanError) Error() string { return fmt.Sprintf("plan error during %s: %v", e.Phase, e.Cause) }
+func (e *PlanError) Unwrap() error { return e.Cause }
+
+// PlanDriftError indicates the target state changed after planning.
+type PlanDriftError struct {
+	Target   plan.Target
+	Expected plan.PreState
+	Actual   plan.PreState
+}
+
+func (e *PlanDriftError) Error() string {
+	return fmt.Sprintf("plan drift for %s", e.Target.Destination)
+}
+
+// BackupError represents a failure to create or validate a backup.
+type BackupError struct {
+	Target plan.Target
+	Cause  error
+}
+
+func (e *BackupError) Error() string {
+	return fmt.Sprintf("backup failed for %s: %v", e.Target.Destination, e.Cause)
+}
+
+// MutationError represents a failure during a managed-target mutation.
+type MutationError struct {
+	Target plan.Target
+	Cause  error
+}
+
+func (e *MutationError) Error() string {
+	return fmt.Sprintf("mutation failed for %s: %v", e.Target.Destination, e.Cause)
+}
+
+// RollbackError aggregates failures that occurred while restoring managed targets.
+type RollbackError struct {
+	Failures []TargetOutcome
+}
+
+func (e *RollbackError) Error() string {
+	return fmt.Sprintf("rollback incomplete: %d failure(s)", len(e.Failures))
+}
+
+// ExternalActionError represents a failure in an external command.
+type ExternalActionError struct {
+	Action plan.ExternalAction
+	Cause  error
+}
+
+func (e *ExternalActionError) Error() string {
+	return fmt.Sprintf("external action %q failed: %v", e.Action.Description, e.Cause)
+}
