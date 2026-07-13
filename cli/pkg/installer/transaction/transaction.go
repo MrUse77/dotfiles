@@ -149,6 +149,35 @@ func (t *Transaction) Commit() error {
 	return persistInventory(t.fs, t.inventory)
 }
 
+// recordRollbackFailure records a per-target failure, updates the inventory entry,
+// persists the inventory, and continues to the next target.
+// persistFailures are collected separately so the caller can join them with
+// the RollbackError.
+func (t *Transaction) recordRollbackFailure(
+	failures *[]report.TargetOutcome,
+	persistFailures *[]error,
+	tgt plan.Target,
+	entry *InventoryEntry,
+	state InventoryEntryState,
+	cause error,
+) {
+	outcome := report.TargetOutcome{
+		Destination: tgt.Destination,
+		Status:      report.TargetFailed,
+		BackupPath:  tgt.BackupPath,
+		Error:       cause,
+	}
+	*failures = append(*failures, outcome)
+	if entry != nil {
+		entry.Status = report.TargetFailed
+		entry.State = state
+		entry.Error = cause
+	}
+	if err := persistInventory(t.fs, t.inventory); err != nil {
+		*persistFailures = append(*persistFailures, err)
+	}
+}
+
 // Rollback restores mutated targets in reverse order. It continues after
 // individual failures and returns a RollbackError when any restoration failed.
 // Backups are never deleted; the installer copies them back to the target path.
@@ -166,52 +195,18 @@ func (t *Transaction) Rollback() error {
 		entry := t.inventoryEntry(tgt.Destination)
 
 		if entry == nil || !t.ownsInstalledTarget(entry) {
-			failures = append(failures, report.TargetOutcome{Destination: tgt.Destination, Status: report.TargetFailed, BackupPath: tgt.BackupPath, Error: errors.New("installed target ownership is ambiguous")})
-			if entry != nil {
-				entry.Status = report.TargetFailed
-				entry.State = EntryOwnershipAmbiguous
-				entry.Error = failures[len(failures)-1].Error
-			}
-			if err := persistInventory(t.fs, t.inventory); err != nil {
-				persistFailures = append(persistFailures, err)
-			}
+			t.recordRollbackFailure(&failures, &persistFailures, tgt, entry, EntryOwnershipAmbiguous, errors.New("installed target ownership is ambiguous"))
 			continue
 		}
 
 		if tgt.PreState.Type == plan.StateAbsent {
 			if err := t.fs.RemoveAll(tgt.Destination); err != nil {
-				failures = append(failures, report.TargetOutcome{
-					Destination: tgt.Destination,
-					Status:      report.TargetFailed,
-					BackupPath:  tgt.BackupPath,
-					Error:       err,
-				})
-				if entry != nil {
-					entry.Status = report.TargetFailed
-					entry.State = EntryFailed
-					entry.Error = err
-				}
-				if err := persistInventory(t.fs, t.inventory); err != nil {
-					persistFailures = append(persistFailures, err)
-				}
+				t.recordRollbackFailure(&failures, &persistFailures, tgt, entry, EntryFailed, err)
 				continue
 			}
 		} else {
 			if err := t.restoreFromBackup(tgt); err != nil {
-				failures = append(failures, report.TargetOutcome{
-					Destination: tgt.Destination,
-					Status:      report.TargetFailed,
-					BackupPath:  tgt.BackupPath,
-					Error:       err,
-				})
-				if entry != nil {
-					entry.Status = report.TargetFailed
-					entry.State = EntryFailed
-					entry.Error = err
-				}
-				if err := persistInventory(t.fs, t.inventory); err != nil {
-					persistFailures = append(persistFailures, err)
-				}
+				t.recordRollbackFailure(&failures, &persistFailures, tgt, entry, EntryFailed, err)
 				continue
 			}
 		}

@@ -43,25 +43,40 @@ type ActionOutcome struct {
 	Error       error
 }
 
-// RecoveryState describes whether automatic rollback left safe recovery work.
+// RecoveryState describes whether automatic rollback resolved all targets or
+// left safe recovery work for the user.
 type RecoveryState string
 
 const (
-	RecoveryComplete               RecoveryState = "complete"
-	RecoveryIncomplete             RecoveryState = "incomplete"
+	// RecoveryComplete means all mutated targets were successfully restored.
+	RecoveryComplete RecoveryState = "complete"
+
+	// RecoveryIncomplete means rollback finished but one or more targets could
+	// not be restored. No retained artifacts require manual intervention.
+	RecoveryIncomplete RecoveryState = "incomplete"
+
+	// RecoveryManualRecoveryRequired means rollback finished with ambiguous
+	// or failed targets that were NOT restored. The retained artifacts
+	// (backups, stage copies, trash, inventory) must be inspected manually.
+	// The installer will not auto-delete or overwrite any of these paths.
 	RecoveryManualRecoveryRequired RecoveryState = "manual-recovery-required"
 )
 
-// RecoveryArtifact names every retained path needed for manual recovery.
+// RecoveryArtifact names every retained path that may be needed for manual
+// recovery when rollback could not restore one or more targets.
 type RecoveryArtifact struct {
-	Destination   string
-	BackupPath    string
-	StagePath     string
-	TrashPath     string
-	InventoryPath string
+	Destination   string // the original target path (may contain externally-changed content)
+	BackupPath    string // retained backup of the original destination content
+	StagePath     string // retained staged copy that was not moved into place
+	TrashPath     string // retained original destination that was relocated during a swap
+	InventoryPath string // path to the full inventory JSON for this plan run
 }
 
-// ManualRecoveryNextAction is deliberately conservative: ambiguous paths are not safe to overwrite.
+// ManualRecoveryNextAction is deliberately conservative: the installer cannot
+// safely determine ownership of externally-changed paths, so it will not
+// delete or overwrite them. The user must inspect the named inventory file,
+// cross-reference retained artifacts, and decide manually which paths to
+// restore or clean up.
 const ManualRecoveryNextAction = "inspect named inventory and retained artifacts; do not delete or overwrite ambiguous paths"
 
 // ExecutionReport is the immutable, typed result of an installation attempt.

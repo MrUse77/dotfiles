@@ -38,7 +38,7 @@ func InstallFontsAndCursors(dotfilesDir string) error {
 	if err := os.MkdirAll(fontsDir, 0755); err != nil {
 		return fmt.Errorf("error creando directorio de fuentes: %w", err)
 	}
-	
+
 	if err := runCommand("sh", "-c", fmt.Sprintf("cp -r %s/* %s/", filepath.Join(dotfilesDir, "assets", "fonts"), fontsDir)); err != nil {
 		return fmt.Errorf("error copiando fuentes: %w", err)
 	}
@@ -60,7 +60,7 @@ func InstallFontsAndCursors(dotfilesDir string) error {
 
 func EnableServices() error {
 	fmt.Println("Habilitando servicios...")
-	
+
 	if err := exec.Command("systemctl", "is-active", "--quiet", "tlp").Run(); err == nil {
 		fmt.Println("TLP detectado y activo. Omitiendo power-profiles-daemon para evitar conflictos.")
 	} else {
@@ -87,7 +87,7 @@ export GDK_BACKEND=wayland,x11,*
 `
 
 	files := map[string]string{
-		"/etc/profile.d/qt-theme.sh":    qtTheme,
+		"/etc/profile.d/qt-theme.sh":     qtTheme,
 		"/etc/profile.d/wayland-vars.sh": waylandVars,
 	}
 

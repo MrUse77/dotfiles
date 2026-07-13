@@ -129,13 +129,13 @@ var installCmd = &cobra.Command{
 		for _, item := range itemsToCopy {
 			src := filepath.Join(repoRoot, item)
 			dst := filepath.Join(homeDir, item)
-			
+
 			// Detectar si es directorio o archivo para usar copyDir o copyFileInternal
 			info, err := os.Stat(src)
 			if err != nil {
 				continue // Ignorar si no existe
 			}
-			
+
 			if info.IsDir() {
 				if err := copyDir(src, dst); err == nil {
 					fmt.Printf("✅ Copiado %s/\n", item)
