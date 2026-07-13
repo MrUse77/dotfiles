@@ -1,14 +1,14 @@
 change: safe-dotfiles-installer
 schema: spec-driven
 artifact_store: openspec
-status: active
-current_phase: apply
+status: archived
+current_phase: archive
 artifacts:
   proposal:
-    path: openspec/changes/safe-dotfiles-installer/proposal.md
+    path: openspec/changes/archive/2026-07-13-safe-dotfiles-installer/proposal.md
     status: complete
   spec:
-    path: openspec/changes/safe-dotfiles-installer/specs/
+    path: openspec/changes/archive/2026-07-13-safe-dotfiles-installer/specs/
     status: complete
     domains:
       - tui-plan
@@ -18,12 +18,12 @@ artifacts:
   exploration:
     status: not-provided
   design:
-    path: openspec/changes/safe-dotfiles-installer/design.md
+    path: openspec/changes/archive/2026-07-13-safe-dotfiles-installer/design.md
     status: complete
   tasks:
-    path: openspec/changes/safe-dotfiles-installer/tasks.md
+    path: openspec/changes/archive/2026-07-13-safe-dotfiles-installer/tasks.md
     status: complete
-next_recommended: apply
+next_recommended: none
 scope:
   component: cli/
   product_code_modified: true
