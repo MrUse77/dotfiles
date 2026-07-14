@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
@@ -109,6 +110,19 @@ func TestTransaction_Execute_DirectoryRelocationCheckpointFailureRequiresManualR
 	}
 	if rpt.RecoveryNextAction != report.ManualRecoveryNextAction {
 		t.Errorf("RecoveryNextAction = %q, want manual recovery action", rpt.RecoveryNextAction)
+	}
+	if rpt.PrimaryCause == nil || !strings.Contains(rpt.PrimaryCause.Error(), injected.Error()) {
+		t.Errorf("PrimaryCause = %v, want checkpoint failure containing %q", rpt.PrimaryCause, injected)
+	}
+	if len(rpt.RecoveryArtifacts) != 1 {
+		t.Fatalf("RecoveryArtifacts = %+v, want one retained artifact", rpt.RecoveryArtifacts)
+	}
+	artifact := rpt.RecoveryArtifacts[0]
+	if artifact.Destination != destination || artifact.BackupPath == "" || artifact.StagePath == "" || artifact.TrashPath == "" || artifact.InventoryPath == "" {
+		t.Errorf("RecoveryArtifacts[0] = %+v, want retained paths for %q", artifact, destination)
+	}
+	if len(rpt.RollbackFailures) != 1 || rpt.RollbackFailures[0].Destination != destination || rpt.RollbackFailures[0].Status != report.TargetFailed {
+		t.Errorf("RollbackFailures = %+v, want one failed rollback for %q", rpt.RollbackFailures, destination)
 	}
 	if tx.Inventory().Lifecycle != InventoryRecoveryIncomplete {
 		t.Errorf("Lifecycle = %q, want %q", tx.Inventory().Lifecycle, InventoryRecoveryIncomplete)
