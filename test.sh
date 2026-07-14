@@ -1,24 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Este script automatiza la creación y ejecución del entorno de pruebas.
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+image="dotfiles-tester"
 
 echo "================================================="
-echo "  🛠️  Construyendo entorno de pruebas (Arch Linux) "
+echo "  Building isolated Arch Linux test environment"
 echo "================================================="
+docker build -t "$image" -f "$repo_root/Dockerfile.test" "$repo_root"
 
-# Construye la imagen usando el Dockerfile.test
-docker build -t dotfiles-tester -f Dockerfile.test .
-
-echo ""
 echo "================================================="
-echo "  🚀 Levantando el contenedor aislado..."
+echo "  Validating the isolated Stow development helper"
 echo "================================================="
-
-# Ejecuta el contenedor:
-# -it: Modo interactivo con terminal.
-# --rm: Destruye el contenedor al salir (no deja basura en tu PC).
-# -v: Monta tu código actual en el contenedor en tiempo real.
-docker run -it --rm \
-    -v "$(pwd)":/home/tester/dotfiles \
+docker run --rm \
+    -v "$repo_root":/home/tester/dotfiles:ro \
     --name dotfiles-sandbox \
-    dotfiles-tester
+    "$image" \
+    bash -lc '
+        set -euo pipefail
+        target="$(mktemp -d)"
+
+        bash scripts/stow-dev.sh "$target"
+        test -L "$target/.zshrc"
+        test "$(readlink -f "$target/.zshrc")" = /home/tester/dotfiles/.zshrc
+        test -L "$target/.config"
+
+        if bash scripts/stow-dev.sh relative-target; then
+            echo "expected relative target to be rejected" >&2
+            exit 1
+        fi
+        if bash scripts/stow-dev.sh "$HOME"; then
+            echo "expected the canonical home directory to be rejected" >&2
+            exit 1
+        fi
+    '
+
+echo "Isolated Stow validation passed."
