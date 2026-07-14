@@ -97,7 +97,7 @@
                         :orientation "v"
                         :space-evenly false
                         (box :class "bats"
-														 :visible {EWW_BATTERY == "null"}	
+														 :visible {EWW_BATTERY != "null"}
                              :space-evenly false
                              (box :class "batico-main"
                                   (literal :content batico)
@@ -106,7 +106,7 @@
                                   :orientation "v"
                                   (box :class "bat-percent"
                                        :space-evenly false
-                                       (label :text "Battery ${EWW_BATTERY == 'null' ? (EWW_BATTERY.BAT0.capacity ?: '0') : '0'}%")
+                                       (label :text "Battery ${EWW_BATTERY != 'null' ? (EWW_BATTERY.BAT0.capacity ?: '0') : '0'}%")
                                   )
                                   (box :class "bat-status"
                                        :space-evenly false
