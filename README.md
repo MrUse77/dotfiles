@@ -67,7 +67,7 @@ go build -o dots
 El instalador va a preguntarte interactivamente:
 
 1. ¿Estás seguro que querés modificar tu sistema?
-2. Modo de instalación: **Usuario** (copia limpia) o **Dev** (symlinks con stow)
+2. Modo de instalación: **Usuario** (copia limpia)
 3. ¿Tenés GPU AMD? (instala `corectrl`)
 4. ¿Instalar plugins de Hyprland via `hyprpm`?
 
@@ -86,6 +86,17 @@ Luego ejecuta automáticamente:
 11. Habilitar servicios (`upower`, `power-profiles-daemon`)
 12. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
 13. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
+
+### Desarrollo aislado con GNU Stow
+
+El instalador Go no ofrece modo Dev. Para probar cambios con symlinks, usá el helper de Stow con un directorio aislado:
+
+```bash
+sudo pacman -S stow
+bash scripts/stow-dev.sh /tmp/dotfiles-target
+```
+
+El argumento debe ser una ruta absoluta. El helper rechaza el directorio home canónico, por lo que no puede ejecutar Stow contra tu `$HOME`. Revisá los symlinks creados dentro del target antes de usar sus configuraciones.
 
 ### 4. Después de instalar
 

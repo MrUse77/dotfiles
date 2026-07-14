@@ -1,10 +1,10 @@
 # Usamos la imagen oficial base de Arch Linux
 FROM archlinux:latest
 
-# Actualizamos repositorios e instalamos dependencias críticas para compilar y usar git
-RUN pacman -Syu --noconfirm base-devel git sudo
+# Actualizamos repositorios e instalamos dependencias para las pruebas aisladas.
+RUN pacman -Syu --noconfirm base-devel git stow sudo
 
-# Creamos un usuario normal llamado "tester" (El script de install.sh aborta si detecta a root)
+# Creamos un usuario normal llamado "tester" para ejecutar el helper sin privilegios.
 RUN useradd -m -G wheel -s /bin/bash tester
 
 # Le damos permisos de superusuario (sudo) al usuario tester sin pedir contraseña
@@ -18,5 +18,5 @@ WORKDIR /home/tester
 RUN mkdir -p /home/tester/dotfiles
 WORKDIR /home/tester/dotfiles
 
-# Al iniciar, mostramos instrucciones y abrimos una bash interactiva
-CMD ["/bin/bash", "-c", "echo -e '\\n\\033[0;32m[+] Entorno de Arch Linux aislado listo.\\033[0m\\nPara simular la instalación ejecutá:\\n\\n  bash install.sh\\n'; exec /bin/bash"]
+# Al iniciar, mostramos instrucciones y abrimos una bash interactiva.
+CMD ["/bin/bash", "-c", "echo -e '\\n\\033[0;32m[+] Entorno de Arch Linux aislado listo.\\033[0m\\nPara probar Stow en un target temporal ejecutá:\\n\\n  bash scripts/stow-dev.sh /tmp/dotfiles-target\\n'; exec /bin/bash"]
