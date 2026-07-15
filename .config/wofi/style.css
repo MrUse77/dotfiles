@@ -1,11 +1,13 @@
+@import url("../../.local/moonarch/themes/current/wofi.css");
+
 /* --- VENTANA PRINCIPAL --- */
 window {
     /* Fondo oscuro Tokyo Night (Storm) */
-    background-color: #1a1b26;
-    color: #c0caf5;
+    background-color: @wofi_background;
+    color: @wofi_foreground;
     
     /* Borde AZUL (El mismo que pusiste en Waybar) */
-    border: 2px solid #7aa2f7;
+    border: 2px solid @wofi_accent;
     border-radius: 12px;
     
     font-family: "Hack Nerd Font";
@@ -18,13 +20,13 @@ window {
     padding: 10px;
     border: none;
     border-radius: 8px;
-    background-color: #24283b; /* Un poco más claro que el fondo */
-    color: #c0caf5;
+    background-color: @wofi_surface; /* Un poco más claro que el fondo */
+    color: @wofi_foreground;
 }
 
 #input:focus {
     /* Resaltar input cuando escribes */
-    border: 1px solid #7aa2f7; 
+    border: 1px solid @wofi_accent;
     box-shadow: none;
 }
 
@@ -46,7 +48,7 @@ window {
 #text {
     margin: 5px;
     border: none;
-    color: #c0caf5;
+    color: @wofi_foreground;
 }
 
 /* --- ELEMENTOS DE LA LISTA --- */
@@ -61,8 +63,8 @@ window {
 /* --- ELEMENTO SELECCIONADO --- */
 #entry:selected {
     /* Aquí está la clave: Fondo AZUL y texto OSCURO para contraste */
-    background-color: #7aa2f7;
-    color: #1a1b26;
+    background-color: @wofi_accent;
+    color: @wofi_background;
     font-weight: bold;
 }
 

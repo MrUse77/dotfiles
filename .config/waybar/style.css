@@ -1,4 +1,4 @@
-@import url("colors.css");
+@import url("../../.local/moonarch/themes/current/waybar.css");
 * {
   border: none;
   border-radius: 0;

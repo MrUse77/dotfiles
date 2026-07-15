@@ -83,6 +83,11 @@ func (t *Transaction) Prepare() error {
 		if tgt.Kind == plan.Symlink {
 			entry.LinkValue = boundSymlinkValue(t.fs, tgt.Source)
 		}
+		if tgt.Kind == plan.CopyTree {
+			if err := t.fs.MkdirAll(filepath.Dir(tgt.Destination), 0o755); err != nil {
+				return fmt.Errorf("create destination parent: %w", err)
+			}
+		}
 
 		root := filepath.Dir(tgt.BackupPath)
 		if err := t.ensureBackupRoot(root); err != nil {

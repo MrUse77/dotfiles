@@ -20,6 +20,14 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(repo, ".zshrc"), []byte("source"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	for _, path := range []string{
+		filepath.Join(repo, ".local", "moonarch", "bin"),
+		filepath.Join(repo, ".local", "moonarch", "themes", "tokyo-night"),
+	} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	before, err := os.ReadDir(repo)
 	if err != nil {
 		t.Fatal(err)
@@ -28,8 +36,8 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 2 {
-		t.Fatalf("targets = %d, want config and root file", len(targets))
+	if len(targets) != 4 {
+		t.Fatalf("targets = %d, want config, root file, and MoonArch trees", len(targets))
 	}
 	after, err := os.ReadDir(repo)
 	if err != nil {
@@ -37,6 +45,56 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	}
 	if len(before) != len(after) {
 		t.Fatalf("planning mutated repository entries: before=%d after=%d", len(before), len(after))
+	}
+}
+
+func TestInstallDiscovererFailsWhenMoonArchRuntimeIsMissing(t *testing.T) {
+	repo := t.TempDir()
+	if _, err := (installDiscoverer{}).Discover(repo, t.TempDir(), plan.Options{}); err == nil {
+		t.Fatal("missing MoonArch runtime must block target discovery")
+	}
+}
+
+func TestInstallDiscovererPlansMoonArchRuntimeTrees(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	for _, path := range []string{
+		filepath.Join(repo, ".local", "moonarch", "bin"),
+		filepath.Join(repo, ".local", "moonarch", "themes", "tokyo-night"),
+	} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink("tokyo-night", filepath.Join(repo, ".local", "moonarch", "themes", "current")); err != nil {
+		t.Fatal(err)
+	}
+
+	targets, err := (installDiscoverer{}).Discover(repo, home, plan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		filepath.Join(repo, ".local", "moonarch", "bin"):    filepath.Join(home, ".local", "moonarch", "bin"),
+		filepath.Join(repo, ".local", "moonarch", "themes"): filepath.Join(home, ".local", "moonarch", "themes"),
+	}
+	for source, destination := range want {
+		found := false
+		for _, target := range targets {
+			if target.Source == source && target.Destination == destination && target.Kind == plan.CopyTree {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing MoonArch CopyTree target %q -> %q", source, destination)
+		}
+	}
+}
+
+func TestRootCommandDoesNotExposeDirectCopyTheme(t *testing.T) {
+	if _, _, err := rootCmd.Find([]string{"theme"}); err == nil {
+		t.Fatal("dots exposes obsolete direct-copy theme command")
 	}
 }
 

@@ -375,6 +375,23 @@ func TestTransaction_Execute_DirectoryTarget(t *testing.T) {
 	}
 }
 
+func TestTransaction_Execute_MoonArchRuntimeWithCleanHome(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	source := filepath.Join(repo, "moonarch", "runtime")
+	mustMkdir(t, source)
+	mustWriteFile(t, filepath.Join(source, "moonarch"), []byte("runtime"))
+	destination := filepath.Join(home, ".local", "moonarch", "runtime")
+
+	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyTree}})
+	if _, err := New(p).Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if got := readFileString(t, filepath.Join(destination, "moonarch")); got != "runtime" {
+		t.Errorf("runtime content = %q, want runtime", got)
+	}
+}
+
 func TestTransaction_Execute_AbsentTargetCreation(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()

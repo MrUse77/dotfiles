@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="${MOONARCH_ROOT:-$HOME/.local/moonarch}"
+themes="$root/themes"
+themes_real="$(realpath -e -- "$themes")" || {
+    printf 'MoonArch themes root is unavailable: %s\n' "$themes" >&2
+    exit 1
+}
+current="$themes_real/current"
+id_pattern='^[a-z0-9][a-z0-9-]*$'
+required_files=(hyprland.conf waybar.css wofi.css ghostty.conf)
+
+is_valid_id() {
+    [[ "$1" =~ $id_pattern ]]
+}
+
+validate_bundle() {
+    local id="$1"
+    local candidate candidate_real manifest_real file file_real
+
+    is_valid_id "$id" || return 1
+    candidate="$themes_real/$id"
+    candidate_real="$(realpath -e -- "$candidate")" || return 1
+    [[ "$candidate_real" == "$candidate" && -d "$candidate_real" ]] || return 1
+    manifest_real="$(realpath -e -- "$candidate_real/manifest.toml")" || return 1
+    [[ "$manifest_real" == "$candidate_real/"* && -f "$manifest_real" ]] || return 1
+    grep -Fqx "id = \"$id\"" "$manifest_real" || return 1
+
+    for file in "${required_files[@]}"; do
+        file_real="$(realpath -e -- "$candidate_real/$file")" || return 1
+        [[ "$file_real" == "$candidate_real/"* && -f "$file_real" ]] || return 1
+    done
+}
+
+prior_id=''
+validate_current() {
+    local target
+
+    if [[ ! -e "$current" && ! -L "$current" ]]; then
+        return 0
+    fi
+    [[ -L "$current" ]] || return 1
+    target="$(readlink -- "$current")"
+    [[ "$target" != /* ]] && is_valid_id "$target" && validate_bundle "$target" || return 1
+    prior_id="$target"
+}
+
+replace_current() {
+    local id="$1"
+    local temporary="$themes_real/.current.$$.${RANDOM}"
+
+    ln -s -- "$id" "$temporary"
+    mv -Tf -- "$temporary" "$current"
+}
+
+restore_current() {
+    if [[ -n "$prior_id" ]]; then
+        replace_current "$prior_id"
+    else
+        rm -f -- "$current"
+    fi
+}
+
+reload_consumers() {
+    local pgrep_status
+
+    hyprctl reload || return 1
+    if pgrep -x waybar; then
+        pkill -SIGUSR2 waybar || return 1
+        return
+    else
+        pgrep_status=$?
+    fi
+    [[ "$pgrep_status" -eq 1 ]]
+}
+
+refresh_best_effort() {
+    hyprctl reload || true
+    if pgrep -x waybar; then
+        pkill -SIGUSR2 waybar || true
+    fi
+}
+
+valid_ids() {
+    local candidate id
+
+    for candidate in "$themes_real"/*; do
+        [[ -d "$candidate" ]] || continue
+        id="${candidate##*/}"
+        validate_bundle "$id" && printf '%s\n' "$id"
+    done | sort
+}
+
+if (( $# > 1 )); then
+    printf 'usage: %s [theme-id]\n' "${0##*/}" >&2
+    exit 2
+fi
+
+validate_current || {
+    printf 'MoonArch current link is invalid\n' >&2
+    exit 1
+}
+
+if (( $# == 1 )); then
+    selected="$1"
+else
+    if ! selected="$(valid_ids | wofi --show dmenu)"; then
+        exit 0
+    fi
+    [[ -n "$selected" ]] || exit 0
+fi
+
+validate_bundle "$selected" || {
+    printf 'MoonArch theme is invalid: %s\n' "$selected" >&2
+    exit 1
+}
+
+replace_current "$selected"
+if ! reload_consumers; then
+    restore_current
+    refresh_best_effort
+    printf 'MoonArch theme reload failed; restored the previous theme\n' >&2
+    exit 1
+fi
