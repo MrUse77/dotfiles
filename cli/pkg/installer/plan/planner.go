@@ -90,7 +90,7 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 		t.ResolvedSource = resolved
 		t.SourceDigest = binding.Digest
 		t.SourceBinding = binding
-		if err := validateDestinationParent(t.Destination, destSet); err != nil {
+		if err := validateDestinationParent(t.Destination, destSet, t.Kind); err != nil {
 			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: err}
 		}
 
@@ -141,13 +141,16 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 	return plan, nil
 }
 
-func validateDestinationParent(dest string, destSet map[string]struct{}) error {
+func validateDestinationParent(dest string, destSet map[string]struct{}, kind MutationKind) error {
 	parent := filepath.Dir(dest)
 	if _, ok := destSet[parent]; ok {
 		return nil
 	}
 	info, err := os.Stat(parent)
 	if err != nil {
+		if kind == CopyTree && os.IsNotExist(err) {
+			return nil
+		}
 		return fmt.Errorf("destination parent %q inaccessible: %w", parent, err)
 	}
 	if !info.IsDir() {
