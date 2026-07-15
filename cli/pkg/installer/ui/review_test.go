@@ -34,6 +34,9 @@ func (f *fakeExecutor) Execute(ctx context.Context, p plan.InstallationPlan) (*r
 		close(f.cancelled)
 		return f.result, f.err
 	}
+	if f.result != nil {
+		return f.result, f.err
+	}
 	return &report.ExecutionReport{Fingerprint: p.Fingerprint}, f.err
 }
 
@@ -71,8 +74,8 @@ func TestReviewModel_RequiresExplicitRenderedEventBeforeConfirmation(t *testing.
 	}
 	m = updateReview(t, m, ReviewRenderedMsg{})
 	m = updateReview(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.State != StateExecuting || executor.calls != 0 {
-		t.Fatalf("confirmation should schedule execution: state=%s calls=%d", m.State, executor.calls)
+	if m.State != StateDone || executor.calls != 0 {
+		t.Fatalf("confirmation should terminate the TUI without execution: state=%s calls=%d", m.State, executor.calls)
 	}
 }
 
@@ -87,69 +90,73 @@ func TestReviewModel_PreBuiltPlanStartsReviewAndAcknowledgesThroughInitCommand(t
 	}
 }
 
-func TestReviewModel_ExecutingCancellationReachesExecutor(t *testing.T) {
-	executor := &fakeExecutor{
-		started:   make(chan struct{}),
-		cancelled: make(chan struct{}),
-		result:    &report.ExecutionReport{Fingerprint: "cancelled"},
-		err:       errors.New("execution cancelled"),
-	}
-	m := NewReviewModelWithContext(context.Background(), testReviewPlan(t), executor)
-	m = updateReview(t, m, ReviewRenderedMsg{})
-	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = updated.(*Model)
-	if m.State != StateExecuting || cmd == nil {
-		t.Fatal("confirmation must start execution")
-	}
-	done := make(chan tea.Msg, 1)
-	go func() { done <- cmd() }()
-	<-executor.started
-	updated, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	m = updated.(*Model)
-	if m.State != StateExecuting || cmd != nil {
-		t.Fatalf("executing cancellation state=%s cmd=%v", m.State, cmd)
-	}
-	finished := <-done
-	m = updateReview(t, m, finished)
-	if m.State != StateError || m.Result != executor.result || m.Error() != executor.err {
-		t.Fatalf("execution cancellation result state=%s result=%v err=%v", m.State, m.Result, m.Error())
-	}
-	<-executor.cancelled
-}
-
-func TestRunReturnsExecutionResultAndErrorAfterCancellation(t *testing.T) {
-	wantReport := &report.ExecutionReport{Fingerprint: "cancelled-run"}
-	wantErr := errors.New("execution cancelled after partial work")
-	executor := &fakeExecutor{cancelled: make(chan struct{}), result: wantReport, err: wantErr}
+func TestRunPassesCallerContextToExecutor(t *testing.T) {
+	ctx := context.WithValue(context.Background(), contextKey("caller"), "present")
+	executor := &fakeExecutor{}
 	run := func(model tea.Model, _ io.Reader, _ io.Writer) (tea.Model, error) {
 		m := model.(*Model)
 		m = updateReview(t, m, ReviewRenderedMsg{})
-		updated, execute := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		return updated, nil
+	}
+
+	_, _, err := Run(ctx, testReviewPlan(t), executor, nil, nil, run)
+	if err != nil || executor.gotContext.Value(contextKey("caller")) != "present" {
+		t.Fatalf("executor context = %v, err = %v", executor.gotContext, err)
+	}
+}
+
+func TestRunTerminatesTUIBeforeInvokingExecutor(t *testing.T) {
+	wantReport := &report.ExecutionReport{Fingerprint: "completed-run"}
+	executor := &fakeExecutor{result: wantReport}
+	tuiTerminated := false
+	run := func(model tea.Model, _ io.Reader, _ io.Writer) (tea.Model, error) {
+		m := model.(*Model)
+		m = updateReview(t, m, ReviewRenderedMsg{})
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		m = updated.(*Model)
-		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-		m = updated.(*Model)
-		m = updateReview(t, m, execute())
+		if executor.calls != 0 {
+			t.Fatal("executor ran before the TUI terminated")
+		}
+		tuiTerminated = true
 		return m, nil
 	}
 
 	gotReport, aborted, err := Run(context.Background(), testReviewPlan(t), executor, nil, nil, run)
-	if gotReport != wantReport || aborted || !errors.Is(err, wantErr) {
-		t.Fatalf("Run() = report %v, aborted %v, err %v; want report %v, aborted false, err %v", gotReport, aborted, err, wantReport, wantErr)
+	if !tuiTerminated || executor.calls != 1 || gotReport != wantReport || aborted || err != nil {
+		t.Fatalf("Run() = terminated %v, calls %d, report %v, aborted %v, err %v", tuiTerminated, executor.calls, gotReport, aborted, err)
 	}
 }
 
-func TestReviewModel_PassesCallerContextToExecutor(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), contextKey("caller"), "present"))
-	defer cancel()
+func TestRunAbortDoesNotInvokeExecutor(t *testing.T) {
 	executor := &fakeExecutor{}
-	m := NewReviewModelWithContext(ctx, testReviewPlan(t), executor)
-	m = updateReview(t, m, ReviewRenderedMsg{})
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if cmd == nil {
-		t.Fatal("confirmation must produce execution command")
+	run := func(model tea.Model, _ io.Reader, _ io.Writer) (tea.Model, error) {
+		m := model.(*Model)
+		m = updateReview(t, m, ReviewRenderedMsg{})
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+		return updated, nil
 	}
-	if msg := cmd(); msg == nil || executor.gotContext.Value(contextKey("caller")) != "present" {
-		t.Fatal("executor did not receive caller context")
+
+	gotReport, aborted, err := Run(context.Background(), testReviewPlan(t), executor, nil, nil, run)
+	if executor.calls != 0 || gotReport != nil || !aborted || err != nil {
+		t.Fatalf("Run() = calls %d, report %v, aborted %v, err %v", executor.calls, gotReport, aborted, err)
+	}
+}
+
+func TestRunPreservesExecutorReportAndErrorAfterTUITerminates(t *testing.T) {
+	wantReport := &report.ExecutionReport{Fingerprint: "partial-run"}
+	wantErr := errors.New("external action failed")
+	executor := &fakeExecutor{result: wantReport, err: wantErr}
+	run := func(model tea.Model, _ io.Reader, _ io.Writer) (tea.Model, error) {
+		m := model.(*Model)
+		m = updateReview(t, m, ReviewRenderedMsg{})
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		return updated, nil
+	}
+
+	gotReport, aborted, err := Run(context.Background(), testReviewPlan(t), executor, nil, nil, run)
+	if executor.calls != 1 || gotReport != wantReport || aborted || !errors.Is(err, wantErr) {
+		t.Fatalf("Run() = calls %d, report %v, aborted %v, err %v; want calls 1, report %v, aborted false, err %v", executor.calls, gotReport, aborted, err, wantReport, wantErr)
 	}
 }
 

@@ -47,20 +47,14 @@ type Model struct {
 	Result         *report.ExecutionReport
 	Err            error
 	Progress       []string
-
-	ctx    context.Context
-	cancel context.CancelFunc
 }
 
 func NewReviewModel(p plan.InstallationPlan, executor Executor) *Model {
 	return NewReviewModelWithContext(context.Background(), p, executor)
 }
 
-func NewReviewModelWithContext(ctx context.Context, p plan.InstallationPlan, executor Executor) *Model {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return &Model{Plan: p, Executor: executor, State: StateReview, ctx: ctx}
+func NewReviewModelWithContext(_ context.Context, p plan.InstallationPlan, executor Executor) *Model {
+	return &Model{Plan: p, Executor: executor, State: StateReview}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -111,27 +105,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if !m.ReviewRendered || m.Executor == nil {
 					return m, nil
 				}
-				m.ctx, m.cancel = context.WithCancel(m.ctx)
-				m.State = StateExecuting
-				return m, executeCmd(m.ctx, m.Executor, m.Plan)
-			}
-		case StateExecuting:
-			if msg.String() == "ctrl+c" || msg.String() == "esc" {
-				if m.cancel != nil {
-					m.cancel()
-				}
-				return m, nil
+				m.State = StateDone
+				return m, tea.Quit
 			}
 		}
 	}
 	return m, nil
-}
-
-func executeCmd(ctx context.Context, executor Executor, p plan.InstallationPlan) tea.Cmd {
-	return func() tea.Msg {
-		rpt, err := executor.Execute(ctx, p)
-		return ExecutionFinishedMsg{Report: rpt, Err: err}
-	}
 }
 
 func (m *Model) View() string {
