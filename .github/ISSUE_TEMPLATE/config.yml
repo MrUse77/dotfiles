@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guía de contribución
+    url: https://github.com/MrUse77/dotfiles/blob/main/CONTRIBUTING.md
+    about: Leé las guías de contribución antes de abrir un issue o PR.

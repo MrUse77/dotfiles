@@ -1,0 +1,83 @@
+name: Bug report
+description: Reportar un bug en la configuración o el CLI
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Ámbito
+      description: ¿En qué parte del repo está el problema?
+      options:
+        - Config — .config/, .zshrc, oh-my-posh/, .themes/
+        - CLI — cli/
+        - Docker / Testing — Dockerfile.test, test.sh
+        - Otro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente
+      description: ¿Qué componente específico está afectado?
+      options:
+        - hypr (Hyprland, hyprlock, hyprpaper, hypridle)
+        - waybar
+        - ghostty
+        - zellij
+        - dunst
+        - eww
+        - wofi
+        - yazi
+        - nvim
+        - gtk
+        - zsh
+        - omp (oh-my-posh)
+        - installer (cli/pkg/installer/)
+        - theme (cli/pkg/theme/)
+        - cli (general)
+        - Otro
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: Descripción clara y concisa del bug.
+      placeholder: Qué pasa y qué esperabas que pase.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      description: Pasos mínimos para reproducir el problema.
+      placeholder: |
+        1. Clonar el repo
+        2. Correr `bash test.sh`
+        3. Ver el error en ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / capturas
+      description: Pegá logs relevantes o capturas de pantalla.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Entorno
+      description: Info del sistema donde ocurre el bug.
+      placeholder: |
+        - Distro: Arch Linux
+        - Hyprland: v0.45
+        - Go: 1.26.x (si aplica al CLI)
+    validations:
+      required: false

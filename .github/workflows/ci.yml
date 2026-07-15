@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs for the same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -----------------------------------------------------------
+  # Validate PR commit messages follow Conventional Commits
+  # -----------------------------------------------------------
+  commitlint:
+    name: Lint commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .github/commitlint.config.mjs
+
+  # -----------------------------------------------------------
+  # Detect which scopes changed to conditionally run jobs
+  # -----------------------------------------------------------
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      cli: ${{ steps.filter.outputs.cli }}
+      config: ${{ steps.filter.outputs.config }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cli:
+              - 'cli/**'
+            config:
+              - '.config/**'
+              - '.zshrc'
+              - '.themes/**'
+              - 'oh-my-posh/**'
+              - 'scripts/**'
+              - 'Dockerfile.test'
+              - 'test.sh'
+            docs:
+              - '**/*.md'
+
+  # -----------------------------------------------------------
+  # CLI: Go tests, vet, build
+  # -----------------------------------------------------------
+  cli:
+    name: CLI checks
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Go format check
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::Files not formatted with gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Go test
+        run: go test -v -race -count=1 ./...
+
+      - name: Go build
+        run: go build ./...
+
+  # -----------------------------------------------------------
+  # Config: Docker-based integration test
+  # -----------------------------------------------------------
+  config:
+    name: Config integration test
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Run test.sh
+        run: bash test.sh
+
+  # -----------------------------------------------------------
+  # Docs: Markdown lint
+  # -----------------------------------------------------------
+  docs:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "**/*.md"
+          config: .github/.markdownlint.jsonc
+
+  # -----------------------------------------------------------
+  # Final status gate — always runs, reports aggregate result
+  # -----------------------------------------------------------
+  ci-ok:
+    name: CI passed
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [commitlint, cli, config, docs]
+    steps:
+      - name: Check job results
+        run: |
+          echo "commitlint: ${{ needs.commitlint.result }}"
+          echo "cli:        ${{ needs.cli.result }}"
+          echo "config:     ${{ needs.config.result }}"
+          echo "docs:       ${{ needs.docs.result }}"
+
+          # 'success' or 'skipped' are acceptable; anything else is a failure
+          for result in \
+            "${{ needs.commitlint.result }}" \
+            "${{ needs.cli.result }}" \
+            "${{ needs.config.result }}" \
+            "${{ needs.docs.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "::error::One or more CI jobs failed or were cancelled."
+              exit 1
+            fi
+          done
+
+          echo "All CI checks passed (or were correctly skipped)."
