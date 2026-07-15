@@ -40,14 +40,18 @@ func Run(ctx context.Context, p plan.InstallationPlan, executor Executor, input 
 	if result.Aborted() {
 		return nil, true, nil
 	}
+	if result.State == StateDone {
+		rpt, err := executor.Execute(ctx, p)
+		return rpt, false, err
+	}
 	if result.Error() != nil {
 		return result.Result, false, result.Error()
 	}
 	return result.Result, false, nil
 }
 
-// RunWithContext preserves cancellation for callers while keeping Bubble Tea's
-// command boundary deterministic; execution commands use the supplied context.
+// RunWithContext preserves cancellation for callers; the executor receives the
+// supplied context after Bubble Tea terminates.
 func RunWithContext(ctx context.Context, p plan.InstallationPlan, executor Executor, input io.Reader, output io.Writer, run ProgramRunner) (*report.ExecutionReport, bool, error) {
 	return Run(ctx, p, executor, input, output, run)
 }
