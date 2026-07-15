@@ -36,8 +36,6 @@ func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, 
 		action("change default shell to zsh", "chsh", []string{"-s", "/usr/bin/zsh"}, "system", true),
 		action("update git submodules", "git", []string{"submodule", "update", "--init", "--recursive"}, "repository", true),
 		action("create zsh configuration directory", "mkdir", []string{"-p", "~/.config/zsh"}, "filesystem", false),
-		action("write Qt profile environment", "sudo", []string{"tee", "/etc/profile.d/qt-theme.sh"}, "privileged", true),
-		action("write Wayland profile environment", "sudo", []string{"tee", "/etc/profile.d/wayland-vars.sh"}, "privileged", true),
 	)
 
 	actions = append(actions,
@@ -55,10 +53,7 @@ func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, 
 		actions = append(actions, action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false))
 	}
 	if opts.EnableSSHAgent {
-		actions = append(actions,
-			action("enable SSH agent", "systemctl", []string{"--user", "enable", "--now", "ssh-agent"}, "external", true),
-			action("export SSH agent socket in profile", "sudo", []string{"tee", "/etc/profile.d/ssh-agent.sh"}, "privileged", true),
-		)
+		actions = append(actions, action("enable SSH agent", "systemctl", []string{"--user", "enable", "--now", "ssh-agent"}, "external", true))
 	}
 	if opts.InstallPlugins {
 		actions = append(actions,
