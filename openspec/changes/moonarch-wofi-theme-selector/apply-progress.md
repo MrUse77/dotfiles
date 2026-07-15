@@ -33,3 +33,20 @@ The root config has `strict_tdd: false`; the Phase 1 tasks explicitly require RE
 - Current slice: PR #1, `feat/moonarch-runtime-selector` → `feat/moonarch-wofi-theme-selector`.
 - Included: standalone runtime selector, Tokyo Night bundle, `current` link, four consumer bindings, and deterministic shell coverage.
 - Excluded: Phase 2 installer/CLI changes and Phase 3 Stow/documentation work.
+
+## TDD Cycle Evidence — PR #2 (Strict TDD)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 2.1 | `cli/cmd/install_test.go`, `cli/pkg/installer/system_test.go` | Unit + filesystem integration | ✅ `go test ./cmd ./pkg/installer/...` passed before edits | ✅ `go test ./cmd ./pkg/installer -run 'Test(InstallDiscovererPlansMoonArchRuntimeTrees|ManagedTargetsIncludeMoonArchRuntimeTrees|RootCommandDoesNotExposeDirectCopyTheme)$' -count=1` failed: MoonArch targets missing | ✅ Target tests passed after planning changes | ✅ Covers independent `bin` and `themes` discovery plus clean-HOME relative-link preservation | ✅ Focused packages passed after `gofmt` |
+| 2.2 | `cli/cmd/install_test.go`, `cli/pkg/installer/system_test.go` | Unit | ✅ Same baseline | ✅ Existing target expectations failed before production changes | ✅ `go test ./cmd ./pkg/installer/... -count=1` passed | ✅ `bin` is discovered by `installDiscoverer`; `themes` is catalog-managed and both are checked in the composed discovery result | ➖ None needed — smallest clear target declarations |
+| 2.3 | `cli/cmd/install_test.go` | Unit | ✅ Same baseline | ✅ `TestRootCommandDoesNotExposeDirectCopyTheme` failed while `theme.go` registered the command | ✅ Test passed after deleting the command/package | ➖ Structural removal: one externally visible command must be absent | ✅ Removed unused imports with the package deletion; focused packages passed |
+| 2.4 | `cli/cmd/install_test.go`, `cli/pkg/installer/system_test.go` | Unit + filesystem integration | ✅ Same baseline | ✅ Covered by the prior RED checks | ✅ `go test ./cmd ./pkg/installer/... -count=1` passed | ✅ Re-ran all installer subpackages, including discovery failure and transaction coverage | ✅ `gofmt`; focused packages, full suite, vet, and build all pass |
+
+## Work Unit Evidence — PR #2
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `cd cli && go test ./cmd ./pkg/installer/... -count=1` → exit 0; `cmd`, `installer`, `external`, `plan`, `report`, `transaction`, and `ui` passed. |
+| Runtime harness command/scenario and exact result | `cd cli && go test ./pkg/installer -run TestCleanHomeCopyTreePreservesRelativeMoonArchCurrentLink -count=1` → exit 0; creates temporary repo/home, executes a real transaction, and asserts `readlink ~/.local/moonarch/themes/current == tokyo-night`. |
+| Rollback boundary | Revert `cli/cmd/install.go`, `cli/pkg/installer/catalog.go`, `cli/cmd/theme.go`, `cli/pkg/theme/`, and the two Go test files. This removes only PR #2 deployment/retirement behavior, leaving the runtime selector and Phase 3 Stow/docs work intact. |
