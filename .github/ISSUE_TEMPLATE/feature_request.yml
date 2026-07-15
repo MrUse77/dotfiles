@@ -1,0 +1,76 @@
+name: Feature request
+description: Proponer una nueva funcionalidad o mejora
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Ámbito
+      description: ¿A qué parte del repo aplica?
+      options:
+        - Config — .config/, .zshrc, oh-my-posh/, .themes/
+        - CLI — cli/
+        - Docker / Testing — Dockerfile.test, test.sh
+        - Documentación
+        - Otro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente
+      description: ¿Qué componente específico involucra?
+      options:
+        - hypr (Hyprland, hyprlock, hyprpaper, hypridle)
+        - waybar
+        - ghostty
+        - zellij
+        - dunst
+        - eww
+        - wofi
+        - yazi
+        - nvim
+        - gtk
+        - zsh
+        - omp (oh-my-posh)
+        - installer (cli/pkg/installer/)
+        - theme (cli/pkg/theme/)
+        - cli (general)
+        - Nuevo componente
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué querés agregar o mejorar?
+      placeholder: Descripción clara de la funcionalidad propuesta.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivación
+      description: ¿Por qué sería útil este cambio?
+      placeholder: Qué problema resuelve o qué mejora aporta.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: ¿Consideraste alguna otra solución?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      description: Capturas, links, o cualquier info extra relevante.
+    validations:
+      required: false
