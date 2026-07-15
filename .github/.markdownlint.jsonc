@@ -8,5 +8,7 @@
   // Allow inline HTML (used for badges, details/summary, etc.)
   "MD033": false,
   // Allow bare URLs
-  "MD034": false
+  "MD034": false,
+  // PR/issue templates are fragments, not standalone docs — no h1 needed
+  "MD041": false
 }
