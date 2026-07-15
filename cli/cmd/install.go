@@ -19,6 +19,9 @@ import (
 type installDiscoverer struct{}
 
 func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) ([]plan.Target, error) {
+	if err := requireMoonArchRuntime(repoRoot); err != nil {
+		return nil, err
+	}
 	catalog := installer.NewActionCatalog()
 	targets, err := catalog.ManagedTargets(repoRoot, homeDir, opts)
 	if err != nil {
@@ -38,6 +41,7 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		kind                plan.MutationKind
 	}{
 		{filepath.Join(repoRoot, ".config"), filepath.Join(homeDir, ".config"), plan.CopyTree},
+		{filepath.Join(repoRoot, ".local", "moonarch", "bin"), filepath.Join(homeDir, ".local", "moonarch", "bin"), plan.CopyTree},
 	}
 	for _, name := range []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"} {
 		candidates = append(candidates, struct {
@@ -60,6 +64,22 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		targets = append(targets, plan.Target{Source: candidate.source, Destination: candidate.destination, Kind: kind})
 	}
 	return targets, nil
+}
+
+func requireMoonArchRuntime(repoRoot string) error {
+	for _, source := range []string{
+		filepath.Join(repoRoot, ".local", "moonarch", "bin"),
+		filepath.Join(repoRoot, ".local", "moonarch", "themes"),
+	} {
+		info, err := os.Stat(source)
+		if err != nil {
+			return fmt.Errorf("discover MoonArch runtime %q: %w", source, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("discover MoonArch runtime %q: not a directory", source)
+		}
+	}
+	return nil
 }
 
 func newInstallPlanner() *plan.Planner {

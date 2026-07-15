@@ -2,15 +2,15 @@
 
 ## Technical Approach
 
-Install immutable MoonArch bundles under `~/.local/moonarch/themes/<id>` and make `current` the sole mutable runtime state. Stow-managed consumer configs import `current`; the selector validates a name-only bundle, atomically changes the relative link, then refreshes consumers. This implements `moonarch-theme-selector` and the installation delta without restoring the retired `dots theme` path.
+Install immutable MoonArch bundles under `~/.local/moonarch/themes/<id>` and make `current` the sole mutable runtime state. Consumer configs import `current`; the selector validates a name-only bundle, atomically changes the relative link, then refreshes consumers. This implements `moonarch-theme-selector` and the installation delta without restoring the retired `dots theme` path.
 
-**Before/after:** consumer files contain fixed Tokyo Night values; afterwards they retain non-theme settings and import fragments from `current`. Installer deployment is a closed plan containing `bin` and `themes`; Stow links the repository with `--no-folding`.
+**Before/after:** consumer files contain fixed Tokyo Night values; afterwards they retain non-theme settings and import fragments from `current`. Installer deployment is a closed plan containing `bin` and `themes`.
 
 ## Architecture Decisions
 
 | Option | Tradeoff | Decision |
 |---|---|---|
-| Copy values into consumer configs | Mutates Stow-owned files | Reject; import immutable fragments only. |
+| Copy values into consumer configs | Mutates consumer configuration | Reject; import immutable fragments only. |
 | Arbitrary path selection | Traversal/symlink escape | Accept only validated IDs and relative `current` targets. |
 | In-place `ln -sf` | Observable unlink/relink window | Stage sibling symlink, then `mv -Tf` atomically. |
 | Go CLI selector | Couples runtime action to installer | Bash executable; remove placeholder Cobra/theme package. |
@@ -45,7 +45,7 @@ Command boundary: invoke fixed executables only (`wofi --show dmenu`, `hyprctl r
 | `.config/{hypr/hyprland.conf,waybar/style.css,wofi/style.css,ghostty/config}` | Modify | Binding/imports to runtime fragments. |
 | `cli/cmd/install.go`, `cli/pkg/installer/catalog.go` | Modify | Plan CopyTree targets for MoonArch bin/themes. |
 | `cli/cmd/theme.go`, `cli/pkg/theme/` | Delete | Obsolete direct-copy selector. |
-| `scripts/stow-dev.sh`, `.stow-local-ignore`, `README.md` | Modify | Safe Stow and runtime contract. |
+| `README.md` | Modify | Runtime selector contract. |
 | `cli/cmd/install_test.go`, `cli/pkg/installer/system_test.go`, `tests/moonarch-theme-selector_test.sh` | Create/Modify | Headless deployment and selector seams. |
 
 ## Testing Strategy
@@ -54,7 +54,7 @@ Command boundary: invoke fixed executables only (`wofi --show dmenu`, `hyprctl r
 |---|---|---|
 | Shell | ID, manifest, escaped symlink, cancellation, atomic switch/rollback | Temp `MOONARCH_ROOT`, fake `wofi`, `hyprctl`, `pgrep`/`pkill`; assert link and logged argv. |
 | Go | Closed discovery and CopyTree link preservation | Temp repo/home; planner and transaction tests assert bin/themes and `readlink(current)==tokyo-night`. |
-| Integration | Isolated Stow/default install | `bash tests/moonarch-theme-selector_test.sh`; `go test ./...`; `bash test.sh` where Docker is available. |
+| Integration | Default installation | `bash tests/moonarch-theme-selector_test.sh`; `go test ./...`; `bash test.sh` where Docker is available. |
 
 ## Threat Matrix
 
