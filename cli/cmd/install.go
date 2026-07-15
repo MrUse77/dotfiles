@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,8 +15,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
-
-var ErrDevModeUnsupported = errors.New("dev mode planning is not supported yet")
 
 type installDiscoverer struct{}
 
@@ -82,23 +79,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Bienvenido al instalador de dotfiles")
 
-	var mode string
 	var hasAMD, installPlugins, enableSSHAgent bool
 	if err := huh.NewForm(huh.NewGroup(
-		huh.NewSelect[string]().Title("Modo de instalación").Options(
-			huh.NewOption("Modo Usuario (Copia limpia, no se sincroniza con Git)", "user"),
-			huh.NewOption("Modo Dev (Symlinks con Stow, ideal para seguir editando)", "dev"),
-		).Value(&mode),
 		huh.NewConfirm().Title("¿Tenés GPU AMD? (Instalará corectrl)").Value(&hasAMD),
 		huh.NewConfirm().Title("¿Instalar plugins de Hyprland via hyprpm?").Description("Requiere que Hyprland esté corriendo.").Value(&installPlugins),
 		huh.NewConfirm().Title("¿Habilitar SSH Agent via systemd?").Description("Gestiona el agente con systemd --user.").Value(&enableSSHAgent),
 	)).Run(); err != nil {
 		return err
 	}
-	if mode == "dev" {
-		return ErrDevModeUnsupported
-	}
-
 	repoRoot, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("resolve repository root: %w", err)
@@ -107,7 +95,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("resolve home directory: %w", err)
 	}
-	selected := plan.Options{Mode: mode, HasAMD: hasAMD, InstallPlugins: installPlugins, EnableSSHAgent: enableSSHAgent}
+	selected := plan.Options{Mode: "user", HasAMD: hasAMD, InstallPlugins: installPlugins, EnableSSHAgent: enableSSHAgent}
 	installationPlan, err := newInstallPlanner().Build(repoRoot, homeDir, selected)
 	if err != nil {
 		return err
