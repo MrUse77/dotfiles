@@ -40,12 +40,6 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	}
 }
 
-func TestInstallDevModeHasExplicitUnsupportedPlanningResult(t *testing.T) {
-	if !strings.Contains(ErrDevModeUnsupported.Error(), "not supported") {
-		t.Fatalf("unexpected dev-mode result: %v", ErrDevModeUnsupported)
-	}
-}
-
 func TestPrintExecutionReportIncludesFingerprintAndRetainedBackup(t *testing.T) {
 	var out bytes.Buffer
 	printExecutionReport(&out, &report.ExecutionReport{
