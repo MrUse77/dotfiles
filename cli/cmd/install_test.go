@@ -85,7 +85,17 @@ func TestResolveRepositoryRoot(t *testing.T) {
 func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(repo, ".config"), 0755); err != nil {
+	configDir := filepath.Join(repo, ".config")
+	if err := os.MkdirAll(filepath.Join(configDir, "hypr"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "waybar"), []byte("config"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "hypr", "hyprland.conf"), []byte("config"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("hypr", filepath.Join(configDir, "current")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(repo, ".zshrc"), []byte("source"), 0644); err != nil {
@@ -107,8 +117,44 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 4 {
-		t.Fatalf("targets = %d, want config, root file, and MoonArch trees", len(targets))
+	if len(targets) != 6 {
+		t.Fatalf("targets = %d, want three config children, root file, and MoonArch trees", len(targets))
+	}
+	wantConfigTargets := []struct {
+		name string
+		kind plan.MutationKind
+	}{
+		{name: "current", kind: plan.Symlink},
+		{name: "hypr", kind: plan.CopyTree},
+		{name: "waybar", kind: plan.CopyFile},
+	}
+	var configOrder []string
+	for _, target := range targets {
+		if filepath.Dir(target.Source) == configDir {
+			configOrder = append(configOrder, filepath.Base(target.Source))
+		}
+	}
+	if got := strings.Join(configOrder, ","); got != "current,hypr,waybar" {
+		t.Fatalf("config target order = %q, want current,hypr,waybar", got)
+	}
+	for _, want := range wantConfigTargets {
+		found := false
+		for _, target := range targets {
+			if target.Source == filepath.Join(configDir, want.name) &&
+				target.Destination == filepath.Join(home, ".config", want.name) &&
+				target.Kind == want.kind {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing managed config target %q with kind %q", want.name, want.kind)
+		}
+	}
+	for _, target := range targets {
+		if target.Source == configDir || target.Destination == filepath.Join(home, ".config") {
+			t.Fatalf("root .config target must not be emitted: %#v", target)
+		}
 	}
 	after, err := os.ReadDir(repo)
 	if err != nil {
@@ -117,6 +163,39 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	if len(before) != len(after) {
 		t.Fatalf("planning mutated repository entries: before=%d after=%d", len(before), len(after))
 	}
+}
+
+func TestInstallDiscovererKeepsLegacyRootSymlinkAsCopyFile(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	for _, path := range []string{
+		filepath.Join(repo, ".local", "moonarch", "bin"),
+		filepath.Join(repo, ".local", "moonarch", "themes"),
+	} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(repo, "zshrc-source"), []byte("source"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("zshrc-source", filepath.Join(repo, ".zshrc")); err != nil {
+		t.Fatal(err)
+	}
+
+	targets, err := (installDiscoverer{}).Discover(repo, home, plan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range targets {
+		if target.Source == filepath.Join(repo, ".zshrc") {
+			if target.Kind != plan.CopyFile {
+				t.Fatalf("legacy root symlink kind = %q, want %q", target.Kind, plan.CopyFile)
+			}
+			return
+		}
+	}
+	t.Fatal("missing legacy root .zshrc target")
 }
 
 func TestInstallDiscovererFailsWhenMoonArchRuntimeIsMissing(t *testing.T) {

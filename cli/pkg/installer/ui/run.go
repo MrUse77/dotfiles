@@ -40,7 +40,10 @@ func Run(ctx context.Context, p plan.InstallationPlan, executor Executor, input 
 	if result.Aborted() {
 		return nil, true, nil
 	}
-	if result.State == StateDone {
+	if result.State == StateExecuting {
+		if output != nil {
+			fmt.Fprintln(output, "Execution started.")
+		}
 		rpt, err := executor.Execute(ctx, p)
 		return rpt, false, err
 	}

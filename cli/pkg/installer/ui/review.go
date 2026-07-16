@@ -105,7 +105,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if !m.ReviewRendered || m.Executor == nil {
 					return m, nil
 				}
-				m.State = StateDone
+				m.State = StateExecuting
 				return m, tea.Quit
 			}
 		}
@@ -131,6 +131,9 @@ func (m *Model) View() string {
 	}
 	if m.State == StateReview && m.ReviewRendered {
 		b.WriteString("\nConfirm all actions? [y/enter] yes, [n/esc] abort\n")
+	}
+	if m.State == StateExecuting {
+		b.WriteString("\nExecution started.\n")
 	}
 	for _, progress := range m.Progress {
 		fmt.Fprintf(&b, "\n%s", progress)

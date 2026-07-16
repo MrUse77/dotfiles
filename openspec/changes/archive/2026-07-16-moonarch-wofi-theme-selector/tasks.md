@@ -47,7 +47,7 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Documentation and Verification
 
-- [ ] 3.1 DEFERRED: Stow assertion in `tests/moonarch-theme-selector_test.sh` for `--no-folding` and an isolated `current` link; excluded from MoonArch.
-- [ ] 3.2 DEFERRED: `scripts/stow-dev.sh` and `.stow-local-ignore` changes; excluded from MoonArch.
-- [ ] 3.3 Update `README.md` only with normal-install runtime selection, default-link, and rollback guidance; omit Stow instructions.
-- [ ] 3.4 Verify `bash tests/moonarch-theme-selector_test.sh` and `cd cli && go test ./... && go vet ./... && go build ./...`; rerun the clean-HOME link scenario.
+- [x] 3.1 DEFERRED: Stow assertion in `tests/moonarch-theme-selector_test.sh` for `--no-folding` and an isolated `current` link; excluded from MoonArch and intentionally not implemented.
+- [x] 3.2 DEFERRED: `scripts/stow-dev.sh` and `.stow-local-ignore` changes; excluded from MoonArch and intentionally not implemented.
+- [x] 3.3 Update `README.md` only with normal-install runtime selection, default-link, and rollback guidance; omit Stow instructions.
+- [x] 3.4 Verify `bash tests/moonarch-theme-selector_test.sh` and `cd cli && go test ./... && go vet ./... && go build ./...`; rerun the clean-HOME link scenario.
