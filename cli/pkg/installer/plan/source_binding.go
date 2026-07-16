@@ -327,6 +327,18 @@ func FileModeFromUnix(mode uint32) os.FileMode {
 		m |= os.ModeDir
 	case unix.S_IFLNK:
 		m |= os.ModeSymlink
+	case unix.S_IFIFO:
+		m |= os.ModeNamedPipe
+	case unix.S_IFSOCK:
+		m |= os.ModeSocket
+	case unix.S_IFCHR:
+		m |= os.ModeDevice | os.ModeCharDevice
+	case unix.S_IFBLK:
+		m |= os.ModeDevice
+	case unix.S_IFREG:
+		// Regular files have no additional os.FileMode type bit.
+	default:
+		m |= os.ModeIrregular
 	}
 	if mode&unix.S_ISUID != 0 {
 		m |= os.ModeSetuid

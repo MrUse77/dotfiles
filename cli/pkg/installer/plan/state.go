@@ -127,6 +127,9 @@ func collectDirectoryEntries(root string) ([]dirEntry, error) {
 			return err
 		}
 		mode := info.Mode()
+		if mode&os.ModeSocket != 0 {
+			return nil
+		}
 
 		entry := dirEntry{
 			RelativePath: rel,

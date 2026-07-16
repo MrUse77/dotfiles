@@ -766,6 +766,113 @@ func copyBackupDirectory(rootFD int, name, source string, mode os.FileMode) erro
 	return nil
 }
 
+var errRuntimeSocketRecoveryIncomplete = errors.New("runtime socket recovery incomplete")
+
+// preserveRuntimeSockets moves unmanaged Unix sockets between directory trees.
+// It validates every destination before moving anything and reverses completed
+// moves if a later rename fails.
+func preserveRuntimeSockets(fs Filesystem, from, to string) error {
+	sockets, err := collectRuntimeSockets(fs, from, "")
+	if err != nil {
+		return err
+	}
+	for _, rel := range sockets {
+		destination := filepath.Join(to, rel)
+		exists, err := pathExists(fs, destination)
+		if err != nil {
+			return fmt.Errorf("check runtime socket destination %q: %w", rel, err)
+		}
+		if exists {
+			return fmt.Errorf("runtime socket destination %q is occupied", rel)
+		}
+		if err := ensureRuntimeSocketParent(fs, to, filepath.Dir(rel)); err != nil {
+			return fmt.Errorf("prepare runtime socket destination %q: %w", rel, err)
+		}
+	}
+
+	moved := make([]string, 0, len(sockets))
+	for _, rel := range sockets {
+		if err := fs.Rename(filepath.Join(from, rel), filepath.Join(to, rel)); err != nil {
+			var restoreErrs []error
+			for i := len(moved) - 1; i >= 0; i-- {
+				movedRel := moved[i]
+				if restoreErr := fs.Rename(filepath.Join(to, movedRel), filepath.Join(from, movedRel)); restoreErr != nil {
+					restoreErrs = append(restoreErrs, restoreErr)
+				}
+			}
+			moveErr := fmt.Errorf("move runtime socket %q: %w; reverse moves: %v", rel, err, errors.Join(restoreErrs...))
+			return errors.Join(moveErr, errRuntimeSocketRecoveryIncomplete)
+		}
+		moved = append(moved, rel)
+	}
+	return nil
+}
+
+func collectRuntimeSockets(fs Filesystem, root, prefix string) ([]string, error) {
+	entries, err := fs.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("read runtime tree %q: %w", root, err)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+
+	var sockets []string
+	for _, entry := range entries {
+		name := entry.Name()
+		rel := name
+		if prefix != "" {
+			rel = filepath.Join(prefix, name)
+		}
+		path := filepath.Join(root, name)
+		info, err := fs.Lstat(path)
+		if err != nil {
+			return nil, fmt.Errorf("stat runtime entry %q: %w", rel, err)
+		}
+		mode := info.Mode()
+		switch {
+		case mode&os.ModeSocket != 0:
+			sockets = append(sockets, rel)
+		case mode.IsDir():
+			nested, err := collectRuntimeSockets(fs, path, rel)
+			if err != nil {
+				return nil, err
+			}
+			sockets = append(sockets, nested...)
+		case mode.IsRegular(), mode&os.ModeSymlink != 0:
+			// Managed files and links are not runtime sockets.
+		default:
+			return nil, fmt.Errorf("unsupported runtime entry %q: %v", rel, mode)
+		}
+	}
+	return sockets, nil
+}
+
+func ensureRuntimeSocketParent(fs Filesystem, root, relativeParent string) error {
+	if relativeParent == "." || relativeParent == "" {
+		return nil
+	}
+	current := root
+	for _, component := range strings.Split(filepath.Clean(relativeParent), string(filepath.Separator)) {
+		if component == "" || component == "." {
+			continue
+		}
+		current = filepath.Join(current, component)
+		info, err := fs.Lstat(current)
+		if errors.Is(err, os.ErrNotExist) {
+			if err := fs.Mkdir(current, 0o755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("parent %q is not a directory", current)
+		}
+	}
+	return nil
+}
+
 func copyBackupTree(srcFD, dstFD int) error {
 	readFD, err := unix.Dup(srcFD)
 	if err != nil {
@@ -818,6 +925,10 @@ func copyBackupTree(srcFD, dstFD int) error {
 			if err != nil {
 				return err
 			}
+		case unix.S_IFSOCK:
+			// Runtime Unix sockets are unmanaged and intentionally omitted from
+			// backups. Their live inode is preserved separately during replacement.
+			continue
 		case unix.S_IFLNK:
 			buf := make([]byte, 4096)
 			n, err := unix.Readlinkat(srcFD, entry.Name(), buf)
@@ -875,6 +986,23 @@ func (t *Transaction) ownsInstalledTarget(entry *InventoryEntry) bool {
 	return ok && entry.InstalledIdentity == fmt.Sprintf("%d:%d", stat.Dev, stat.Ino)
 }
 
+func (t *Transaction) retainRuntimeSocketRecovery(entry *InventoryEntry, stage, trash string) {
+	if entry != nil {
+		entry.StagePath, entry.TrashPath = stage, trash
+	}
+	t.inventory.Lifecycle = InventoryRecoveryIncomplete
+}
+
+func (t *Transaction) cleanupRuntimeSocketStage(err error, entry *InventoryEntry, stage, trash string, safe bool) bool {
+	incomplete := errors.Is(err, errRuntimeSocketRecoveryIncomplete)
+	if incomplete {
+		t.retainRuntimeSocketRecovery(entry, stage, trash)
+	} else if safe {
+		_ = t.fs.RemoveAll(stage)
+	}
+	return incomplete
+}
+
 func (t *Transaction) restoreFromBackup(tgt plan.Target) error {
 	parent := filepath.Dir(tgt.Destination)
 	base := filepath.Base(tgt.Destination)
@@ -911,9 +1039,25 @@ func (t *Transaction) restoreDirectory(tgt plan.Target, parent, base string) err
 		_ = t.fs.RemoveAll(stageDir)
 		return fmt.Errorf("relocate replacement directory: %w", err)
 	}
+	if err := preserveRuntimeSockets(t.fs, trashPath, stageDir); err != nil {
+		restoreErr := t.fs.Rename(trashPath, tgt.Destination)
+		t.cleanupRuntimeSocketStage(err, t.inventoryEntry(tgt.Destination), stageDir, "", restoreErr == nil)
+		if restoreErr != nil {
+			return fmt.Errorf("preserve runtime sockets: %w; restore replacement directory: %v", err, restoreErr)
+		}
+		return fmt.Errorf("preserve runtime sockets: %w", err)
+	}
 	if err := t.fs.Rename(stageDir, tgt.Destination); err != nil {
-		_ = t.fs.Rename(trashPath, tgt.Destination)
-		_ = t.fs.RemoveAll(stageDir)
+		restoreSocketsErr := preserveRuntimeSockets(t.fs, stageDir, trashPath)
+		restoreErr := t.fs.Rename(trashPath, tgt.Destination)
+		trash := ""
+		if restoreErr != nil {
+			trash = trashPath
+		}
+		t.cleanupRuntimeSocketStage(restoreSocketsErr, t.inventoryEntry(tgt.Destination), stageDir, trash, restoreErr == nil)
+		if restoreSocketsErr != nil || restoreErr != nil {
+			return fmt.Errorf("commit restore directory: %w; recover runtime sockets: %v; restore replacement directory: %v", err, restoreSocketsErr, restoreErr)
+		}
 		return fmt.Errorf("commit restore directory: %w", err)
 	}
 	_ = t.fs.RemoveAll(trashPath)
@@ -1097,25 +1241,46 @@ func (t *Transaction) commitTree(tgt plan.Target, boundSource *os.File, parent, 
 				return err
 			}
 		}
-		if err := t.fs.Rename(tmpDir, tgt.Destination); err != nil {
-			if restoreErr := t.fs.Rename(trashPath, tgt.Destination); restoreErr != nil {
-				if entry != nil {
-					entry.State = EntryFailed
-					entry.Error = errors.Join(err, restoreErr)
-				}
-				t.inventory.Lifecycle = InventoryRecoveryIncomplete
-				_ = persistInventory(t.fs, t.inventory)
-				return fmt.Errorf("commit directory: %w", errors.Join(err, restoreErr))
-			}
+		if err := preserveRuntimeSockets(t.fs, trashPath, tmpDir); err != nil {
+			restoreErr := t.fs.Rename(trashPath, tgt.Destination)
 			if entry != nil {
 				entry.State = EntryFailed
-				entry.Error = err
+				entry.Error = errors.Join(err, restoreErr)
+			}
+			t.cleanupRuntimeSocketStage(err, entry, tmpDir, "", restoreErr == nil)
+			if entry != nil {
 				_ = persistInventory(t.fs, t.inventory)
 			}
-			// The original is active again, so the staged replacement has no recovery value.
-			_ = t.fs.RemoveAll(tmpDir)
+			if restoreErr != nil {
+				t.inventory.Lifecycle = InventoryRecoveryIncomplete
+				_ = persistInventory(t.fs, t.inventory)
+				return fmt.Errorf("preserve runtime sockets: %w; restore original directory: %v", err, restoreErr)
+			}
+			return fmt.Errorf("preserve runtime sockets: %w", err)
+		}
+		if err := t.fs.Rename(tmpDir, tgt.Destination); err != nil {
+			restoreSocketsErr := preserveRuntimeSockets(t.fs, tmpDir, trashPath)
+			restoreErr := t.fs.Rename(trashPath, tgt.Destination)
 			if entry != nil {
+				entry.State = EntryFailed
+				entry.Error = errors.Join(err, restoreSocketsErr, restoreErr)
+			}
+			trash := ""
+			if restoreErr != nil {
+				trash = trashPath
+			}
+			incomplete := t.cleanupRuntimeSocketStage(restoreSocketsErr, entry, tmpDir, trash, restoreErr == nil)
+			if entry != nil && restoreErr == nil && !incomplete {
 				entry.StagePath = ""
+			}
+			if restoreErr != nil {
+				t.inventory.Lifecycle = InventoryRecoveryIncomplete
+			}
+			if entry != nil {
+				_ = persistInventory(t.fs, t.inventory)
+			}
+			if restoreErr != nil || incomplete {
+				return fmt.Errorf("commit directory: %w; recover runtime sockets: %v", err, restoreSocketsErr)
 			}
 			return fmt.Errorf("commit directory: %w", err)
 		}
