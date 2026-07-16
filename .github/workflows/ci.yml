@@ -124,7 +124,10 @@ jobs:
 
       - uses: DavidAnson/markdownlint-cli2-action@v19
         with:
-          globs: "**/*.md"
+          globs: |
+            **/*.md
+            !openspec/changes/archive/**/*.md
+            !cli/openspec/changes/archive/**/*.md
           config: .github/.markdownlint.jsonc
 
   # -----------------------------------------------------------

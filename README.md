@@ -132,7 +132,7 @@ To return to a known-good bundle, select its name with the same selector command
 
 ## Estructura del repo
 
-```
+```text
 dotfiles/
 ├── .config/
 │   ├── dunst/          # Notificaciones
