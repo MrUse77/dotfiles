@@ -66,6 +66,34 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 	return targets, nil
 }
 
+func resolveRepositoryRoot(startDir string) (string, error) {
+	current, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root from %q: %w", startDir, err)
+	}
+	info, err := os.Stat(current)
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root from %q: %w", startDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("resolve repository root from %q: not a directory", startDir)
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(current, ".git")); err == nil {
+			return current, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("resolve repository root marker in %q: %w", current, err)
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("resolve repository root from %q: no Git repository root found", startDir)
+		}
+		current = parent
+	}
+}
+
 func requireMoonArchRuntime(repoRoot string) error {
 	for _, source := range []string{
 		filepath.Join(repoRoot, ".local", "moonarch", "bin"),
@@ -107,9 +135,13 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	)).Run(); err != nil {
 		return err
 	}
-	repoRoot, err := os.Getwd()
+	workingDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	repoRoot, err := resolveRepositoryRoot(workingDir)
+	if err != nil {
+		return err
 	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
