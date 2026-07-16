@@ -110,7 +110,7 @@ If the user abandons the confirmation flow at any point — by declining, interr
 
 The TUI operates through these states:
 
-```
+```text
 initializing → plan-review → (confirming) → executing → done
                     ↓              ↓
                 error ←──── aborted

@@ -38,7 +38,7 @@ Un cambio **nunca** debería mezclar ambos ámbitos en un mismo PR sin justifica
 
 ## Flujo de trabajo con Git
 
-```
+```text
 main (protegida)
  └── feat/descripcion-corta     ← desarrollo
  └── fix/descripcion-corta      ← correcciones
@@ -52,17 +52,19 @@ main (protegida)
 2. **Una branch por cambio.** Cada branch representa un cambio atómico y autocontenido.
 3. **Branches de vida corta.** Merge rápido, delete después del merge.
 4. **Rebase antes de merge.** Mantené la historia lineal:
+
    ```bash
    git fetch origin
    git rebase origin/main
    ```
+
 5. **No force push a branches compartidas.** Solo a branches personales.
 
 ---
 
 ## Convención de branches
 
-```
+```text
 <tipo>/<descripcion-kebab-case>
 ```
 
@@ -79,7 +81,7 @@ main (protegida)
 
 ### Ejemplos inválidos
 
-```
+```text
 # ❌ MAL
 mi-branch
 update
@@ -100,7 +102,7 @@ Usamos [Conventional Commits](https://www.conventionalcommits.org/) en español 
 
 ### Formato
 
-```
+```text
 <tipo>(<scope>): <descripción imperativa>
 
 [cuerpo opcional]
@@ -176,7 +178,7 @@ feat: many changes across the entire repo
 
 Mismo formato que los commits:
 
-```
+```text
 <tipo>(<scope>): <descripción>
 ```
 
@@ -260,14 +262,14 @@ Breve descripción de qué se modificó y por qué.
 
 | Regla | Descripción |
 |---|---|
-| **No borrar archivos** sin instrucción explícita del usuario |
-| **No modificar submodules** a menos que se pida específicamente |
-| **No crear archivos en la raíz** del repo sin aprobación |
-| **No modificar `.gitignore`** ni `.gitmodules` sin aprobación |
-| **No agregar dependencias** al CLI sin aprobación |
-| **No cambiar la estructura** de directorios existente |
-| **No hacer refactors masivos** sin discusión previa |
-| **No mezclar scopes** (config + CLI) en un mismo PR |
+| **No borrar archivos** sin instrucción explícita del usuario | |
+| **No modificar submodules** a menos que se pida específicamente | |
+| **No crear archivos en la raíz** del repo sin aprobación | |
+| **No modificar `.gitignore`** ni `.gitmodules` sin aprobación | |
+| **No agregar dependencias** al CLI sin aprobación | |
+| **No cambiar la estructura** de directorios existente | |
+| **No hacer refactors masivos** sin discusión previa | |
+| **No mezclar scopes** (config + CLI) en un mismo PR | |
 
 ### Convenciones que DEBEN seguir
 
@@ -358,15 +360,19 @@ Este repo usa git submodules para:
 
 1. **No modificar el contenido** de un submodule desde este repo.
 2. **Para actualizar** un submodule:
+
    ```bash
    git submodule update --remote .zsh_plugins/fzf-tab
    git add .zsh_plugins/fzf-tab
    git commit -m "chore(zsh): update fzf-tab submodule to latest"
    ```
+
 3. **Verificar siempre** que no se agregaron cambios accidentales:
+
    ```bash
    git diff --submodule
    ```
+
 4. **Para agregar** un submodule nuevo, hacer un PR dedicado con justificación.
 
 ---
@@ -438,7 +444,7 @@ go fmt ./...
 
 ## Resumen rápido
 
-```
+```text
 1. git checkout -b <tipo>/<descripcion>     ← branch con convención
 2. hacer cambios mínimos                     ← solo lo necesario
 3. git diff --submodule                      ← verificar submodules
@@ -451,4 +457,4 @@ go fmt ./...
 
 ---
 
-*Última actualización: julio 2025*
+Última actualización: julio 2025.

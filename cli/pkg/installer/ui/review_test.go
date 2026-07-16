@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,9 +22,13 @@ type fakeExecutor struct {
 	result     *report.ExecutionReport
 	started    chan struct{}
 	cancelled  chan struct{}
+	beforeCall func()
 }
 
 func (f *fakeExecutor) Execute(ctx context.Context, p plan.InstallationPlan) (*report.ExecutionReport, error) {
+	if f.beforeCall != nil {
+		f.beforeCall()
+	}
 	f.calls++
 	f.got = p
 	f.gotContext = ctx
@@ -74,7 +80,7 @@ func TestReviewModel_RequiresExplicitRenderedEventBeforeConfirmation(t *testing.
 	}
 	m = updateReview(t, m, ReviewRenderedMsg{})
 	m = updateReview(t, m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.State != StateDone || executor.calls != 0 {
+	if m.State != StateExecuting || executor.calls != 0 {
 		t.Fatalf("confirmation should terminate the TUI without execution: state=%s calls=%d", m.State, executor.calls)
 	}
 }
@@ -103,6 +109,29 @@ func TestRunPassesCallerContextToExecutor(t *testing.T) {
 	_, _, err := Run(ctx, testReviewPlan(t), executor, nil, nil, run)
 	if err != nil || executor.gotContext.Value(contextKey("caller")) != "present" {
 		t.Fatalf("executor context = %v, err = %v", executor.gotContext, err)
+	}
+}
+
+func TestRunReportsExecutionStartedBeforeInvokingExecutor(t *testing.T) {
+	var output bytes.Buffer
+	executor := &fakeExecutor{beforeCall: func() {
+		if !strings.Contains(output.String(), "Execution started") {
+			t.Fatal("executor started before execution feedback was emitted")
+		}
+	}}
+	run := func(model tea.Model, _ io.Reader, _ io.Writer) (tea.Model, error) {
+		m := model.(*Model)
+		m = updateReview(t, m, ReviewRenderedMsg{})
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		return updated, nil
+	}
+
+	_, aborted, err := Run(context.Background(), testReviewPlan(t), executor, nil, &output, run)
+	if aborted || err != nil {
+		t.Fatalf("Run() = aborted %v, err %v", aborted, err)
+	}
+	if !strings.Contains(output.String(), "Execution started") {
+		t.Fatalf("execution feedback = %q, want execution-start message", output.String())
 	}
 }
 

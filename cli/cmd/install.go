@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/MrUse77/dots-cli/pkg/installer"
 	"github.com/MrUse77/dots-cli/pkg/installer/external"
@@ -36,11 +37,31 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		}
 	}
 	targets = filtered
+	configRoot := filepath.Join(repoRoot, ".config")
+	configEntries, err := os.ReadDir(configRoot)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if err == nil {
+		sort.Slice(configEntries, func(i, j int) bool {
+			return configEntries[i].Name() < configEntries[j].Name()
+		})
+		for _, entry := range configEntries {
+			source := filepath.Join(configRoot, entry.Name())
+			target, present, err := discoverTarget(source, filepath.Join(homeDir, ".config", entry.Name()), plan.CopyFile, true)
+			if err != nil {
+				return nil, err
+			}
+			if present {
+				targets = append(targets, target)
+			}
+		}
+	}
+
 	candidates := []struct {
 		source, destination string
 		kind                plan.MutationKind
 	}{
-		{filepath.Join(repoRoot, ".config"), filepath.Join(homeDir, ".config"), plan.CopyTree},
 		{filepath.Join(repoRoot, ".local", "moonarch", "bin"), filepath.Join(homeDir, ".local", "moonarch", "bin"), plan.CopyTree},
 	}
 	for _, name := range []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"} {
@@ -50,20 +71,36 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		}{filepath.Join(repoRoot, name), filepath.Join(homeDir, name), plan.CopyFile})
 	}
 	for _, candidate := range candidates {
-		info, err := os.Lstat(candidate.source)
-		if os.IsNotExist(err) {
-			continue
-		}
+		target, present, err := discoverTarget(candidate.source, candidate.destination, candidate.kind, false)
 		if err != nil {
 			return nil, err
 		}
-		kind := candidate.kind
-		if info.IsDir() {
-			kind = plan.CopyTree
+		if present {
+			targets = append(targets, target)
 		}
-		targets = append(targets, plan.Target{Source: candidate.source, Destination: candidate.destination, Kind: kind})
 	}
 	return targets, nil
+}
+
+func discoverTarget(source, destination string, fallback plan.MutationKind, classifySymlink bool) (plan.Target, bool, error) {
+	info, err := os.Lstat(source)
+	if os.IsNotExist(err) {
+		return plan.Target{}, false, nil
+	}
+	if err != nil {
+		return plan.Target{}, false, err
+	}
+
+	kind := fallback
+	switch {
+	case classifySymlink && info.Mode()&os.ModeSymlink != 0:
+		kind = plan.Symlink
+	case info.IsDir():
+		kind = plan.CopyTree
+	case info.Mode().IsRegular():
+		kind = plan.CopyFile
+	}
+	return plan.Target{Source: source, Destination: destination, Kind: kind}, true, nil
 }
 
 func resolveRepositoryRoot(startDir string) (string, error) {
