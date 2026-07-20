@@ -1,10 +1,12 @@
 
-# You can preview the config here
+# --- Base theme (Moonarch) ---
+config-file = "~/.local/moonarch/themes/current/ghostty.conf"
+
+# --- Overrides ---
 shell-integration = zsh
 background-opacity = 0.9
 window-decoration = true
 background-blur = false
-config-file = "~/.local/moonarch/themes/current/ghostty.conf"
 minimum-contrast = 1.5
 cursor-style = bar
 cursor-style-blink = true
@@ -12,5 +14,5 @@ mouse-shift-capture = false
 font-family = CaskaydiaCove NFM
 font-size = 17
 font-style = bold
-	command = herdr 
+command = herdr
 term = xterm-kitty
