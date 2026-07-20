@@ -102,8 +102,8 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "moonarch", "bin"),
-		filepath.Join(repo, ".local", "moonarch", "themes", "tokyo-night"),
+		filepath.Join(repo, ".local", "bin", "moonarch"),
+		filepath.Join(repo, ".local", "share", "moonarch", "themes", "tokyo-night"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
@@ -169,8 +169,8 @@ func TestInstallDiscovererKeepsLegacyRootSymlinkAsCopyFile(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "moonarch", "bin"),
-		filepath.Join(repo, ".local", "moonarch", "themes"),
+		filepath.Join(repo, ".local", "bin", "moonarch"),
+		filepath.Join(repo, ".local", "share", "moonarch", "themes"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
@@ -209,14 +209,14 @@ func TestInstallDiscovererPlansMoonArchRuntimeTrees(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "moonarch", "bin"),
-		filepath.Join(repo, ".local", "moonarch", "themes", "tokyo-night"),
+		filepath.Join(repo, ".local", "bin", "moonarch"),
+		filepath.Join(repo, ".local", "share", "moonarch", "themes", "tokyo-night"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.Symlink("tokyo-night", filepath.Join(repo, ".local", "moonarch", "themes", "current")); err != nil {
+	if err := os.Symlink("tokyo-night", filepath.Join(repo, ".local", "share", "moonarch", "themes", "current")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -225,8 +225,8 @@ func TestInstallDiscovererPlansMoonArchRuntimeTrees(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		filepath.Join(repo, ".local", "moonarch", "bin"):    filepath.Join(home, ".local", "moonarch", "bin"),
-		filepath.Join(repo, ".local", "moonarch", "themes"): filepath.Join(home, ".local", "moonarch", "themes"),
+		filepath.Join(repo, ".local", "bin", "moonarch"):             filepath.Join(home, ".local", "bin", "moonarch"),
+		filepath.Join(repo, ".local", "share", "moonarch", "themes"): filepath.Join(home, ".local", "share", "moonarch", "themes"),
 	}
 	for source, destination := range want {
 		found := false

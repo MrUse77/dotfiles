@@ -62,7 +62,7 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		source, destination string
 		kind                plan.MutationKind
 	}{
-		{filepath.Join(repoRoot, ".local", "moonarch", "bin"), filepath.Join(homeDir, ".local", "moonarch", "bin"), plan.CopyTree},
+		{filepath.Join(repoRoot, ".local", "bin", "moonarch"), filepath.Join(homeDir, ".local", "bin", "moonarch"), plan.CopyTree},
 	}
 	for _, name := range []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"} {
 		candidates = append(candidates, struct {
@@ -133,8 +133,8 @@ func resolveRepositoryRoot(startDir string) (string, error) {
 
 func requireMoonArchRuntime(repoRoot string) error {
 	for _, source := range []string{
-		filepath.Join(repoRoot, ".local", "moonarch", "bin"),
-		filepath.Join(repoRoot, ".local", "moonarch", "themes"),
+		filepath.Join(repoRoot, ".local", "bin", "moonarch"),
+		filepath.Join(repoRoot, ".local", "share", "moonarch", "themes"),
 	} {
 		info, err := os.Stat(source)
 		if err != nil {
