@@ -1,12 +1,10 @@
 
-# --- Base theme (Moonarch) ---
-config-file = "~/.local/moonarch/themes/current/ghostty.conf"
-
 # --- Overrides (intencionalmente pisados al theme) ---
 shell-integration = zsh
 background-opacity = 0.9
 window-decoration = true
 background-blur = false
+config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"
 minimum-contrast = 1.5
 
 # Colores override (difieren del theme base)

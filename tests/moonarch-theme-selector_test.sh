@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-selector="${THEME_SELECTOR:-$repo_root/.local/moonarch/bin/theme-selector}"
+selector="${THEME_SELECTOR:-$repo_root/.local/bin/moonarch/theme-selector}"
 
 pass_count=0
 
@@ -27,8 +27,7 @@ assert_failure() {
 
 new_case() {
     case_dir="$(mktemp -d)"
-    root="$case_dir/moonarch"
-    themes="$root/themes"
+    themes="$case_dir/themes"
     fake_bin="$case_dir/bin"
     command_log="$case_dir/commands.log"
     wofi_input="$case_dir/wofi-input"
@@ -77,7 +76,7 @@ make_bundle() {
 
 run_selector() {
     env \
-        MOONARCH_ROOT="$root" \
+        MOONARCH_THEMES_ROOT="$themes" \
         PATH="$fake_bin:$PATH" \
         COMMAND_LOG="$command_log" \
         WOFI_INPUT="$wofi_input" \
@@ -160,7 +159,7 @@ pass_count=$((pass_count + 1))
 new_case
 make_bundle tokyo-night
 ln -s tokyo-night "$themes/current"
-assert_success env WOFI_CANCEL=1 MOONARCH_ROOT="$root" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" "$selector"
+assert_success env WOFI_CANCEL=1 MOONARCH_THEMES_ROOT="$themes" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" "$selector"
 assert_current tokyo-night
 if grep -Eq '^(hyprctl|pgrep|pkill) ' "$command_log"; then
     fail 'cancellation ran a reload command'
@@ -173,7 +172,7 @@ make_bundle tokyo-night
 make_bundle alpha
 ln -s tokyo-night "$themes/current"
 bundle_digest_before="$(sha256sum "$themes"/tokyo-night/* "$themes"/alpha/*)"
-assert_success env WOFI_OUTPUT=alpha MOONARCH_ROOT="$root" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=0 "$selector"
+assert_success env WOFI_OUTPUT=alpha MOONARCH_THEMES_ROOT="$themes" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=0 "$selector"
 assert_current alpha
 assert_eq "$(cat "$wofi_input")" $'alpha\ntokyo-night'
 bundle_digest_after="$(sha256sum "$themes"/tokyo-night/* "$themes"/alpha/*)"
@@ -184,7 +183,9 @@ grep -qx 'wofi --show dmenu' "$command_log" || fail 'Wofi argv differs'
 if grep -Eq 'ghostty|wofi.*reload' "$command_log"; then
     fail 'selector invoked an unsupported Wofi or Ghostty reload'
 fi
-[[ ! -e "$themes/.current"* ]] || fail 'atomic switch left a temporary link'
+if compgen -G "${themes}/.current*" >/dev/null; then
+    fail 'atomic switch left a temporary link'
+fi
 printf 'PASS: sorted selection atomically switches with fixed commands\n'
 pass_count=$((pass_count + 1))
 
@@ -192,7 +193,7 @@ new_case
 make_bundle tokyo-night
 make_bundle alpha
 ln -s tokyo-night "$themes/current"
-assert_failure env HYPRCTL_FAIL=1 WOFI_OUTPUT=alpha MOONARCH_ROOT="$root" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=0 "$selector"
+assert_failure env HYPRCTL_FAIL=1 WOFI_OUTPUT=alpha MOONARCH_THEMES_ROOT="$themes" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=0 "$selector"
 assert_current tokyo-night
 grep -c '^hyprctl reload$' "$command_log" | grep -qx '2' || fail 'rollback did not retry Hyprland reload'
 printf 'PASS: reload failure restores prior link\n'
@@ -202,18 +203,19 @@ new_case
 make_bundle tokyo-night
 make_bundle alpha
 ln -s tokyo-night "$themes/current"
-assert_failure env PKILL_FAIL=1 WOFI_OUTPUT=alpha MOONARCH_ROOT="$root" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=1 "$selector"
+assert_failure env PKILL_FAIL=1 WOFI_OUTPUT=alpha MOONARCH_THEMES_ROOT="$themes" PATH="$fake_bin:$PATH" COMMAND_LOG="$command_log" WOFI_INPUT="$wofi_input" WAYBAR_RUNNING=1 "$selector"
 assert_current tokyo-night
 grep -c '^pkill -SIGUSR2 waybar$' "$command_log" | grep -qx '2' || fail 'rollback did not retry Waybar reload'
 printf 'PASS: Waybar reload failure restores prior link\n'
 pass_count=$((pass_count + 1))
 
-grep -Fqx 'source = ~/.local/moonarch/themes/current/hyprland.conf' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland does not import the current theme'
-grep -Fqx '      bind = $mainMod SHIFT, T, exec, ~/.local/moonarch/bin/theme-selector' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland selector binding is missing'
-grep -Fqx '@import url("../../.local/moonarch/themes/current/waybar.css");' "$repo_root/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
-grep -Fqx '@import url("../../.local/moonarch/themes/current/wofi.css");' "$repo_root/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
-grep -Fqx 'config-file = "~/.local/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config" || fail 'Ghostty does not import the current theme'
-printf 'PASS: four consumers bind only to the current theme\n'
+grep -Fqx 'source = ~/.local/share/moonarch/themes/current/hyprland.conf' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland does not import the current theme'
+grep -Fqx "      bind = \$mainMod SHIFT, T, exec, ~/.local/bin/moonarch/theme-selector" "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland selector binding is missing'
+grep -Fqx '@import url("../../.local/share/moonarch/themes/current/waybar.css");' "$repo_root/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
+grep -Fqx '@import url("../../.local/share/moonarch/themes/current/wofi.css");' "$repo_root/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
+grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config" || fail 'Ghostty does not import the current theme'
+grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config-clean" || fail 'Ghostty clean config does not import the current theme'
+printf 'PASS: all consumers bind only to the current theme\n'
 pass_count=$((pass_count + 1))
 
 printf 'PASS: %d MoonArch selector scenarios\n' "$pass_count"

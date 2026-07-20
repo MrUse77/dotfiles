@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="${MOONARCH_ROOT:-$HOME/.local/moonarch}"
-themes="$root/themes"
+themes="${MOONARCH_THEMES_ROOT:-$HOME/.local/share/moonarch/themes}"
 themes_real="$(realpath -e -- "$themes")" || {
     printf 'MoonArch themes root is unavailable: %s\n' "$themes" >&2
     exit 1

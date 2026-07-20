@@ -89,16 +89,16 @@ Luego ejecuta automáticamente:
 
 ### Runtime theme selection (normal install)
 
-The normal user installation deploys the MoonArch selector and immutable theme bundles under `~/.local/moonarch/`. A fresh installation activates Tokyo Night through the relative link:
+The normal user installation deploys the MoonArch selector to `~/.local/bin/moonarch/` and immutable theme bundles to `~/.local/share/moonarch/themes/`. A fresh installation activates Tokyo Night through the relative link:
 
 ```text
-~/.local/moonarch/themes/current -> tokyo-night
+~/.local/share/moonarch/themes/current -> tokyo-night
 ```
 
 Consumer configurations read their fragments through `current`; do not replace this link with an absolute path or edit bundle contents. Press `Super+Shift+T` to open Wofi and select a valid theme name, or run the selector directly:
 
 ```bash
-~/.local/moonarch/bin/theme-selector <theme-id>
+~/.local/bin/moonarch/theme-selector <theme-id>
 ```
 
 Running the selector without an ID lists valid bundles in Wofi. Hyprland and Waybar reload after a successful switch; Ghostty reads the selected fragment when a new terminal starts.
@@ -108,7 +108,7 @@ Running the selector without an ID lists valid bundles in Wofi. Hyprland and Way
 Selection validates the complete bundle before changing `current` and replaces the link atomically. If Hyprland or Waybar reload fails, the selector restores the previous link, retries the consumer refresh on a best-effort basis, and exits non-zero. Verify the active bundle with:
 
 ```bash
-readlink -- ~/.local/moonarch/themes/current
+readlink -- ~/.local/share/moonarch/themes/current
 ```
 
 To return to a known-good bundle, select its name with the same selector command. Keep `current` relative to the themes directory; do not repair a failed selection by copying fragments into consumer configuration files.
@@ -150,6 +150,9 @@ dotfiles/
 │   ├── wofi/
 │   ├── yazi/
 │   └── zellij/
+├── .local/
+│   ├── bin/moonarch/   # Theme selector executable
+│   └── share/moonarch/themes/ # Immutable theme bundles
 ├── .zsh_plugins/       # Plugins de zsh (submodules)
 ├── assets/
 │   ├── fonts/          # CaskaydiaCove, CaskaydiaM, Hack Nerd Font
