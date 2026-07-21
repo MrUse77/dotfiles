@@ -56,6 +56,122 @@ func TestActionCatalogSSHAgentOptionAddsOnlyEnableAction(t *testing.T) {
 	}
 }
 
+func TestPowerProfilesActionsRespectTLPAndMaskedUnits(t *testing.T) {
+	tests := []struct {
+		name         string
+		state        PowerProfilesState
+		descriptions []string
+		commands     [][]string
+	}{
+		{
+			name:  "active TLP skips conflicting service",
+			state: PowerProfilesState{TLPActive: true},
+		},
+		{
+			name:         "masked service is unmasked before enabling",
+			state:        PowerProfilesState{Masked: true},
+			descriptions: []string{"unmask power profiles", "enable power profiles"},
+			commands: [][]string{
+				{"sudo", "systemctl", "unmask", "power-profiles-daemon.service"},
+				{"sudo", "systemctl", "enable", "--now", "power-profiles-daemon.service"},
+			},
+		},
+		{
+			name:         "unmasked service is enabled directly",
+			descriptions: []string{"enable power profiles"},
+			commands:     [][]string{{"sudo", "systemctl", "enable", "--now", "power-profiles-daemon.service"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actions := powerProfilesActions(tt.state)
+			if len(actions) != len(tt.descriptions) {
+				t.Fatalf("actions = %d, want %d: %#v", len(actions), len(tt.descriptions), actions)
+			}
+			for i, want := range tt.descriptions {
+				if actions[i].Description != want {
+					t.Errorf("action %d description = %q, want %q", i, actions[i].Description, want)
+				}
+				if !sameStrings(actions[i].Command.Name, actions[i].Command.Args, tt.commands[i]) {
+					t.Errorf("action %d command = %#v, want %v", i, actions[i].Command, tt.commands[i])
+				}
+			}
+		})
+	}
+}
+
+func TestActionCatalogAppliesPowerProfilesState(t *testing.T) {
+	actions, err := NewActionCatalogWithPowerProfiles(PowerProfilesState{TLPActive: true}).ExternalActions(plan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range actions {
+		if strings.Contains(action.Description, "power profiles") {
+			t.Fatalf("TLP-active plan must omit power-profile actions: %#v", action)
+		}
+	}
+}
+
+func TestDetectPowerProfilesReadsTLPAndMaskState(t *testing.T) {
+	state := detectPowerProfiles(func(args ...string) (string, error) {
+		if len(args) == 3 && args[0] == "is-active" {
+			return "", nil
+		}
+		return "masked-runtime\n", os.ErrInvalid
+	})
+	if !state.TLPActive || !state.Masked {
+		t.Fatalf("state = %#v, want active TLP and masked unit", state)
+	}
+}
+
+func TestEnablePowerProfilesUsesSafeCommandOrder(t *testing.T) {
+	var got [][]string
+	run := func(name string, args ...string) error {
+		got = append(got, append([]string{name}, args...))
+		return nil
+	}
+	if err := enablePowerProfiles(run, func() PowerProfilesState { return PowerProfilesState{Masked: true} }); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"sudo", "systemctl", "unmask", "power-profiles-daemon.service"},
+		{"sudo", "systemctl", "enable", "--now", "power-profiles-daemon.service"},
+	}
+	if len(got) != len(want) || !sameCommandLists(got, want) {
+		t.Fatalf("commands = %v, want %v", got, want)
+	}
+}
+
+func sameStrings(name string, args []string, want []string) bool {
+	got := append([]string{name}, args...)
+	return len(got) == len(want) && sameStringSlice(got, want)
+}
+
+func sameCommandLists(got, want [][]string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if !sameStringSlice(got[i], want[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameStringSlice(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestManagedTargetsIncludeFontsAndCursors(t *testing.T) {
 	targets, err := NewActionCatalog().ManagedTargets("/repo", "/home/test", plan.Options{})
 	if err != nil {

@@ -6,21 +6,30 @@ import (
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 )
 
-// ActionCatalog describes the installer operations without discovering or executing them.
-type ActionCatalog struct{}
+// ActionCatalog describes the installer operations without executing them.
+type ActionCatalog struct {
+	powerProfiles *PowerProfilesState
+}
 
 // NewActionCatalog returns the deterministic catalog used by the planner.
+// Environment-dependent power-profile actions are omitted until state is supplied.
 func NewActionCatalog() ActionCatalog { return ActionCatalog{} }
 
+// NewActionCatalogWithPowerProfiles adds power-profile actions selected from
+// the supplied read-only systemd state.
+func NewActionCatalogWithPowerProfiles(state PowerProfilesState) ActionCatalog {
+	return ActionCatalog{powerProfiles: &state}
+}
+
 // ExternalActions returns the selected external operations in execution order.
-func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
+func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
 	packages := []string{
 		"zsh", "stow", "hyprland", "hyprlock", "hyprpaper", "hypridle", "hyprsunset",
 		"hyprpolkitagent", "waybar", "wofi", "dunst", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk",
 		"ghostty", "zellij", "neovim", "yazi", "fzf", "eza", "bat", "zoxide", "ripgrep", "fd",
 		"wl-clipboard", "direnv", "unzip", "reflector", "lazygit", "thunar", "gvfs", "upower",
 		"power-profiles-daemon", "qt5ct", "qt6ct", "nwg-look", "kvantum", "cpio", "cmake", "meson",
-		"oh-my-posh-bin", "fnm-bin", "nwg-dock-hyprland", "herdr-bin", "aur/eww", "aur/wlogout",
+		"oh-my-posh-bin", "fnm", "nwg-dock-hyprland", "herdr-bin", "aur/eww", "aur/wlogout",
 	}
 	if opts.HasAMD {
 		packages = append(packages, "corectrl")
@@ -38,8 +47,10 @@ func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, 
 		action("create zsh configuration directory", "mkdir", []string{"-p", "~/.config/zsh"}, "filesystem", false),
 	)
 
+	if catalog.powerProfiles != nil {
+		actions = append(actions, powerProfilesActions(*catalog.powerProfiles)...)
+	}
 	actions = append(actions,
-		action("enable power profiles", "sudo", []string{"systemctl", "enable", "--now", "power-profiles-daemon.service"}, "privileged", true),
 		action("enable upower", "sudo", []string{"systemctl", "enable", "--now", "upower"}, "privileged", true),
 		action("refresh font cache", "fc-cache", []string{"-f"}, "cache", false),
 	)

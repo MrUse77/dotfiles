@@ -64,7 +64,7 @@ func InstallPackages(hasAMD bool) error {
 		"cpio", "cmake", "meson",
 
 		// AUR Packages
-		"oh-my-posh-bin", "fnm-bin", "nwg-dock-hyprland", "herdr-bin",
+		"oh-my-posh-bin", "fnm", "nwg-dock-hyprland", "herdr-bin",
 		"aur/eww", "aur/wlogout",
 	}
 

@@ -148,16 +148,27 @@ func InstallFontsAndCursors(dotfilesDir string) error {
 func EnableServices() error {
 	fmt.Println("Habilitando servicios...")
 
-	if err := exec.Command("systemctl", "is-active", "--quiet", "tlp").Run(); err == nil {
-		fmt.Println("TLP detectado y activo. Omitiendo power-profiles-daemon para evitar conflictos.")
-	} else {
-		if err := runCommand("sudo", "systemctl", "enable", "--now", "power-profiles-daemon.service"); err != nil {
-			return fmt.Errorf("error habilitando power-profiles-daemon: %w", err)
-		}
+	if err := enablePowerProfiles(runCommand, DetectPowerProfiles); err != nil {
+		return err
 	}
 
 	if err := runCommand("sudo", "systemctl", "enable", "--now", "upower"); err != nil {
 		return fmt.Errorf("error habilitando upower: %w", err)
+	}
+	return nil
+}
+
+func enablePowerProfiles(run func(string, ...string) error, detect func() PowerProfilesState) error {
+	state := detect()
+	if state.TLPActive {
+		fmt.Println("TLP detectado y activo. Omitiendo power-profiles-daemon para evitar conflictos.")
+		return nil
+	}
+
+	for _, action := range powerProfilesActions(state) {
+		if err := run(action.Command.Name, action.Command.Args...); err != nil {
+			return fmt.Errorf("error ejecutando %s: %w", action.Description, err)
+		}
 	}
 	return nil
 }
