@@ -1,0 +1,768 @@
+============================================================
+  HyDE Project - Theme Color Palettes
+  Source: https://github.com/HyDE-Project/hyde-themes
+  Extracted: 2026-07-21 14:47:52
+============================================================
+
+============================================================
+  THEME: Catppuccin Latte
+  Branch: Catppuccin-Latte
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(dc8a78ff) rgba(8839efff) 45deg
+    col.inactive_border = rgba(7287fdcc) rgba(179299cc) 45deg
+    col.border_active = rgba(dc8a78ff) rgba(8839efff) 45deg
+    col.border_inactive = rgba(7287fdcc) rgba(179299cc) 45deg
+    col.border_locked_active = rgba(dc8a78ff) rgba(8839efff) 45deg
+    col.border_locked_inactive = rgba(7287fdcc) rgba(179299cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #dce0e8e6;
+    main-fg:            #4c4f69ff;
+    main-br:            #9ca0b0ff;
+    main-ex:            #8839efff;
+    select-bg:          #dd7878ff;
+    select-fg:          #eff1f5ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #9ca0b0;
+    @define-color main-fg #4c4f69;
+    @define-color wb-act-bg #5c5f77;
+    @define-color wb-act-fg #dce0e8;
+    @define-color wb-hvr-bg #dc8a78;
+    @define-color wb-hvr-fg #dce0e8;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #4C4F69
+    background              #EFF1F5
+    selection_foreground    #EFF1F5
+    selection_background    #DC8A78
+    cursor                  #DC8A78
+    cursor_text_color       #EFF1F5
+    url_color               #7287FD
+    active_border_color     #8839EF
+    inactive_border_color   #7C7F93
+    bell_border_color       #E64553
+    active_tab_foreground   #EFF1F5
+    active_tab_background   #8839EF
+    inactive_tab_foreground #4C4F69
+    inactive_tab_background #9CA0B0
+    tab_bar_background      #BCC0CC
+    mark1_foreground #EFF1F5
+    mark1_background #1E66F5
+    mark2_foreground #EFF1F5
+    mark2_background #8839EF
+    mark3_foreground #EFF1F5
+    mark3_background #209FB5
+    color0 #4C4F69
+    color8 #6C6F85
+    color1 #D20F39
+    color9 #D20F39
+    color2  #40A02B
+    color10 #40A02B
+    color3  #DF8E1D
+    color11 #DF8E1D
+    color4  #1E66F5
+    color12 #1E66F5
+    color5  #EA76CB
+    color13 #EA76CB
+    color6  #179299
+    color14 #179299
+    color7  #ACB0BE
+    color15 #ACB0BE
+
+
+============================================================
+  THEME: Catppuccin Mocha
+  Branch: Catppuccin-Mocha
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.inactive_border = rgba(b4befecc) rgba(6c7086cc) 45deg
+    col.border_active = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.border_inactive = rgba(b4befecc) rgba(6c7086cc) 45deg
+    col.border_locked_active = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.border_locked_inactive = rgba(b4befecc) rgba(6c7086cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #11111be6;
+    main-fg:            #cdd6f4ff;
+    main-br:            #cba6f7ff;
+    main-ex:            #f5e0dcff;
+    select-bg:          #b4befeff;
+    select-fg:          #11111bff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #11111b;
+    @define-color main-fg #cdd6f4;
+    @define-color wb-act-bg #a6adc8;
+    @define-color wb-act-fg #313244;
+    @define-color wb-hvr-bg #f5c2e7;
+    @define-color wb-hvr-fg #313244;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #CDD6F4
+    background              #1E1E2E
+    selection_foreground    #1E1E2E
+    selection_background    #F5E0DC
+    cursor                  #F5E0DC
+    cursor_text_color       #1E1E2E
+    url_color               #B4BEFE
+    active_border_color     #CBA6F7
+    inactive_border_color   #8E95B3
+    bell_border_color       #EBA0AC
+    active_tab_foreground   #11111B
+    active_tab_background   #CBA6F7
+    inactive_tab_foreground #CDD6F4
+    inactive_tab_background #181825
+    tab_bar_background      #11111B
+    mark1_foreground #1E1E2E
+    mark1_background #87B0F9
+    mark2_foreground #1E1E2E
+    mark2_background #CBA6F7
+    mark3_foreground #1E1E2E
+    mark3_background #74C7EC
+    color0 #43465A
+    color8 #43465A
+    color1 #F38BA8
+    color9 #F38BA8
+    color2  #A6E3A1
+    color10 #A6E3A1
+    color3  #F9E2AF
+    color11 #F9E2AF
+    color4  #87B0F9
+    color12 #87B0F9
+    color5  #F5C2E7
+    color13 #F5C2E7
+    color6  #94E2D5
+    color14 #94E2D5
+    color7  #CDD6F4
+    color15 #A1A8C9
+
+
+============================================================
+  THEME: Decay Green
+  Branch: Decay-Green
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.inactive_border = rgba(86aaeccc) rgba(93cee9cc) 45deg
+    col.border_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_inactive = rgba(86aaeccc) rgba(93cee9cc) 45deg
+    col.border_locked_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_locked_inactive = rgba(86aaeccc) rgba(93cee9cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #151720e6;
+    main-fg:            #cbced3ff;
+    main-br:            #98d3eecc;
+    main-ex:            #95d3afcc;
+    select-bg:          #90ceaaff;
+    select-fg:          #151720ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(31, 35, 40, 0.95);
+    @define-color main-bg #101419;
+    @define-color main-fg #93cee9;
+    @define-color wb-act-bg #93cee9;
+    @define-color wb-act-fg #1f2328;
+    @define-color wb-hvr-bg #93cee9;
+    @define-color wb-hvr-fg #1f2328;
+
+  [Kitty Terminal - kitty.theme]
+    background #0d0f18
+    foreground #a5b6cf
+    color0 #151720
+    color8 #1c1e27
+    color1 #dd6777
+    color9 #e26c7c
+    color4  #90ceaa
+    color12 #95d3af
+    color3  #ecd3a0
+    color11 #f1d8a5
+    color2  #86aaec
+    color10 #8baff1
+    color5  #c296eb
+    color13 #c79bf0
+    color6  #93cee9
+    color14 #98d3ee
+    color7  #cbced3
+    color15 #d0d3d8
+    cursor #cbced3
+    cursor_text_color #a5b6cf
+    selection_foreground #a5b6cf
+    selection_background #1c1e27
+
+
+============================================================
+  THEME: Edge Runner
+  Branch: Edge-Runner
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.inactive_border = rgba(5032ACff) rgba(1F5322ff) 45deg
+    col.border_active = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.border_inactive = rgba(5032ACff) rgba(1F5322ff) 45deg
+    col.border_locked_active = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.border_locked_inactive = rgba(5032ACff) rgba(1F5322ff) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #000000e6;
+    main-fg:            #ffffffff;
+    main-br:            #ffa6c2ff;
+    main-ex:            #f5e0dcff;
+    select-bg:          #fada16ff;
+    select-fg:          #000000ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 1);
+    @define-color main-bg #000000;
+    @define-color main-fg #FFA6C2;
+    @define-color wb-act-bg #FFA6C2;
+    @define-color wb-act-fg #000000;
+    @define-color wb-hvr-bg #FADA16;
+    @define-color wb-hvr-fg #000000;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #FDF500
+    background              #000000
+    selection_foreground    #000000
+    selection_background    #FADA16
+    cursor                  #FADA16
+    cursor_text_color       #FADA16
+    url_color               #FADA16
+    active_border_color     #000000
+    inactive_border_color   #000000
+    bell_border_color       #000000
+    active_tab_foreground   #FADA16
+    active_tab_background   #000000
+    inactive_tab_foreground #000000
+    inactive_tab_background #FADA16
+    tab_bar_background      #000000
+    mark1_foreground #FADA16
+    mark1_background #000000
+    mark2_foreground #FADA16
+    mark2_background #000000
+    mark3_foreground #FADA16
+    mark3_background #000000
+    color0 #1F2229
+    color8 #1B1C22
+    color1 #D62246
+    color9 #EC0101
+    color2  #4DBD4F
+    color10 #1F5322
+    color3  #FDF500
+    color11 #F2CB07
+    color4  #F29C6B
+    color12 #FFA6C2
+    color5  #A56DF2
+    color13 #564873
+    color6  #2CF6B3
+    color14 #37EBF3
+    color7  #E6E6E6
+    color15 #FFFFFF
+
+
+============================================================
+  THEME: Frosted Glass
+  Branch: Frosted-Glass
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.inactive_border = rgba(A44185cc) rgba(012339cc) 45deg
+    col.border_active = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.border_inactive = rgba(A44185cc) rgba(012339cc) 45deg
+    col.border_locked_active = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.border_locked_inactive = rgba(A44185cc) rgba(012339cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #e6f1f4d9;
+    main-fg:            #1e4c84ff;
+    main-br:            #a44185ff;
+    main-ex:            #ea9d34cc;
+    select-bg:          #7ed6ffff;
+    select-fg:          #1e4c84ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #7ed6ff;
+    @define-color main-fg #1E4C84;
+    @define-color wb-act-bg #A44185;
+    @define-color wb-act-fg #e6f1f4;
+    @define-color wb-hvr-bg #1E4C84;
+    @define-color wb-hvr-fg #e6f1f4;
+
+  [Kitty Terminal - kitty.theme]
+    background #ffffff
+    foreground #262626
+    color0 #000000
+    color8 #545753
+    color1 #f72729
+    color9 #fb0416
+    color2 #32895c
+    color10 #2cc631
+    color3 #f96f1c
+    color11 #fcd627
+    color4 #125ccf
+    color12 #156ffe
+    color5 #9f00bc
+    color13 #e800b0
+    color6 #32c2c0
+    color14 #39d5ce
+    color7 #b2b2b2
+    color15 #ededec
+    cursor #6fd2fc
+    selection_foreground #ffffff
+    selection_background #6fd2fc
+
+
+============================================================
+  THEME: Graphite Mono
+  Branch: Graphite-Mono
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(d9d9d9ff) rgba(a6a6a6ff) 45deg
+    col.inactive_border = rgba(404040cc) rgba(262626cc) 45deg
+    col.border_active = rgba(d9d9d9ff) rgba(a6a6a6ff) 45deg
+    col.border_inactive = rgba(404040cc) rgba(262626cc) 45deg
+    col.border_locked_active = rgba(d9d9d9ff) rgba(a6a6a6ff) 45deg
+    col.border_locked_inactive = rgba(404040cc) rgba(262626cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #262626e6;
+    main-fg:            #d9d9d9ff;
+    main-br:            #a6a6a6ff;
+    main-ex:            #595959cc;
+    select-bg:          #a6a6a6ff;
+    select-fg:          #262626ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(38, 38, 38, 1);
+    @define-color main-bg #262626;
+    @define-color main-fg #d9d9d9;
+    @define-color wb-act-bg #d9d9d9;
+    @define-color wb-act-fg #262626;
+    @define-color wb-hvr-bg #a6a6a6;
+    @define-color wb-hvr-fg #262626;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #D9D9D9
+    background              #262626
+    selection_foreground    #262626
+    selection_background    #A6A6A6
+    cursor                  #A6A6A6
+    cursor_text_color       #D9D9D9
+    url_color               #D9D9D9
+    active_border_color     #595959
+    inactive_border_color   #595959
+    bell_border_color       #595959
+    active_tab_foreground   #D9D9D9
+    active_tab_background   #262626
+    inactive_tab_foreground #D9D9D9
+    inactive_tab_background #262626
+    tab_bar_background      #D9D9D9
+    mark1_foreground #262626
+    mark1_background #404040
+    mark2_foreground #262626
+    mark2_background #262626
+    mark3_foreground #262626
+    mark3_background #A6A6A6
+    color0 #404040
+    color8 #404040
+    color1 #D9D9D9
+    color9 #D9D9D9
+    color2  #D9D9D9
+    color10 #D9D9D9
+    color3  #595959
+    color11 #595959
+    color4  #A6A6A6
+    color12 #A6A6A6
+    color5  #A6A6A6
+    color13 #A6A6A6
+    color6  #A6A6A6
+    color14 #A6A6A6
+    color7  #D9D9D9
+    color15 #D9D9D9
+
+
+============================================================
+  THEME: Gruvbox Retro
+  Branch: Gruvbox-Retro
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.inactive_border = rgba(1e8b50d9) rgba(50b050d9) 45deg
+    col.border_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_inactive = rgba(1e8b50d9) rgba(50b050d9) 45deg
+    col.border_locked_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_locked_inactive = rgba(1e8b50d9) rgba(50b050d9) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:           #282828FF;
+    main-fg:           #CBCED3FF;
+    main-br:           #EBDBB2FF;
+    main-ex:           #85A583FF;
+    select-bg:         #475437FF;
+    select-fg:         #B5CC97FF;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #475437;
+    @define-color main-fg #b5cc97;
+    @define-color wb-act-bg #668f31;
+    @define-color wb-act-fg #c2d89c;
+    @define-color wb-hvr-bg #c6eb6f;
+    @define-color wb-hvr-fg #c0fc47;
+
+  [Kitty Terminal - kitty.theme]
+    cursor                  #928374
+    visual_bell_color       #8ec07c
+    bell_border_color       #8ec07c
+    active_border_color     #d3869b
+    inactive_border_color   #665c54
+    active_tab_foreground   #fbf1c7
+    active_tab_background   #665c54
+    inactive_tab_foreground #a89984
+    inactive_tab_background #3c3836
+    foreground              #ebdbb2
+    background              #272727
+    selection_foreground    #655b53
+    selection_background    #ebdbb2
+    url_color               #d65c0d
+    color0   #272727
+    color8   #928373
+    color1   #cc231c
+    color9   #fb4833
+    color2   #989719
+    color10  #b8ba25
+    color3   #d79920
+    color11  #fabc2e
+    color4  #448488
+    color12 #83a597
+    color5   #b16185
+    color13  #d3859a
+    color6   #689d69
+    color14  #8ec07b
+    color7   #a89983
+    color15  #ebdbb2
+
+
+============================================================
+  THEME: Material Sakura
+  Branch: Material-Sakura
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.inactive_border = rgba(286983cc) rgba(56949fcc) 45deg
+    col.border_active = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.border_inactive = rgba(286983cc) rgba(56949fcc) 45deg
+    col.border_locked_active = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.border_locked_inactive = rgba(286983cc) rgba(56949fcc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #faf4ede6;
+    main-fg:            #b4637aff;
+    main-br:            #9893a5ff;
+    main-ex:            #ea9d34cc;
+    select-bg:          #d7827eff;
+    select-fg:          #fffaf3ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #faf4ed;
+    @define-color main-fg #907aa9;
+    @define-color wb-act-bg #b4637a;
+    @define-color wb-act-fg #fffaf3;
+    @define-color wb-hvr-bg #56949f;
+    @define-color wb-hvr-fg #fffaf3;
+
+  [Kitty Terminal - kitty.theme]
+    foreground               #575279
+    background               #faf4ed
+    selection_foreground     #575279
+    selection_background     #dfdad9
+    cursor                   #cecacd
+    cursor_text_color        #575279
+    url_color                #907aa9
+    active_tab_foreground    #575279
+    active_tab_background    #f2e9e1
+    inactive_tab_foreground  #9893a5
+    inactive_tab_background  #faf4ed
+    active_border_color      #286983
+    inactive_border_color    #dfdad9
+    color0   #f2e9e1
+    color8   #9893a5
+    color1   #b4637a
+    color9   #b4637a
+    color2   #286983
+    color10  #286983
+    color3   #ea9d34
+    color11  #ea9d34
+    color4   #56949f
+    color12  #56949f
+    color5   #907aa9
+    color13  #907aa9
+    color6   #d7827e
+    color14  #d7827e
+    color7   #575279
+    color15  #575279
+
+
+============================================================
+  THEME: Nordic Blue
+  Branch: Nordic-Blue
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.inactive_border = rgba(1E8B50D9) rgba(32B032D9) 45deg
+    col.border_active = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.border_inactive = rgba(1E8B50D9) rgba(32B032D9) 45deg
+    col.border_locked_active = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.border_locked_inactive = rgba(1E8B50D9) rgba(32B032D9) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #476A84E6;
+    main-fg:            #D9D9D9FF;
+    main-br:            #A6A6A6FF;
+    main-ex:            #595959CC;
+    select-bg:          #A6A6A6FF;
+    select-fg:          #476A84FF;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #476A84;
+    @define-color main-fg #D9D9D9;
+    @define-color wb-act-bg #5A7D99;
+    @define-color wb-act-fg #EFEFF5;
+    @define-color wb-hvr-bg #7287FD;
+    @define-color wb-hvr-fg #EFEFF5;
+
+  [Kitty Terminal - kitty.theme]
+    foreground            #D8DEE9
+    background            #2E3440
+    selection_foreground  #000000
+    selection_background  #FFFACD
+    url_color             #0087BD
+    cursor                #81A1C1
+    color0   #3B4252
+    color8   #4C566A
+    color1   #BF616A
+    color9   #BF616A
+    color2   #A3BE8C
+    color10  #A3BE8C
+    color3   #EBCB8B
+    color11  #EBCB8B
+    color4  #81A1C1
+    color12 #81A1C1
+    color5   #B48EAD
+    color13  #B48EAD
+    color6   #88C0D0
+    color14  #8FBCBB
+    color7   #E5E9F0
+    color15  #ECEFF4
+
+
+============================================================
+  THEME: Rosé Pine
+  Branch: Rose-Pine
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.inactive_border = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+    col.border_active = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.border_inactive = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+    col.border_locked_active = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.border_locked_inactive = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #26233ae6;
+    main-fg:            #e0def4ff;
+    main-br:            #31748fff;
+    main-ex:            #c4a7e7cc;
+    select-bg:          #c4a7e7ff;
+    select-fg:          #191724ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #26233a;
+    @define-color main-fg #ebbcba;
+    @define-color wb-act-bg #31748f;
+    @define-color wb-act-fg #9ccfd8;
+    @define-color wb-hvr-bg #eb6f92;
+    @define-color wb-hvr-fg #f6c177;
+
+  [Kitty Terminal - kitty.theme]
+    foreground               #e0def4
+    background               #191724
+    selection_foreground     #e0def4
+    selection_background     #403d52
+    cursor                   #524f67
+    cursor_text_color        #e0def4
+    url_color                #c4a7e7
+    active_tab_foreground    #e0def4
+    active_tab_background    #26233a
+    inactive_tab_foreground  #6e6a86
+    inactive_tab_background  #191724
+    active_border_color      #31748f
+    inactive_border_color    #403d52
+    color0   #26233a
+    color8   #6e6a86
+    color1   #eb6f92
+    color9   #eb6f92
+    color2   #31748f
+    color10  #31748f
+    color3   #f6c177
+    color11  #f6c177
+    color4   #9ccfd8
+    color12  #9ccfd8
+    color5   #c4a7e7
+    color13  #c4a7e7
+    color6   #ebbcba
+    color14  #ebbcba
+    color7   #e0def4
+    color15  #e0def4
+
+
+============================================================
+  THEME: Synth Wave
+  Branch: Synth-Wave
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.inactive_border = rgba(495495cc) rgba(614D85cc) 45deg
+    col.border_active = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.border_inactive = rgba(495495cc) rgba(614D85cc) 45deg
+    col.border_locked_active = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.border_locked_inactive = rgba(495495cc) rgba(614D85cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #262335e6;
+    main-fg:            #ff7edbff;
+    main-br:            #f97e72ff;
+    main-ex:            #72f1b8ff;
+    select-bg:          #03edf9ff;
+    select-fg:          #495495ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #262335;
+    @define-color main-fg #ff7edb;
+    @define-color wb-act-bg #03edf9;
+    @define-color wb-act-fg #463465;
+    @define-color wb-hvr-bg #72f1b8;
+    @define-color wb-hvr-fg #495495;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #e2e8ff
+    background              #2a2139
+    selection_foreground    #2a2139
+    selection_background    #f9c5d1
+    cursor                  #ff70a6
+    cursor_text_color       #2a2139
+    url_color               #ff70a6
+    mark1_foreground #2a2139
+    mark1_background #7d4eae
+    mark2_foreground #2a2139
+    mark2_background #7d4eae
+    mark3_foreground #2a2139
+    mark3_background #7d4eae
+    color0 #1a1b27
+    color8 #3c3f58
+    color1 #ff517d
+    color9 #ff517d
+    color2  #8cffd1
+    color10 #8cffd1
+    color3  #ff87d4
+    color11 #ff87d4
+    color4  #65baff
+    color12 #65baff
+    color5  #fede5d
+    color13 #ffd36e
+    color6  #78faff
+    color14 #78faff
+    color7  #ffffff
+    color15 #ffffff
+
+
+============================================================
+  THEME: Tokyo Night
+  Branch: Tokyo-Night
+============================================================
+
+  [Hyprland - hypr.theme]
+    col.active_border = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.inactive_border = rgba(565f89cc) rgba(9aa5cecc) 45deg
+    col.border_active = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.border_inactive = rgba(565f89cc) rgba(9aa5cecc) 45deg
+    col.border_locked_active = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.border_locked_inactive = rgba(565f89cc) rgba(9aa5cecc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #24283be6;
+    main-fg:            #c0caf5ff;
+    main-br:            #bb9af7ff;
+    main-ex:            #7dcfffcc;
+    select-bg:          #7aa2f7ff;
+    select-fg:          #24283bff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #24283b;
+    @define-color main-fg #7aa2f7;
+    @define-color wb-act-bg #bb9af7;
+    @define-color wb-act-fg #b4f9f8;
+    @define-color wb-hvr-bg #7aa2f7;
+    @define-color wb-hvr-fg #cfc9c2;
+
+  [Kitty Terminal - kitty.theme]
+    foreground #a9b1d6
+    background #24283b
+    color0 #414868
+    color8 #414868
+    color1 #f7768e
+    color9 #f7768e
+    color2  #73daca
+    color10 #73daca
+    color3  #e0af68
+    color11 #e0af68
+    color4  #7aa2f7
+    color12 #7aa2f7
+    color5  #bb9af7
+    color13 #bb9af7
+    color6  #7dcfff
+    color14 #7dcfff
+    color7  #c0caf5
+    color15 #c0caf5
+    cursor #c0caf5
+    cursor_text_color #1a1b26
+    selection_background #28344a
+    url_color #9ece6a
+    active_border_color #3d59a1
+    inactive_border_color #101014
+    bell_border_color #e0af68
+    active_tab_foreground   #3d59a1
+    active_tab_background   #16161e
+    inactive_tab_foreground #787c99
+    inactive_tab_background #16161e
+    tab_bar_background #101014
+    macos_titlebar_color #16161e
+    # background #24283b
+    # cursor_text_color #24283b
+    # active_tab_background   #1f2335
+    # inactive_tab_background #1f2335
+    # macos_titlebar_color #1f2335
+
+

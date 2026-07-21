@@ -1,0 +1,54 @@
+============================================================
+  THEME: Decay Green
+  Branch: Decay-Green
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Decay-Green
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.inactive_border = rgba(86aaeccc) rgba(93cee9cc) 45deg
+    col.border_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_inactive = rgba(86aaeccc) rgba(93cee9cc) 45deg
+    col.border_locked_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_locked_inactive = rgba(86aaeccc) rgba(93cee9cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #151720e6;
+    main-fg:            #cbced3ff;
+    main-br:            #98d3eecc;
+    main-ex:            #95d3afcc;
+    select-bg:          #90ceaaff;
+    select-fg:          #151720ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(31, 35, 40, 0.95);
+    @define-color main-bg #101419;
+    @define-color main-fg #93cee9;
+    @define-color wb-act-bg #93cee9;
+    @define-color wb-act-fg #1f2328;
+    @define-color wb-hvr-bg #93cee9;
+    @define-color wb-hvr-fg #1f2328;
+
+  [Kitty Terminal - kitty.theme]
+    background #0d0f18
+    foreground #a5b6cf
+    color0 #151720
+    color8 #1c1e27
+    color1 #dd6777
+    color9 #e26c7c
+    color4  #90ceaa
+    color12 #95d3af
+    color3  #ecd3a0
+    color11 #f1d8a5
+    color2  #86aaec
+    color10 #8baff1
+    color5  #c296eb
+    color13 #c79bf0
+    color6  #93cee9
+    color14 #98d3ee
+    color7  #cbced3
+    color15 #d0d3d8
+    cursor #cbced3
+    cursor_text_color #a5b6cf
+    selection_foreground #a5b6cf
+    selection_background #1c1e27

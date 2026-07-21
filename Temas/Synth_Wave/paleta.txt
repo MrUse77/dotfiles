@@ -1,0 +1,61 @@
+============================================================
+  THEME: Synth Wave
+  Branch: Synth-Wave
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Synth-Wave
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.inactive_border = rgba(495495cc) rgba(614D85cc) 45deg
+    col.border_active = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.border_inactive = rgba(495495cc) rgba(614D85cc) 45deg
+    col.border_locked_active = rgba(03edf9ff) rgba(72f1b8ff) 45deg
+    col.border_locked_inactive = rgba(495495cc) rgba(614D85cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #262335e6;
+    main-fg:            #ff7edbff;
+    main-br:            #f97e72ff;
+    main-ex:            #72f1b8ff;
+    select-bg:          #03edf9ff;
+    select-fg:          #495495ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #262335;
+    @define-color main-fg #ff7edb;
+    @define-color wb-act-bg #03edf9;
+    @define-color wb-act-fg #463465;
+    @define-color wb-hvr-bg #72f1b8;
+    @define-color wb-hvr-fg #495495;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #e2e8ff
+    background              #2a2139
+    selection_foreground    #2a2139
+    selection_background    #f9c5d1
+    cursor                  #ff70a6
+    cursor_text_color       #2a2139
+    url_color               #ff70a6
+    mark1_foreground #2a2139
+    mark1_background #7d4eae
+    mark2_foreground #2a2139
+    mark2_background #7d4eae
+    mark3_foreground #2a2139
+    mark3_background #7d4eae
+    color0 #1a1b27
+    color8 #3c3f58
+    color1 #ff517d
+    color9 #ff517d
+    color2  #8cffd1
+    color10 #8cffd1
+    color3  #ff87d4
+    color11 #ff87d4
+    color4  #65baff
+    color12 #65baff
+    color5  #fede5d
+    color13 #ffd36e
+    color6  #78faff
+    color14 #78faff
+    color7  #ffffff
+    color15 #ffffff

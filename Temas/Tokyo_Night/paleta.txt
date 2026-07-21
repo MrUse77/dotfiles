@@ -1,0 +1,68 @@
+============================================================
+  THEME: Tokyo Night
+  Branch: Tokyo-Night
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Tokyo-Night
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.inactive_border = rgba(565f89cc) rgba(9aa5cecc) 45deg
+    col.border_active = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.border_inactive = rgba(565f89cc) rgba(9aa5cecc) 45deg
+    col.border_locked_active = rgba(bb9af7ff) rgba(b4f9f8ff) 45deg
+    col.border_locked_inactive = rgba(565f89cc) rgba(9aa5cecc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #24283be6;
+    main-fg:            #c0caf5ff;
+    main-br:            #bb9af7ff;
+    main-ex:            #7dcfffcc;
+    select-bg:          #7aa2f7ff;
+    select-fg:          #24283bff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #24283b;
+    @define-color main-fg #7aa2f7;
+    @define-color wb-act-bg #bb9af7;
+    @define-color wb-act-fg #b4f9f8;
+    @define-color wb-hvr-bg #7aa2f7;
+    @define-color wb-hvr-fg #cfc9c2;
+
+  [Kitty Terminal - kitty.theme]
+    foreground #a9b1d6
+    background #24283b
+    color0 #414868
+    color8 #414868
+    color1 #f7768e
+    color9 #f7768e
+    color2  #73daca
+    color10 #73daca
+    color3  #e0af68
+    color11 #e0af68
+    color4  #7aa2f7
+    color12 #7aa2f7
+    color5  #bb9af7
+    color13 #bb9af7
+    color6  #7dcfff
+    color14 #7dcfff
+    color7  #c0caf5
+    color15 #c0caf5
+    cursor #c0caf5
+    cursor_text_color #1a1b26
+    selection_background #28344a
+    url_color #9ece6a
+    active_border_color #3d59a1
+    inactive_border_color #101014
+    bell_border_color #e0af68
+    active_tab_foreground   #3d59a1
+    active_tab_background   #16161e
+    inactive_tab_foreground #787c99
+    inactive_tab_background #16161e
+    tab_bar_background #101014
+    macos_titlebar_color #16161e
+    # background #24283b
+    # cursor_text_color #24283b
+    # active_tab_background   #1f2335
+    # inactive_tab_background #1f2335
+    # macos_titlebar_color #1f2335

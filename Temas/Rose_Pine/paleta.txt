@@ -1,0 +1,61 @@
+============================================================
+  THEME: Rosé Pine
+  Branch: Rose-Pine
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Rose-Pine
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.inactive_border = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+    col.border_active = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.border_inactive = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+    col.border_locked_active = rgba(eb6f92ff) rgba(c4a7e7ff) 45deg
+    col.border_locked_inactive = rgba(31748fcc) rgba(9ccfd8cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #26233ae6;
+    main-fg:            #e0def4ff;
+    main-br:            #31748fff;
+    main-ex:            #c4a7e7cc;
+    select-bg:          #c4a7e7ff;
+    select-fg:          #191724ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #26233a;
+    @define-color main-fg #ebbcba;
+    @define-color wb-act-bg #31748f;
+    @define-color wb-act-fg #9ccfd8;
+    @define-color wb-hvr-bg #eb6f92;
+    @define-color wb-hvr-fg #f6c177;
+
+  [Kitty Terminal - kitty.theme]
+    foreground               #e0def4
+    background               #191724
+    selection_foreground     #e0def4
+    selection_background     #403d52
+    cursor                   #524f67
+    cursor_text_color        #e0def4
+    url_color                #c4a7e7
+    active_tab_foreground    #e0def4
+    active_tab_background    #26233a
+    inactive_tab_foreground  #6e6a86
+    inactive_tab_background  #191724
+    active_border_color      #31748f
+    inactive_border_color    #403d52
+    color0   #26233a
+    color8   #6e6a86
+    color1   #eb6f92
+    color9   #eb6f92
+    color2   #31748f
+    color10  #31748f
+    color3   #f6c177
+    color11  #f6c177
+    color4   #9ccfd8
+    color12  #9ccfd8
+    color5   #c4a7e7
+    color13  #c4a7e7
+    color6   #ebbcba
+    color14  #ebbcba
+    color7   #e0def4
+    color15  #e0def4

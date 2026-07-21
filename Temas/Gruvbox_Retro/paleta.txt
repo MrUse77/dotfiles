@@ -1,0 +1,62 @@
+============================================================
+  THEME: Gruvbox Retro
+  Branch: Gruvbox-Retro
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Gruvbox-Retro
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.inactive_border = rgba(1e8b50d9) rgba(50b050d9) 45deg
+    col.border_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_inactive = rgba(1e8b50d9) rgba(50b050d9) 45deg
+    col.border_locked_active = rgba(90ceaaff) rgba(ecd3a0ff) 45deg
+    col.border_locked_inactive = rgba(1e8b50d9) rgba(50b050d9) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:           #282828FF;
+    main-fg:           #CBCED3FF;
+    main-br:           #EBDBB2FF;
+    main-ex:           #85A583FF;
+    select-bg:         #475437FF;
+    select-fg:         #B5CC97FF;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #475437;
+    @define-color main-fg #b5cc97;
+    @define-color wb-act-bg #668f31;
+    @define-color wb-act-fg #c2d89c;
+    @define-color wb-hvr-bg #c6eb6f;
+    @define-color wb-hvr-fg #c0fc47;
+
+  [Kitty Terminal - kitty.theme]
+    cursor                  #928374
+    visual_bell_color       #8ec07c
+    bell_border_color       #8ec07c
+    active_border_color     #d3869b
+    inactive_border_color   #665c54
+    active_tab_foreground   #fbf1c7
+    active_tab_background   #665c54
+    inactive_tab_foreground #a89984
+    inactive_tab_background #3c3836
+    foreground              #ebdbb2
+    background              #272727
+    selection_foreground    #655b53
+    selection_background    #ebdbb2
+    url_color               #d65c0d
+    color0   #272727
+    color8   #928373
+    color1   #cc231c
+    color9   #fb4833
+    color2   #989719
+    color10  #b8ba25
+    color3   #d79920
+    color11  #fabc2e
+    color4  #448488
+    color12 #83a597
+    color5   #b16185
+    color13  #d3859a
+    color6   #689d69
+    color14  #8ec07b
+    color7   #a89983
+    color15  #ebdbb2

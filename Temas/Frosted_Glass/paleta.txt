@@ -1,0 +1,53 @@
+============================================================
+  THEME: Frosted Glass
+  Branch: Frosted-Glass
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Frosted-Glass
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.inactive_border = rgba(A44185cc) rgba(012339cc) 45deg
+    col.border_active = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.border_inactive = rgba(A44185cc) rgba(012339cc) 45deg
+    col.border_locked_active = rgba(2770C0ff) rgba(1E4C84ff) 45deg
+    col.border_locked_inactive = rgba(A44185cc) rgba(012339cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #e6f1f4d9;
+    main-fg:            #1e4c84ff;
+    main-br:            #a44185ff;
+    main-ex:            #ea9d34cc;
+    select-bg:          #7ed6ffff;
+    select-fg:          #1e4c84ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #7ed6ff;
+    @define-color main-fg #1E4C84;
+    @define-color wb-act-bg #A44185;
+    @define-color wb-act-fg #e6f1f4;
+    @define-color wb-hvr-bg #1E4C84;
+    @define-color wb-hvr-fg #e6f1f4;
+
+  [Kitty Terminal - kitty.theme]
+    background #ffffff
+    foreground #262626
+    color0 #000000
+    color8 #545753
+    color1 #f72729
+    color9 #fb0416
+    color2 #32895c
+    color10 #2cc631
+    color3 #f96f1c
+    color11 #fcd627
+    color4 #125ccf
+    color12 #156ffe
+    color5 #9f00bc
+    color13 #e800b0
+    color6 #32c2c0
+    color14 #39d5ce
+    color7 #b2b2b2
+    color15 #ededec
+    cursor #6fd2fc
+    selection_foreground #ffffff
+    selection_background #6fd2fc
