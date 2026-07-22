@@ -1,5 +1,5 @@
 
-# --- Overrides (intencionalmente pisados al theme) ---
+# --- Utility terminal overrides ---
 shell-integration = zsh
 background-opacity = 0.9
 window-decoration = true
@@ -7,9 +7,8 @@ background-blur = false
 config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"
 minimum-contrast = 1.5
 
-# Colores override (difieren del theme base)
-background = #11111b
-foreground = #1A066F
+# Ghostty applies later settings after config-file, so colors intentionally come
+# only from the selected MoonArch fragment for this utility-terminal profile.
 
 cursor-style = bar
 cursor-style-blink = true

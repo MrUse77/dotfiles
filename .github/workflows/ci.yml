@@ -55,6 +55,7 @@ jobs:
               - 'scripts/**'
               - 'Dockerfile.test'
               - 'test.sh'
+              - 'tests/moonarch-theme-palette_test.sh'
             docs:
               - '**/*.md'
 
