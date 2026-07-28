@@ -214,7 +214,9 @@ grep -Fqx "      bind = \$mainMod SHIFT, T, exec, ~/.local/bin/moonarch/theme-se
 grep -Fqx '@import url("../../.local/share/moonarch/themes/current/waybar.css");' "$repo_root/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
 grep -Fqx '@import url("../../.local/share/moonarch/themes/current/wofi.css");' "$repo_root/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
 grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config" || fail 'Ghostty does not import the current theme'
-grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config-clean" || fail 'Ghostty clean config does not import the current theme'
+if grep -Eq '^[[:space:]]*config-file[[:space:]]*=' "$repo_root/.config/ghostty/config-clean"; then
+    fail 'Ghostty clean config must rely on the default profile and define no config-file settings'
+fi
 printf 'PASS: all consumers bind only to the current theme\n'
 pass_count=$((pass_count + 1))
 

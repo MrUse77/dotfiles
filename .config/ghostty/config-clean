@@ -4,11 +4,10 @@ shell-integration = zsh
 background-opacity = 0.9
 window-decoration = true
 background-blur = false
-config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"
 minimum-contrast = 1.5
 
-# Ghostty applies later settings after config-file, so colors intentionally come
-# only from the selected MoonArch fragment for this utility-terminal profile.
+# The default Ghostty profile already loads the selected MoonArch fragment, so
+# this utility-terminal profile intentionally adds no theme or color settings.
 
 cursor-style = bar
 cursor-style-blink = true

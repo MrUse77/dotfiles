@@ -345,7 +345,6 @@ assert_rule_uses() {
 
 assert_ghostty_clean_config() {
     local config_file_count=0
-    local config_file_value=''
     local value key override_count override_values
     local color_keys=(
         theme
@@ -360,12 +359,10 @@ assert_ghostty_clean_config() {
 
     while IFS= read -r value; do
         config_file_count=$((config_file_count + 1))
-        config_file_value="$value"
     done < <(ghostty_setting_values "$clean_ghostty" config-file)
-    [[ "$config_file_count" -eq 1 ]] || {
-        fail "Ghostty clean config must define exactly one config-file setting (found $config_file_count)"
+    [[ "$config_file_count" -eq 0 ]] || {
+        fail "Ghostty clean config must rely on the default profile and define no config-file settings (found $config_file_count)"
     }
-    assert_eq "$config_file_value" '"~/.local/share/moonarch/themes/current/ghostty.conf"'
 
     for key in "${color_keys[@]}"; do
         override_count=0
@@ -381,7 +378,7 @@ assert_ghostty_clean_config() {
             fail "Ghostty clean config overrides $key: $override_values"
         }
     done
-    printf 'PASS: Ghostty clean config delegates colors to current theme\n'
+    printf 'PASS: Ghostty clean config relies on default profile for current theme\n'
 }
 
 expected_theme_ids=(
