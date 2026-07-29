@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for tokyo-night. */
+* {
+    moonarch-background: #1a1b26e6;
+    moonarch-surface: #24283b;
+    moonarch-foreground: #c0caf5ff;
+    moonarch-accent: #7aa2f7ff;
+    moonarch-urgent: #f7768eff;
+    moonarch-selected-text: #1a1b26;
+}

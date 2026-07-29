@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for gruvbox-retro. */
+* {
+    moonarch-background: #282828FF;
+    moonarch-surface: #475437;
+    moonarch-foreground: #CBCED3FF;
+    moonarch-accent: #475437FF;
+    moonarch-urgent: #cc241dff;
+    moonarch-selected-text: #282828;
+}

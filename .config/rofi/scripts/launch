@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -u
+
+# Theme-safe Rofi launcher wrapper.
+# Composites the base Tokyo Night theme with the optional MoonArch current theme
+# fragment, validates the composite with rofi -dump-theme, and caches it by
+# mtime:size signature. Falls back to the base theme if anything goes wrong.
+
+base_theme="${HOME}/.config/rofi/theme.rasi"
+fragment="${HOME}/.local/share/moonarch/themes/current/rofi.rasi"
+
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+cache_dir="${runtime_dir}/moonarch-rofi-${UID}"
+chosen_theme="$base_theme"
+
+base_theme_abs=''
+if base_theme_abs="$(realpath -e -- "$base_theme" 2>/dev/null)"; then
+    chosen_theme="$base_theme_abs"
+fi
+
+if [[ -n "$base_theme_abs" ]] && [[ -r "$fragment" ]]; then
+    fragment_abs=''
+    if fragment_abs="$(realpath -e -- "$fragment" 2>/dev/null)"; then
+        mkdir -p -- "$cache_dir"
+        chmod 700 -- "$cache_dir"
+
+        local_sig=''
+        if local_sig="$(stat -c '%Y:%s' -- "$fragment_abs" 2>/dev/null)"; then
+            cached_theme="${cache_dir}/theme-${local_sig}.rasi"
+
+            if [[ -s "$cached_theme" ]]; then
+                chosen_theme="$cached_theme"
+            else
+                tmp_theme="$(mktemp --tmpdir="$cache_dir" "moonarch-rofi-XXXXXX.rasi")"
+                chmod 600 -- "$tmp_theme"
+
+                {
+                    printf '@import "%s"\n' "$base_theme_abs"
+                    printf '@import "%s"\n' "$fragment_abs"
+                } > "$tmp_theme"
+
+                if dump_output="$(rofi -theme "$tmp_theme" -dump-theme 2>/dev/null)" && \
+                   printf '%s\n' "$dump_output" | grep -q 'moonarch-background'; then
+                    mv -f -- "$tmp_theme" "$cached_theme"
+                    chosen_theme="$cached_theme"
+                else
+                    printf 'MoonArch Rofi theme fragment is invalid, falling back to base theme\n' >&2
+                    rm -f -- "$tmp_theme"
+                fi
+            fi
+        fi
+    fi
+fi
+
+exec rofi -theme "$chosen_theme" "$@"

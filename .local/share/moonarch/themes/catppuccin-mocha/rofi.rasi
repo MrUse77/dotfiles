@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for catppuccin-mocha. */
+* {
+    moonarch-background: #11111be6;
+    moonarch-surface: #11111b;
+    moonarch-foreground: #cdd6f4ff;
+    moonarch-accent: #b4befeff;
+    moonarch-urgent: #f38ba8ff;
+    moonarch-selected-text: #11111b;
+}

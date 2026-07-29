@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for rose-pine. */
+* {
+    moonarch-background: #26233ae6;
+    moonarch-surface: #26233a;
+    moonarch-foreground: #e0def4ff;
+    moonarch-accent: #c4a7e7ff;
+    moonarch-urgent: #eb6f92ff;
+    moonarch-selected-text: #26233a;
+}

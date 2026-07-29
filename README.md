@@ -21,6 +21,7 @@ Configuración personal para Arch Linux con Hyprland.
 | Shell | Zsh + Oh My Posh |
 | Editor | Neovim |
 | Bar | Waybar |
+| Lanzador | Rofi |
 | Notificaciones | Dunst |
 | File manager | Thunar + Yazi |
 | Tema | TokyoNight |
@@ -35,6 +36,9 @@ Configuración personal para Arch Linux con Hyprland.
 - Arch Linux (o derivado)
 - Conexión a internet
 - `go` instalado (`sudo pacman -S go`)
+- `rofi-wayland` instalado (lanzador unificado)
+- Hack Nerd Font instalada (iconos y tipografía del menú)
+- Calculadora opcional: `rofi-calc-wayland` (o equivalente) junto con `libqalculate`
 
 ### 1. Clonar el repo
 
@@ -95,13 +99,25 @@ The normal user installation deploys the MoonArch selector to `~/.local/bin/moon
 ~/.local/share/moonarch/themes/current -> tokyo-night
 ```
 
-Consumer configurations read their fragments through `current`; do not replace this link with an absolute path or edit bundle contents. Press `Super+Shift+T` to open Wofi and select a valid theme name, or run the selector directly:
+Consumer configurations read their fragments through `current`; do not replace this link with an absolute path or edit bundle contents. Press `Super+Shift+T` to open Rofi and select a valid theme name, or run the selector directly:
 
 ```bash
 ~/.local/bin/moonarch/theme-selector <theme-id>
 ```
 
-Running the selector without an ID lists valid bundles in Wofi. Hyprland and Waybar reload after a successful switch; Ghostty reads the selected fragment when a new terminal starts.
+Running the selector without an ID lists valid bundles in Rofi. Hyprland and Waybar reload after a successful switch; Ghostty reads the selected fragment when a new terminal starts.
+
+### Atajos de Rofi
+
+| Atajo | Acción |
+|---|---|
+| `Super + M` | Abre el lanzador de aplicaciones (Rofi `drun`) |
+| `Super + Tab` | Cambia entre ventanas abiertas (Rofi `window`) |
+| `Super + R` | Ejecuta comandos / calculadora (Rofi `run` / `calc`) |
+| `Super + Shift + X` | Abre el menú de sesión (Rofi `powermenu`) |
+
+> La calculadora depende del plugin `calc` de Rofi. Si no está disponible,
+> `Super + R` sigue abriendo el modo `run` normalmente.
 
 ### Theme rollback
 
@@ -143,11 +159,10 @@ dotfiles/
 │   ├── hypr/           # Hyprland, hyprlock, hyprpaper, hypridle, hyprsunset
 │   │   └── scripts/    # Scripts de autostart
 │   ├── nvim/           # Config de Neovim (submodule → MrUse77/Nvim-config)
-│   ├── nwg-dock-hyprland/
 │   ├── waybar/
+│   ├── rofi/             # Lanzador y menú de sesión
 │   │   ├── style.css
 │   │   └── colors.css  # Variables de color (theming dinámico)
-│   ├── wofi/
 │   ├── yazi/
 │   └── zellij/
 ├── .local/
@@ -167,6 +182,10 @@ dotfiles/
 ├── .zshrc
 └── .gtkrc-2.0
 ```
+
+> Las configuraciones de `wofi`, `nwg-drawer` y `nwg-dock-hyprland` fueron
+> eliminadas del repo. El lanzador y menú de sesión unificados viven ahora en
+> `.config/rofi/`.
 
 ---
 

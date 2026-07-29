@@ -11,7 +11,7 @@ protected_paths=(
     .local/share/moonarch/themes/tokyo-night/hyprland.conf
     .local/share/moonarch/themes/tokyo-night/manifest.toml
     .local/share/moonarch/themes/tokyo-night/waybar.css
-    .local/share/moonarch/themes/tokyo-night/wofi.css
+    .local/share/moonarch/themes/tokyo-night/rofi.rasi
     Temas/Tokyo_Night/paleta.txt
 )
 protected_files=(
@@ -19,7 +19,7 @@ protected_files=(
     .local/share/moonarch/themes/tokyo-night/hyprland.conf
     .local/share/moonarch/themes/tokyo-night/manifest.toml
     .local/share/moonarch/themes/tokyo-night/waybar.css
-    .local/share/moonarch/themes/tokyo-night/wofi.css
+    .local/share/moonarch/themes/tokyo-night/rofi.rasi
     Temas/Tokyo_Night/paleta.txt
 )
 
@@ -29,7 +29,7 @@ declare -A protected_file_hashes=(
     [.local/share/moonarch/themes/tokyo-night/hyprland.conf]=247001b754aad47ce14e9610e181946b96fea84a
     [.local/share/moonarch/themes/tokyo-night/manifest.toml]=45309b48d1ce282093fe64adb8ebb582d2983794
     [.local/share/moonarch/themes/tokyo-night/waybar.css]=2b39a86a7c986c48581e6d8aac83d6dc8ff3e830
-    [.local/share/moonarch/themes/tokyo-night/wofi.css]=78293929c5003a86ac8aff602c0570d08985cf6a
+    [.local/share/moonarch/themes/tokyo-night/rofi.rasi]=75dbdc802554136deef7fc9f7cb4b6375c3d4bca
     [Temas/Tokyo_Night/paleta.txt]=b51e9ab96664bd55b26cca8d5b9f59ff9a5c0080
 )
 
@@ -298,6 +298,41 @@ assert_mapping() {
     }
 }
 
+
+    fragment_rasi_value() {
+        local fragment="$1"
+        local key="$2"
+
+        awk -v wanted_key="$key" '
+            function trim(value) {
+                sub(/^[[:space:]]+/, "", value)
+                sub(/[[:space:]]+$/, "", value)
+                return value
+            }
+            /^[[:space:]]*\*/ {
+                in_block = 1
+                next
+            }
+            !in_block { next }
+            /^[[:space:]]*}/ {
+                in_block = 0
+                next
+            }
+            {
+                line = trim($0)
+                separator = index(line, ":")
+                if (!separator) { next }
+                setting = trim(substr(line, 1, separator - 1))
+                if (setting != wanted_key) { next }
+                value = trim(substr(line, separator + 1))
+                sub(/;$/, "", value)
+                if (value != "") {
+                    print value
+                }
+            }
+        ' "$fragment"
+    }
+
 assert_rule_uses() {
     local selector="$1"
     local alias="$2"
@@ -435,7 +470,7 @@ declare -A source_dirs=(
 verify_bundle_contract() {
     local actual_count=0
     local bundle id source_file file index cursor_text
-    local required_files=(manifest.toml hyprland.conf hyprland.lua waybar.css wofi.css ghostty.conf)
+    local required_files=(manifest.toml hyprland.conf hyprland.lua waybar.css rofi.rasi ghostty.conf)
     local aliases=(text_main bg_dark accent_blue urgent_red)
 
     [[ -L "$themes_root/current" ]] || fail 'current theme is not a symlink'
@@ -496,18 +531,18 @@ verify_bundle_contract() {
             "$(source_value "$source_file" 'Kitty Terminal' color1)" \
             "$(fragment_define_value "$bundle/waybar.css" urgent_red)"
 
-        assert_mapping "$id Wofi background" \
-            "$(source_value "$source_file" Rofi main-bg)" \
-            "$(fragment_define_value "$bundle/wofi.css" wofi_background)"
-        assert_mapping "$id Wofi foreground" \
-            "$(source_value "$source_file" Rofi main-fg)" \
-            "$(fragment_define_value "$bundle/wofi.css" wofi_foreground)"
-        assert_mapping "$id Wofi surface" \
-            "$(source_value "$source_file" Waybar main-bg)" \
-            "$(fragment_define_value "$bundle/wofi.css" wofi_surface)"
-        assert_mapping "$id Wofi accent" \
-            "$(source_value "$source_file" Rofi select-bg)" \
-            "$(fragment_define_value "$bundle/wofi.css" wofi_accent)"
+            assert_mapping "$id Rofi background" \
+                "$(source_value "$source_file" Rofi main-bg)" \
+                "$(fragment_rasi_value "$bundle/rofi.rasi" moonarch-background)"
+            assert_mapping "$id Rofi foreground" \
+                "$(source_value "$source_file" Rofi main-fg)" \
+                "$(fragment_rasi_value "$bundle/rofi.rasi" moonarch-foreground)"
+            assert_mapping "$id Rofi surface" \
+                "$(source_value "$source_file" Waybar main-bg)" \
+                "$(fragment_rasi_value "$bundle/rofi.rasi" moonarch-surface)"
+            assert_mapping "$id Rofi accent" \
+                "$(source_value "$source_file" Rofi select-bg)" \
+                "$(fragment_rasi_value "$bundle/rofi.rasi" moonarch-accent)"
 
         for index in {0..15}; do
             assert_mapping "$id Ghostty palette $index" \
