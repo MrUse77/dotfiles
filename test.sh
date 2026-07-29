@@ -5,6 +5,11 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 image="dotfiles-tester"
 
 echo "================================================="
+echo "  Validating the MoonArch theme palette contract"
+echo "================================================="
+bash "$repo_root/tests/moonarch-theme-palette_test.sh"
+
+echo "================================================="
 echo "  Building isolated Arch Linux test environment"
 echo "================================================="
 docker build -t "$image" -f "$repo_root/Dockerfile.test" "$repo_root"
