@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for nordic-blue. */
+* {
+    moonarch-background: #476A84E6;
+    moonarch-surface: #476A84;
+    moonarch-foreground: #D9D9D9FF;
+    moonarch-accent: #A6A6A6FF;
+    moonarch-urgent: #bf616aff;
+    moonarch-selected-text: #476A84;
+}

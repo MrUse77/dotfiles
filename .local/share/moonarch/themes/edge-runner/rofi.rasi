@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for edge-runner. */
+* {
+    moonarch-background: #000000e6;
+    moonarch-surface: #000000;
+    moonarch-foreground: #ffffffff;
+    moonarch-accent: #fada16ff;
+    moonarch-urgent: #ff0000ff;
+    moonarch-selected-text: #000000;
+}

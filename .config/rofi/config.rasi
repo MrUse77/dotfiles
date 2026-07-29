@@ -1,0 +1,23 @@
+/** Rofi global behavior configuration. */
+configuration {
+    modi: "drun,window,run,calc,powermenu:~/.config/rofi/scripts/powermenu";
+
+    font: "Hack Nerd Font 15";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    drun-display-format: "{name}";
+
+    matching: "fuzzy";
+    case-sensitive: false;
+    sorting-method: "fzf";
+
+    display-drun: "Apps";
+    display-window: "Windows";
+    display-run: "Run";
+    display-calc: "Calculator";
+    display-powermenu: "Power";
+
+    sidebar-mode: true;
+}
+
+@theme "~/.config/rofi/theme.rasi"

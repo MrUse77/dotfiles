@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for frosted-glass. */
+* {
+    moonarch-background: #e6f1f4d9;
+    moonarch-surface: #7ed6ff;
+    moonarch-foreground: #1e4c84ff;
+    moonarch-accent: #7ed6ffff;
+    moonarch-urgent: #d81b60ff;
+    moonarch-selected-text: #e6f1f4;
+}

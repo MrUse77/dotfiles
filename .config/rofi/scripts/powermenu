@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -u
+
+# Rofi script-mode powermenu.
+# Emits five fixed action identifiers on ROFI_RETV=0 and dispatches fixed
+# commands on ROFI_RETV=1. Destructive actions require confirmation.
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+launch="${script_dir}/launch"
+
+readonly LABEL_LOCK='󰌾 Lock'
+readonly LABEL_SLEEP='󰤄 Sleep'
+readonly LABEL_LOGOUT='󰍃 Log out'
+readonly LABEL_REBOOT='󰜉 Reboot'
+readonly LABEL_SHUTDOWN='󰐥 Shutdown'
+
+report_error() {
+    local msg="$1"
+    printf '%s\n' "powermenu: ${msg}" >&2
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical 'Powermenu failed' "$msg"
+    fi
+}
+
+run_cmd() {
+    local exe="$1"
+    shift
+    if ! command -v "$exe" >/dev/null 2>&1; then
+        report_error "${exe} not found"
+        return
+    fi
+    if ! "$exe" "$@"; then
+        report_error "${exe} failed"
+    fi
+}
+
+emit_row() {
+    local id="$1" label="$2"
+    printf '%s\0display\x1f%s\n' "$id" "$label"
+}
+
+confirm_action() {
+    local action="$1" label="$2"
+    local selected
+
+    if ! selected="$(
+        {
+            printf 'cancel\0display\x1f󰜩  Cancel\n'
+            printf 'confirm\0display\x1f󰄬  Confirm %s\n' "$label"
+        } | "$launch" -dmenu -p "Confirm ${label}?" -selected-row 0 -no-custom
+    )"; then
+        return
+    fi
+
+    if [[ "$selected" == "confirm" ]]; then
+        case "$action" in
+            logout)   run_cmd hyprctl dispatch exit ;;
+            reboot)   run_cmd systemctl reboot ;;
+            shutdown) run_cmd systemctl poweroff ;;
+        esac
+    fi
+}
+
+if [[ "${ROFI_RETV:-}" == "0" ]]; then
+    emit_row lock     "$LABEL_LOCK"
+    emit_row sleep    "$LABEL_SLEEP"
+    emit_row logout   "$LABEL_LOGOUT"
+    emit_row reboot   "$LABEL_REBOOT"
+    emit_row shutdown "$LABEL_SHUTDOWN"
+    exit 0
+fi
+
+if [[ "${ROFI_RETV:-}" != "1" ]]; then
+    exit 0
+fi
+
+action="${1:-}"
+if [[ -z "$action" ]]; then
+    exit 0
+fi
+
+case "$action" in
+    lock)
+        run_cmd hyprlock
+        ;;
+    sleep)
+        run_cmd systemctl suspend
+        ;;
+    logout)
+        confirm_action logout "$LABEL_LOGOUT"
+        ;;
+    reboot)
+        confirm_action reboot "$LABEL_REBOOT"
+        ;;
+    shutdown)
+        confirm_action shutdown "$LABEL_SHUTDOWN"
+        ;;
+    *)
+        # Unknown identifier: do nothing.
+        exit 0
+        ;;
+esac
+
+exit 0

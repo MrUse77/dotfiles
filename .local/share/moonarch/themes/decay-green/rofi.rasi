@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for decay-green. */
+* {
+    moonarch-background: #151720e6;
+    moonarch-surface: #101419;
+    moonarch-foreground: #cbced3ff;
+    moonarch-accent: #90ceaaff;
+    moonarch-urgent: #ee6d85ff;
+    moonarch-selected-text: #151720;
+}

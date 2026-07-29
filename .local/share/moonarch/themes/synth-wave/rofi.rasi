@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for synth-wave. */
+* {
+    moonarch-background: #262335e6;
+    moonarch-surface: #262335;
+    moonarch-foreground: #ff7edbff;
+    moonarch-accent: #03edf9ff;
+    moonarch-urgent: #f97e72ff;
+    moonarch-selected-text: #262335;
+}

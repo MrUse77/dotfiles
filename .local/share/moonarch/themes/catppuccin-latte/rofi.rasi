@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for catppuccin-latte. */
+* {
+    moonarch-background: #dce0e8e6;
+    moonarch-surface: #9ca0b0;
+    moonarch-foreground: #4c4f69ff;
+    moonarch-accent: #dd7878ff;
+    moonarch-urgent: #d20f39ff;
+    moonarch-selected-text: #dce0e8;
+}

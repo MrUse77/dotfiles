@@ -169,7 +169,7 @@
   "custom/power": {
     "format": "<span size='15pt'>⏻</span>", // Icono (necesitas una fuente como FontAwesome o NerdFonts)
     "tooltip": false,
-    "on-click": "wlogout"
+    "on-click": "$HOME/.config/rofi/scripts/launch -show powermenu"
   },
   "custom/notification": {
     "tooltip": false,
@@ -204,7 +204,7 @@
   },
   "custom/launcher": {
     "format": "",
-    "on-click": "nwg-drawer -c 6 -is 64 -ovl -nofs", // <--- AQUI EL CAMBIO
+    "on-click": "$HOME/.config/rofi/scripts/launch -show drun",
     "tooltip": false
   }
 }

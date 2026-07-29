@@ -1,0 +1,108 @@
+/** Tokyo Night fallback Rofi theme. */
+* {
+    moonarch-background: #1a1b26e6;
+    moonarch-surface: #24283b;
+    moonarch-foreground: #c0caf5;
+    moonarch-accent: #7aa2f7;
+    moonarch-urgent: #f7768e;
+    moonarch-selected-text: #1a1b26;
+
+    spacing: 0;
+}
+
+window {
+    background-color: @moonarch-background;
+    border: 2px;
+    border-color: @moonarch-accent;
+    border-radius: 12px;
+    width: 560px;
+}
+
+mainbox {
+    background-color: transparent;
+    spacing: 10px;
+    padding: 10px;
+    children: [inputbar, listview, message];
+}
+
+inputbar {
+    background-color: @moonarch-surface;
+    border-radius: 8px;
+    padding: 10px;
+    spacing: 10px;
+    children: [prompt, entry];
+}
+
+prompt {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}
+
+entry {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}
+
+listview {
+    background-color: transparent;
+    spacing: 5px;
+    lines: 8;
+    dynamic: true;
+    fixed-height: false;
+}
+
+element {
+    background-color: transparent;
+    padding: 10px;
+    border-radius: 8px;
+    spacing: 10px;
+    children: [element-icon, element-text];
+}
+
+element-icon {
+    size: 24px;
+    background-color: transparent;
+}
+
+element-text {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}
+
+element normal {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}
+
+element alternate {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}
+
+element selected {
+    background-color: @moonarch-accent;
+    color: @moonarch-selected-text;
+}
+
+element urgent {
+    background-color: @moonarch-urgent;
+    color: @moonarch-selected-text;
+}
+
+element selected urgent {
+    background-color: @moonarch-urgent;
+    color: @moonarch-selected-text;
+}
+
+message {
+    background-color: @moonarch-surface;
+    border: 2px;
+    border-color: @moonarch-urgent;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+textbox {
+    background-color: transparent;
+    color: @moonarch-foreground;
+}

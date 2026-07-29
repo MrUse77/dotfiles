@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for graphite-mono. */
+* {
+    moonarch-background: #262626e6;
+    moonarch-surface: #262626;
+    moonarch-foreground: #d9d9d9ff;
+    moonarch-accent: #a6a6a6ff;
+    moonarch-urgent: #ff5252ff;
+    moonarch-selected-text: #262626;
+}

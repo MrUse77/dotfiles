@@ -1,0 +1,9 @@
+/** MoonArch Rofi color fragment for material-sakura. */
+* {
+    moonarch-background: #faf4ede6;
+    moonarch-surface: #faf4ed;
+    moonarch-foreground: #b4637aff;
+    moonarch-accent: #d7827eff;
+    moonarch-urgent: #e91e63ff;
+    moonarch-selected-text: #faf4ed;
+}
