@@ -438,7 +438,7 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true 
 hl.window_rule({
 	name = "brave-opacity",
 	match = { class = "brave-browser" },
-	opacity = "0.9 0.9",
+	opacity = "1 1",
 })
 
 -- YT Music: override opacity
