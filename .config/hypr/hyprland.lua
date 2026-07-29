@@ -490,37 +490,86 @@ hl.config({
 ----- PLUGINS (phase 3) -----
 -----------------------------
 
--- TODO(phase-3): Convert plugin configuration to Lua syntax
--- Currently disabled until plugin Lua config syntax is verified.
---
--- Original hyprland.conf plugin section:
--- plugin {
---     path = ~/.config/hypr/hyprpm/plugins
---     split-monitor-workspaces {
---         count = 5
---         keep_focused = 1
---         enable_notifications = 1
---         enable_persistent_workspaces = 1
---     }
---     csgo-vulkan-fix {
---         fix_mouse = true
---         vkfix-app = cs2, 1584, 1080
---         vkfix-app = steam_app_2427520, 1920, 1080
---     }
---     hyprexpo {
---         columns = 3
---         gap_size = 5
---         bg_col = rgb(111111)
---         workspace_method = center current
---     }
---     hyprbars {
---         enabled = true
---         bar_height = 20
---         bar_color = rgb(26,27,38)
---         bar_blur = yes
---         bar_title_enabled = true
---         hyprbars-button = rgb(ff4040), 10, 󰖭, hyprctl dispatch killactive
---         hyprbars-button = rgb(eeee11), 10,  , hyprctl dispatch fullscreen 1
---         bar_part_of_window = true
---     }
--- }
+-- These option tables preserve the legacy plugin settings and require the
+-- corresponding plugins to be installed and enabled by the installed Hyprland
+-- plugin manager. Keep them compatible with the installed plugin versions.
+-- `plugin.path` belonged to the legacy `plugin {}` loader and is intentionally
+-- omitted: `hyprpm reload -n` owns plugin discovery in this configuration.
+-- Compatibility risk: split-monitor-workspaces and hyprexpo are legacy binary
+-- plugins, not guaranteed Lua packages. Their option names are preserved here,
+-- but should be checked against the installed plugin releases before upgrading.
+hl.config({
+    plugin = {
+        split_monitor_workspaces = {
+            count = 5,
+            keep_focused = 1,
+            enable_notifications = 1,
+            enable_persistent_workspaces = 1,
+        },
+        csgo_vulkan_fix = {
+            fix_mouse = true,
+        },
+        hyprexpo = {
+            columns = 3,
+            gap_size = 5,
+            bg_col = "rgb(111111)",
+            workspace_method = "center current",
+        },
+        hyprbars = {
+            enabled = true,
+            bar_height = 20,
+            bar_color = "rgb(26,27,38)",
+            bar_blur = true,
+            bar_title_enabled = true,
+            bar_part_of_window = true,
+        },
+    },
+})
+
+-- Plugin helpers are deferred until after hyprpm has had a chance to load the
+-- plugins during hyprland.start. Missing or incompatible helpers are ignored so
+-- an optional plugin cannot prevent Hyprland from starting.
+local function call_plugin_helper(plugin_name, helper_name, options)
+    pcall(function()
+        local plugin = hl.plugin[plugin_name]
+        local helper = plugin and plugin[helper_name]
+        if type(helper) == "function" then
+            helper(options)
+        end
+    end)
+end
+
+local function register_plugin_helpers()
+    -- vkfix-app is repeated in the legacy config, so use the plugin's Lua helper.
+    call_plugin_helper("csgo_vulkan_fix", "vkfix_app", {
+        app = "cs2",
+        w = 1584,
+        h = 1080,
+    })
+    call_plugin_helper("csgo_vulkan_fix", "vkfix_app", {
+        app = "steam_app_2427520",
+        w = 1920,
+        h = 1080,
+    })
+
+    -- hyprbars-button is also repeated, so register each button with its helper.
+    call_plugin_helper("hyprbars", "add_button", {
+        bg_color = "rgb(ff4040)",
+        fg_color = "rgb(ffffff)",
+        size = 10,
+        icon = "󰖭",
+        action = "hyprctl dispatch killactive",
+    })
+    call_plugin_helper("hyprbars", "add_button", {
+        bg_color = "rgb(eeee11)",
+        fg_color = "rgb(ffffff)",
+        size = 10,
+        icon = "",
+        action = "hyprctl dispatch fullscreen 1",
+    })
+end
+
+hl.on("hyprland.start", function()
+    -- The one-shot timer runs after the start hook's asynchronous hyprpm reload.
+    hl.timer(register_plugin_helpers, { timeout = 5000, type = "oneshot" })
+end)
