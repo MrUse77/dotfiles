@@ -7,7 +7,11 @@ style_file="$repo_root/.config/waybar/style.css"
 clean_ghostty="$repo_root/.config/ghostty/config-clean"
 
 protected_paths=(
-    .local/share/moonarch/themes/tokyo-night
+    .local/share/moonarch/themes/tokyo-night/ghostty.conf
+    .local/share/moonarch/themes/tokyo-night/hyprland.conf
+    .local/share/moonarch/themes/tokyo-night/manifest.toml
+    .local/share/moonarch/themes/tokyo-night/waybar.css
+    .local/share/moonarch/themes/tokyo-night/wofi.css
     Temas/Tokyo_Night/paleta.txt
 )
 protected_files=(
@@ -213,6 +217,24 @@ fragment_setting_value() {
     printf '%s\n' "$last_value"
 }
 
+lua_fragment_setting_value() {
+    local fragment="$1"
+    local key="$2"
+    local line_number block colors angle
+
+    line_number="$(grep -n -m1 -E "^[[:space:]]*${key}[[:space:]]*=" "$fragment" | cut -d: -f1)"
+    [[ -n "$line_number" ]] || return 0
+    block="$(sed -n "${line_number},$((line_number + 4))p" "$fragment")"
+    if grep -Fq 'colors = {' <<<"$block"; then
+        colors="$(grep -oE 'rgba\([^" ]+\)' <<<"$block" | paste -sd' ' -)"
+        angle="$(grep -oE 'angle[[:space:]]*=[[:space:]]*[0-9]+' <<<"$block" | sed -E 's/.*=[[:space:]]*//')"
+        [[ -n "$colors" && -n "$angle" ]] || return 0
+        printf '%s %sdeg\n' "$colors" "$angle"
+    else
+        sed -nE 's/.*=[[:space:]]*"([^"]+)".*/\1/p' <<<"$block" | head -n1
+    fi
+}
+
 fragment_palette_value() {
     local fragment="$1"
     local index="$2"
@@ -413,7 +435,7 @@ declare -A source_dirs=(
 verify_bundle_contract() {
     local actual_count=0
     local bundle id source_file file index cursor_text
-    local required_files=(manifest.toml hyprland.conf waybar.css wofi.css ghostty.conf)
+    local required_files=(manifest.toml hyprland.conf hyprland.lua waybar.css wofi.css ghostty.conf)
     local aliases=(text_main bg_dark accent_blue urgent_red)
 
     [[ -L "$themes_root/current" ]] || fail 'current theme is not a symlink'
@@ -453,6 +475,12 @@ verify_bundle_contract() {
         assert_mapping "$id Hyprland inactive border" \
             "$(source_value "$source_file" Hyprland col.inactive_border)" \
             "$(fragment_setting_value "$bundle/hyprland.conf" col.inactive_border)"
+        assert_mapping "$id Hyprland Lua active border" \
+            "$(source_value "$source_file" Hyprland col.active_border)" \
+            "$(lua_fragment_setting_value "$bundle/hyprland.lua" active_border)"
+        assert_mapping "$id Hyprland Lua inactive border" \
+            "$(source_value "$source_file" Hyprland col.inactive_border)" \
+            "$(lua_fragment_setting_value "$bundle/hyprland.lua" inactive_border)"
 
         assert_mapping "$id Waybar text alias" \
             "$(source_value "$source_file" Waybar main-fg)" \
@@ -509,6 +537,13 @@ verify_bundle_contract() {
             "$cursor_text" \
             "$(fragment_setting_value "$bundle/ghostty.conf" cursor-text)"
     done
+
+    assert_mapping 'tokyo-night Hyprland Lua active border' \
+        "$(fragment_setting_value "$themes_root/tokyo-night/hyprland.conf" col.active_border)" \
+        "$(lua_fragment_setting_value "$themes_root/tokyo-night/hyprland.lua" active_border)"
+    assert_mapping 'tokyo-night Hyprland Lua inactive border' \
+        "$(fragment_setting_value "$themes_root/tokyo-night/hyprland.conf" col.inactive_border)" \
+        "$(lua_fragment_setting_value "$themes_root/tokyo-night/hyprland.lua" inactive_border)"
 
     assert_protected_paths_unchanged
     printf 'PASS: protected Tokyo Night bundle and %d semantic mappings\n' \

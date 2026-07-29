@@ -13,3 +13,6 @@
 [submodule ".zsh_plugins/zsh-syntax-highlighting"]
 	path = .zsh_plugins/zsh-syntax-highlighting
 	url = https://github.com/zsh-users/zsh-syntax-highlighting
+[submodule ".config/hypr/plugins/split-monitor-workspaces"]
+	path = .config/hypr/plugins/split-monitor-workspaces
+	url = https://github.com/zjeffer/split-monitor-workspaces
