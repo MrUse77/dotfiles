@@ -82,6 +82,44 @@ func TestResolveRepositoryRoot(t *testing.T) {
 	}
 }
 
+func TestNewInstallPlannerUsesDetectedParu(t *testing.T) {
+	tests := []struct {
+		name          string
+		paruAvailable bool
+		wantCleanup   bool
+	}{
+		{name: "paru available", paruAvailable: true, wantCleanup: false},
+		{name: "paru unavailable", paruAvailable: false, wantCleanup: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			if tt.paruAvailable {
+				if err := os.WriteFile(filepath.Join(binDir, "paru"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Setenv("PATH", binDir)
+
+			actions, err := newInstallPlanner().Catalog.ExternalActions(plan.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotCleanup := false
+			for _, action := range actions {
+				if action.Description == "clean paru build directory" {
+					gotCleanup = true
+					break
+				}
+			}
+			if gotCleanup != tt.wantCleanup {
+				t.Errorf("cleanup action present = %v, want %v", gotCleanup, tt.wantCleanup)
+			}
+		})
+	}
+}
+
 func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()

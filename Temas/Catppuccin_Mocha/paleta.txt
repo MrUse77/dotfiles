@@ -1,0 +1,69 @@
+============================================================
+  THEME: Catppuccin Mocha
+  Branch: Catppuccin-Mocha
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Catppuccin-Mocha
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.inactive_border = rgba(b4befecc) rgba(6c7086cc) 45deg
+    col.border_active = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.border_inactive = rgba(b4befecc) rgba(6c7086cc) 45deg
+    col.border_locked_active = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg
+    col.border_locked_inactive = rgba(b4befecc) rgba(6c7086cc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #11111be6;
+    main-fg:            #cdd6f4ff;
+    main-br:            #cba6f7ff;
+    main-ex:            #f5e0dcff;
+    select-bg:          #b4befeff;
+    select-fg:          #11111bff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #11111b;
+    @define-color main-fg #cdd6f4;
+    @define-color wb-act-bg #a6adc8;
+    @define-color wb-act-fg #313244;
+    @define-color wb-hvr-bg #f5c2e7;
+    @define-color wb-hvr-fg #313244;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #CDD6F4
+    background              #1E1E2E
+    selection_foreground    #1E1E2E
+    selection_background    #F5E0DC
+    cursor                  #F5E0DC
+    cursor_text_color       #1E1E2E
+    url_color               #B4BEFE
+    active_border_color     #CBA6F7
+    inactive_border_color   #8E95B3
+    bell_border_color       #EBA0AC
+    active_tab_foreground   #11111B
+    active_tab_background   #CBA6F7
+    inactive_tab_foreground #CDD6F4
+    inactive_tab_background #181825
+    tab_bar_background      #11111B
+    mark1_foreground #1E1E2E
+    mark1_background #87B0F9
+    mark2_foreground #1E1E2E
+    mark2_background #CBA6F7
+    mark3_foreground #1E1E2E
+    mark3_background #74C7EC
+    color0 #43465A
+    color8 #43465A
+    color1 #F38BA8
+    color9 #F38BA8
+    color2  #A6E3A1
+    color10 #A6E3A1
+    color3  #F9E2AF
+    color11 #F9E2AF
+    color4  #87B0F9
+    color12 #87B0F9
+    color5  #F5C2E7
+    color13 #F5C2E7
+    color6  #94E2D5
+    color14 #94E2D5
+    color7  #CDD6F4
+    color15 #A1A8C9

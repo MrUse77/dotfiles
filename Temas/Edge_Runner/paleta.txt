@@ -1,0 +1,69 @@
+============================================================
+  THEME: Edge Runner
+  Branch: Edge-Runner
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Edge-Runner
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.inactive_border = rgba(5032ACff) rgba(1F5322ff) 45deg
+    col.border_active = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.border_inactive = rgba(5032ACff) rgba(1F5322ff) 45deg
+    col.border_locked_active = rgba(FADA16ff) rgba(4DBD4Fff) 45deg
+    col.border_locked_inactive = rgba(5032ACff) rgba(1F5322ff) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #000000e6;
+    main-fg:            #ffffffff;
+    main-br:            #ffa6c2ff;
+    main-ex:            #f5e0dcff;
+    select-bg:          #fada16ff;
+    select-fg:          #000000ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 1);
+    @define-color main-bg #000000;
+    @define-color main-fg #FFA6C2;
+    @define-color wb-act-bg #FFA6C2;
+    @define-color wb-act-fg #000000;
+    @define-color wb-hvr-bg #FADA16;
+    @define-color wb-hvr-fg #000000;
+
+  [Kitty Terminal - kitty.theme]
+    foreground              #FDF500
+    background              #000000
+    selection_foreground    #000000
+    selection_background    #FADA16
+    cursor                  #FADA16
+    cursor_text_color       #FADA16
+    url_color               #FADA16
+    active_border_color     #000000
+    inactive_border_color   #000000
+    bell_border_color       #000000
+    active_tab_foreground   #FADA16
+    active_tab_background   #000000
+    inactive_tab_foreground #000000
+    inactive_tab_background #FADA16
+    tab_bar_background      #000000
+    mark1_foreground #FADA16
+    mark1_background #000000
+    mark2_foreground #FADA16
+    mark2_background #000000
+    mark3_foreground #FADA16
+    mark3_background #000000
+    color0 #1F2229
+    color8 #1B1C22
+    color1 #D62246
+    color9 #EC0101
+    color2  #4DBD4F
+    color10 #1F5322
+    color3  #FDF500
+    color11 #F2CB07
+    color4  #F29C6B
+    color12 #FFA6C2
+    color5  #A56DF2
+    color13 #564873
+    color6  #2CF6B3
+    color14 #37EBF3
+    color7  #E6E6E6
+    color15 #FFFFFF

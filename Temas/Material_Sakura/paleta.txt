@@ -1,0 +1,61 @@
+============================================================
+  THEME: Material Sakura
+  Branch: Material-Sakura
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Material-Sakura
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.inactive_border = rgba(286983cc) rgba(56949fcc) 45deg
+    col.border_active = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.border_inactive = rgba(286983cc) rgba(56949fcc) 45deg
+    col.border_locked_active = rgba(b4637aff) rgba(d7827eff) 45deg
+    col.border_locked_inactive = rgba(286983cc) rgba(56949fcc) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #faf4ede6;
+    main-fg:            #b4637aff;
+    main-br:            #9893a5ff;
+    main-ex:            #ea9d34cc;
+    select-bg:          #d7827eff;
+    select-fg:          #fffaf3ff;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #faf4ed;
+    @define-color main-fg #907aa9;
+    @define-color wb-act-bg #b4637a;
+    @define-color wb-act-fg #fffaf3;
+    @define-color wb-hvr-bg #56949f;
+    @define-color wb-hvr-fg #fffaf3;
+
+  [Kitty Terminal - kitty.theme]
+    foreground               #575279
+    background               #faf4ed
+    selection_foreground     #575279
+    selection_background     #dfdad9
+    cursor                   #cecacd
+    cursor_text_color        #575279
+    url_color                #907aa9
+    active_tab_foreground    #575279
+    active_tab_background    #f2e9e1
+    inactive_tab_foreground  #9893a5
+    inactive_tab_background  #faf4ed
+    active_border_color      #286983
+    inactive_border_color    #dfdad9
+    color0   #f2e9e1
+    color8   #9893a5
+    color1   #b4637a
+    color9   #b4637a
+    color2   #286983
+    color10  #286983
+    color3   #ea9d34
+    color11  #ea9d34
+    color4   #56949f
+    color12  #56949f
+    color5   #907aa9
+    color13  #907aa9
+    color6   #d7827e
+    color14  #d7827e
+    color7   #575279
+    color15  #575279

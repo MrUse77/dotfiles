@@ -1,0 +1,54 @@
+============================================================
+  THEME: Nordic Blue
+  Branch: Nordic-Blue
+  Source: https://github.com/HyDE-Project/hyde-themes/tree/Nordic-Blue
+============================================================
+
+[Hyprland - hypr.theme]
+    col.active_border = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.inactive_border = rgba(1E8B50D9) rgba(32B032D9) 45deg
+    col.border_active = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.border_inactive = rgba(1E8B50D9) rgba(32B032D9) 45deg
+    col.border_locked_active = rgba(5A9ACAB4) rgba(ECD3A0FF) 45deg
+    col.border_locked_inactive = rgba(1E8B50D9) rgba(32B032D9) 45deg
+
+  [Rofi - rofi.theme]
+    main-bg:            #476A84E6;
+    main-fg:            #D9D9D9FF;
+    main-br:            #A6A6A6FF;
+    main-ex:            #595959CC;
+    select-bg:          #A6A6A6FF;
+    select-fg:          #476A84FF;
+
+  [Waybar - waybar.theme]
+    @define-color bar-bg rgba(0, 0, 0, 0.1);
+    @define-color main-bg #476A84;
+    @define-color main-fg #D9D9D9;
+    @define-color wb-act-bg #5A7D99;
+    @define-color wb-act-fg #EFEFF5;
+    @define-color wb-hvr-bg #7287FD;
+    @define-color wb-hvr-fg #EFEFF5;
+
+  [Kitty Terminal - kitty.theme]
+    foreground            #D8DEE9
+    background            #2E3440
+    selection_foreground  #000000
+    selection_background  #FFFACD
+    url_color             #0087BD
+    cursor                #81A1C1
+    color0   #3B4252
+    color8   #4C566A
+    color1   #BF616A
+    color9   #BF616A
+    color2   #A3BE8C
+    color10  #A3BE8C
+    color3   #EBCB8B
+    color11  #EBCB8B
+    color4  #81A1C1
+    color12 #81A1C1
+    color5   #B48EAD
+    color13  #B48EAD
+    color6   #88C0D0
+    color14  #8FBCBB
+    color7   #E5E9F0
+    color15  #ECEFF4

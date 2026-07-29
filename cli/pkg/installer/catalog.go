@@ -6,31 +6,56 @@ import (
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 )
 
-// ActionCatalog describes the installer operations without discovering or executing them.
-type ActionCatalog struct{}
+// ActionCatalog describes the installer operations without executing them.
+type ActionCatalog struct {
+	powerProfiles *PowerProfilesState
+	paruAvailable bool
+}
 
 // NewActionCatalog returns the deterministic catalog used by the planner.
+// Environment-dependent power-profile actions are omitted until state is supplied.
 func NewActionCatalog() ActionCatalog { return ActionCatalog{} }
 
+// NewActionCatalogWithParu includes paru availability in the planned actions.
+func NewActionCatalogWithParu(paruAvailable bool) ActionCatalog {
+	return ActionCatalog{paruAvailable: paruAvailable}
+}
+
+// NewActionCatalogWithPowerProfiles adds power-profile actions selected from
+// the supplied read-only systemd state.
+func NewActionCatalogWithPowerProfiles(state PowerProfilesState) ActionCatalog {
+	return ActionCatalog{powerProfiles: &state}
+}
+
+// NewActionCatalogWithPowerProfilesAndParu includes detected system state in the catalog.
+func NewActionCatalogWithPowerProfilesAndParu(state PowerProfilesState, paruAvailable bool) ActionCatalog {
+	return ActionCatalog{powerProfiles: &state, paruAvailable: paruAvailable}
+}
+
 // ExternalActions returns the selected external operations in execution order.
-func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
+func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
 	packages := []string{
 		"zsh", "stow", "hyprland", "hyprlock", "hyprpaper", "hypridle", "hyprsunset",
 		"hyprpolkitagent", "waybar", "wofi", "dunst", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk",
 		"ghostty", "zellij", "neovim", "yazi", "fzf", "eza", "bat", "zoxide", "ripgrep", "fd",
 		"wl-clipboard", "direnv", "unzip", "reflector", "lazygit", "thunar", "gvfs", "upower",
 		"power-profiles-daemon", "qt5ct", "qt6ct", "nwg-look", "kvantum", "cpio", "cmake", "meson",
-		"oh-my-posh-bin", "fnm-bin", "nwg-dock-hyprland", "herdr-bin", "aur/eww", "aur/wlogout",
+		"oh-my-posh-bin", "fnm", "nwg-dock-hyprland", "herdr-bin", "aur/eww", "aur/wlogout",
 	}
 	if opts.HasAMD {
 		packages = append(packages, "corectrl")
 	}
 	actions := []plan.ExternalAction{
 		action("update system and install base tools", "sudo", []string{"pacman", "-Syu", "--noconfirm", "base-devel", "git"}, "privileged", true),
-		action("bootstrap paru", "git", []string{"clone", "https://aur.archlinux.org/paru.git", "/tmp/paru-install"}, "supply-chain", true),
-		{Description: "build and install paru", Command: plan.CommandSpec{Name: "makepkg", Args: []string{"-si", "--noconfirm"}, Dir: "/tmp/paru-install"}, Classification: "supply-chain", Irreversible: true},
-		action("install configured packages", "paru", append([]string{"-S", "--needed", "--noconfirm"}, packages...), "supply-chain", true),
 	}
+	if !catalog.paruAvailable {
+		actions = append(actions,
+			action("clean paru build directory", "rm", []string{"-rf", "--", paruBuildDir}, "filesystem", true),
+			action("bootstrap paru", "git", []string{"clone", "https://aur.archlinux.org/paru.git", paruBuildDir}, "supply-chain", true),
+			plan.ExternalAction{Description: "build and install paru", Command: plan.CommandSpec{Name: "makepkg", Args: []string{"-si", "--noconfirm"}, Dir: paruBuildDir}, Classification: "supply-chain", Irreversible: true},
+		)
+	}
+	actions = append(actions, action("install configured packages", "paru", append([]string{"-S", "--needed", "--noconfirm"}, packages...), "supply-chain", true))
 
 	actions = append(actions,
 		action("change default shell to zsh", "chsh", []string{"-s", "/usr/bin/zsh"}, "system", true),
@@ -38,8 +63,10 @@ func (ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, 
 		action("create zsh configuration directory", "mkdir", []string{"-p", "~/.config/zsh"}, "filesystem", false),
 	)
 
+	if catalog.powerProfiles != nil {
+		actions = append(actions, powerProfilesActions(*catalog.powerProfiles)...)
+	}
 	actions = append(actions,
-		action("enable power profiles", "sudo", []string{"systemctl", "enable", "--now", "power-profiles-daemon.service"}, "privileged", true),
 		action("enable upower", "sudo", []string{"systemctl", "enable", "--now", "upower"}, "privileged", true),
 		action("refresh font cache", "fc-cache", []string{"-f"}, "cache", false),
 	)
