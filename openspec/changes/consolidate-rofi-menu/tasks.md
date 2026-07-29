@@ -24,7 +24,7 @@ Chain strategy: size-exception
 
 ## Dependency Graph
 
-```
+```text
 T1 (Rofi config.rasi) ─┐
 T2 (Rofi theme.rasi) ──┼─→ T5 (scripts/launch) ─→ T7 (hyprland.lua) ─┐
 T3 (Rofi powermenu) ───┘                        T8 (waybar) ──────────┼─→ T11 (legacy removal)
@@ -117,16 +117,19 @@ T3 (Rofi powermenu) ───┘                        T8 (waybar) ────
 ## Batch Grouping for sdd-apply
 
 ### Batch 1: Rofi Core (Foundation)
+
 **Tasks:** T1, T2, T3, T4
 **Estimated lines:** ~490 additions
 **Rationale:** These are all new files with no dependencies on existing code changes. They can be reviewed as a cohesive "Rofi configuration" unit. The theme fragments (T4) are repetitive but straightforward.
 
 ### Batch 2: Integration (Wiring)
+
 **Tasks:** T5, T6, T7, T8
 **Estimated lines:** ~130 additions + ~40 changes
 **Rationale:** These integrate Rofi into the existing system. T5 depends on T1/T2 (theme paths), T6 depends on T4 (bundle validation), T7/T8 depend on T5 (script paths). These are surgical changes to existing files.
 
 ### Batch 3: Cleanup and Documentation
+
 **Tasks:** T9, T10, T11
 **Estimated lines:** ~40 changes + ~190 deletions
 **Rationale:** These remove legacy configuration and document the migration. They should come last to avoid breaking the theme selector (T6) before it's updated to use Rofi.
@@ -136,21 +139,25 @@ T3 (Rofi powermenu) ───┘                        T8 (waybar) ────
 ## Execution Notes
 
 **Strict TDD considerations:**
+
 - Shell scripts (T3, T5, T6) should have syntax validation (`bash -n`) run immediately after creation
 - Rofi config files (T1, T2) should be validated with `rofi -dump-theme` immediately after creation
 - Hyprland and Waybar configs should be validated after changes (if validation tools are available)
 
 **Testing strategy:**
+
 - Static checks: `bash -n` on all shell scripts, `rofi -dump-theme` on theme files
 - Behavioral checks: Invoke each launcher mode, verify powermenu actions with stubbed commands
 - Integration checks: Verify MoonArch theme switching works end-to-end
 - Regression checks: Verify `Super+Shift+T` and `SUPER+SHIFT+L` remain unchanged
 
 **Rollback path:**
+
 - Single Git revert restores all legacy configuration, MoonArch bundles, selector, and keybindings
 - No data migration or persistent state conversion required
 
 **Risk mitigation:**
+
 - Theme fallback is isolated in T5 (launch wrapper); bad MoonArch fragments cannot break launcher
 - Powermenu uses fixed action identifiers, not user-typed commands
 - Confirmation flow prevents accidental destructive actions
