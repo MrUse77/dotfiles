@@ -150,7 +150,7 @@ func requireMoonArchRuntime(repoRoot string) error {
 func newInstallPlanner() *plan.Planner {
 	return plan.New(
 		plan.WithDiscoverer(installDiscoverer{}),
-		plan.WithCatalog(installer.NewActionCatalog()),
+		plan.WithCatalog(installer.NewActionCatalogWithPowerProfilesAndParu(installer.DetectPowerProfiles(), installer.DetectParu())),
 	)
 }
 

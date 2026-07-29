@@ -6,26 +6,33 @@ import (
 	"os/exec"
 )
 
+const paruBuildDir = "/tmp/paru-install"
+
+// DetectParu reports whether paru is available on PATH.
+func DetectParu() bool {
+	_, err := exec.LookPath("paru")
+	return err == nil
+}
+
 func UpdateAndInstallBase() error {
 	fmt.Println("Actualizando sistema e instalando base-devel y git...")
 	return runCommand("sudo", "pacman", "-Syu", "--noconfirm", "base-devel", "git")
 }
 
 func InstallParu() error {
-	_, err := exec.LookPath("paru")
-	if err == nil {
+	if DetectParu() {
 		fmt.Println("paru ya está instalado.")
 		return nil
 	}
 
 	fmt.Println("Instalando paru (AUR helper)...")
-	os.RemoveAll("/tmp/paru-install")
-	if err := runCommand("git", "clone", "https://aur.archlinux.org/paru.git", "/tmp/paru-install"); err != nil {
+	os.RemoveAll(paruBuildDir)
+	if err := runCommand("git", "clone", "https://aur.archlinux.org/paru.git", paruBuildDir); err != nil {
 		return fmt.Errorf("error clonando paru: %w", err)
 	}
 
 	cmd := exec.Command("makepkg", "-si", "--noconfirm")
-	cmd.Dir = "/tmp/paru-install"
+	cmd.Dir = paruBuildDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -64,7 +71,7 @@ func InstallPackages(hasAMD bool) error {
 		"cpio", "cmake", "meson",
 
 		// AUR Packages
-		"oh-my-posh-bin", "fnm-bin", "nwg-dock-hyprland", "herdr-bin",
+		"oh-my-posh-bin", "fnm", "nwg-dock-hyprland", "herdr-bin",
 		"aur/eww", "aur/wlogout",
 	}
 
