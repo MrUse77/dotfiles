@@ -142,11 +142,6 @@ hl.config({
         layout = "dwindle",
     },
 
-    -- MoonArch theme colors would be loaded here in phase 2
-    -- See: source = ~/.local/share/moonarch/themes/current/hyprland.conf
-    -- For now, using default colors above.
-    -- TODO(phase-2): require("moonarch.theme") or similar
-
     decoration = {
         rounding       = 15,
         rounding_power = 10,
@@ -177,6 +172,18 @@ hl.config({
         enabled = true,
     },
 })
+
+-- MoonArch theme colors override these defaults when available.
+-- The Lua fragment returns a partial config table containing general.col.
+local theme_path = os.getenv("HOME") .. "/.local/share/moonarch/themes/current/hyprland.lua"
+local theme_file = io.open(theme_path, "r")
+if theme_file then
+    theme_file:close()
+    local loaded, theme_config = pcall(dofile, theme_path)
+    if loaded and type(theme_config) == "table" then
+        hl.config(theme_config)
+    end
+end
 
 -- Default animation curves, see https://wiki.hypr.land/Configuring/Advanced-and-Cool/Animations/
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })

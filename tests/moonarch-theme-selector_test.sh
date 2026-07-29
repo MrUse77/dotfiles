@@ -69,6 +69,7 @@ make_bundle() {
     mkdir -p "$bundle"
     printf 'id = "%s"\n' "$id" > "$bundle/manifest.toml"
     printf '# hyprland %s\n' "$id" > "$bundle/hyprland.conf"
+    printf 'return {}\n' > "$bundle/hyprland.lua"
     printf '/* waybar %s */\n' "$id" > "$bundle/waybar.css"
     printf '/* wofi %s */\n' "$id" > "$bundle/wofi.css"
     printf '# ghostty %s\n' "$id" > "$bundle/ghostty.conf"
@@ -131,6 +132,15 @@ pass_count=$((pass_count + 1))
 new_case
 make_bundle tokyo-night
 ln -s tokyo-night "$themes/current"
+rm "$themes/tokyo-night/hyprland.lua"
+assert_failure run_selector tokyo-night
+assert_current tokyo-night
+printf 'PASS: missing Hyprland Lua fragment is rejected\n'
+pass_count=$((pass_count + 1))
+
+new_case
+make_bundle tokyo-night
+ln -s tokyo-night "$themes/current"
 outside="$case_dir/outside.conf"
 printf 'outside\n' > "$outside"
 rm "$themes/tokyo-night/hyprland.conf"
@@ -138,6 +148,18 @@ ln -s "$outside" "$themes/tokyo-night/hyprland.conf"
 assert_failure run_selector tokyo-night
 assert_current tokyo-night
 printf 'PASS: escaped fragment symlink is rejected\n'
+pass_count=$((pass_count + 1))
+
+new_case
+make_bundle tokyo-night
+ln -s tokyo-night "$themes/current"
+outside="$case_dir/outside.lua"
+printf 'return {}\n' > "$outside"
+rm "$themes/tokyo-night/hyprland.lua"
+ln -s "$outside" "$themes/tokyo-night/hyprland.lua"
+assert_failure run_selector tokyo-night
+assert_current tokyo-night
+printf 'PASS: escaped Hyprland Lua symlink is rejected\n'
 pass_count=$((pass_count + 1))
 
 new_case
@@ -213,6 +235,8 @@ pass_count=$((pass_count + 1))
     grep -Fq 'theme-selector' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland selector binding is missing'
     if [[ -f "$repo_root/.config/hypr/hyprland.lua" ]]; then
         grep -Fq 'theme-selector' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua selector binding is missing'
+        grep -Fq 'dofile' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme fragment is not loaded'
+        grep -Fq '/.local/share/moonarch/themes/current/hyprland.lua' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme path is missing'
     fi
 grep -Fqx '@import url("../../.local/share/moonarch/themes/current/waybar.css");' "$repo_root/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
 grep -Fqx '@import url("../../.local/share/moonarch/themes/current/wofi.css");' "$repo_root/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
