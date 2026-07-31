@@ -170,3 +170,11 @@ esac
 
 # Added by Antigravity CLI installer
 export PATH="/home/agustin/.local/bin:$PATH"
+
+# SSH agent
+export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
+if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+	rm -rf "$SSH_AUTH_SOCK"
+	ssh-agent -a "$SSH_AUTH_SOCK" > /dev/null
+	ssh-add -t 8h ~/.ssh/id_ed25519 2>/dev/null
+fi
