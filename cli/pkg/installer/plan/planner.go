@@ -102,7 +102,11 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 			t.PreState = pre
 		}
 
-		t.BackupPath = BackupPath(filepath.Dir(t.Destination), runID, t.Destination)
+		if t.Destination == homeDir {
+			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: fmt.Errorf("destination %q cannot be the home directory: the backup root would live inside the target", t.Destination)}
+		}
+
+		t.BackupPath = BackupPath(homeDir, runID, t.Destination)
 		targets = append(targets, t)
 	}
 

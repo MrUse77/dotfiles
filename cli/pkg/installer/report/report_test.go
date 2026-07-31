@@ -36,7 +36,7 @@ func TestExecutionReport_TypedTargetAndActionOutcomes(t *testing.T) {
 
 func TestExecutionReport_RetainedBackupPaths(t *testing.T) {
 	paths := []string{
-		"/home/user/.config/.dots-backups/run/%2Fhome%2Fuser%2F.config%2Fhypr",
+		"/home/user/.dots-backups/run/%2Fhome%2Fuser%2F.config%2Fhypr",
 		"/home/user/.dots-backups/run/%2Fhome%2Fuser%2F.zshrc",
 	}
 

@@ -40,7 +40,9 @@ func TestTransaction_PartialRuntimeSocketReverseRetainsRecoveryStage(t *testing.
 		t.Skip("Unix sockets are not supported on Windows")
 	}
 	repo, home := t.TempDir(), t.TempDir()
-	source, destination := repo, home
+	source := repo
+	destination := filepath.Join(home, ".config")
+	mustMkdir(t, destination)
 	mustWriteFile(t, filepath.Join(source, "managed.conf"), []byte("new"))
 	listener := listenUnixSocket(t, filepath.Join(destination, "runtime.sock"))
 	p := buildPlan(t, repo, home, []plan.Target{{Source: source, Destination: destination, Kind: plan.CopyTree}})
