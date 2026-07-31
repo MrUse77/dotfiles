@@ -13,7 +13,8 @@ import (
 	"github.com/MrUse77/dots-cli/pkg/installer/report"
 	"github.com/MrUse77/dots-cli/pkg/installer/transaction"
 	"github.com/MrUse77/dots-cli/pkg/installer/ui"
-	"github.com/charmbracelet/huh"
+	"github.com/MrUse77/dots-cli/pkg/installer/ui/menu"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -156,22 +157,37 @@ func newInstallPlanner() *plan.Planner {
 
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Copia toda la configuración del repo al sistema (~/.config)",
-	RunE:  runInstall,
+	Short: "Interactive dotfiles installer for Arch Linux + Hyprland",
+	Long: `An interactive TUI installer that lets you pick exactly which
+components to install — from whole groups down to individual packages.
+
+Core system packages (zsh, stow, base-devel, git) and dotfiles are
+always installed. Use the menu to toggle groups or dive into each
+category for fine-grained control.`,
+	RunE: runInstall,
 }
 
 func runInstall(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "Bienvenido al instalador de dotfiles")
 
-	var hasAMD, installPlugins, enableSSHAgent bool
-	if err := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().Title("¿Tenés GPU AMD? (Instalará corectrl)").Value(&hasAMD),
-		huh.NewConfirm().Title("¿Instalar plugins de Hyprland via hyprpm?").Description("Requiere que Hyprland esté corriendo.").Value(&installPlugins),
-		huh.NewConfirm().Title("¿Habilitar SSH Agent via systemd?").Description("Gestiona el agente con systemd --user.").Value(&enableSSHAgent),
-	)).Run(); err != nil {
-		return err
+	categories := menu.DefaultCategories()
+	m := menu.New(categories)
+	p := tea.NewProgram(m, tea.WithInput(cmd.InOrStdin()), tea.WithOutput(cmd.ErrOrStderr()))
+	final, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("menu: %w", err)
 	}
+
+	menuModel, ok := final.(menu.Model)
+	if !ok {
+		return fmt.Errorf("menu: unexpected model type %T", final)
+	}
+	result := menuModel.Result()
+	if result == nil || len(result.Groups) == 0 {
+		fmt.Fprintln(out, "Nothing selected. Exiting.")
+		return nil
+	}
+
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("resolve repository root: %w", err)
@@ -184,26 +200,68 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("resolve home directory: %w", err)
 	}
-	selected := plan.Options{Mode: "user", HasAMD: hasAMD, InstallPlugins: installPlugins, EnableSSHAgent: enableSSHAgent}
+
+	selected := plan.Options{
+		Mode:            "user",
+		Groups:          result.Groups,
+		ExcludePackages: menu.ExcludedPackages(result.Categories),
+	}
 	installationPlan, err := newInstallPlanner().Build(repoRoot, homeDir, selected)
 	if err != nil {
 		return err
 	}
 
+	// Display summary before the review screen.
+	printSummary(out, result.Categories, installationPlan)
+
 	tx := transaction.New(installationPlan)
 	executor := installer.NewExecutor(tx, external.NewRunner(nil).WithStdio(cmd.InOrStdin(), out, cmd.ErrOrStderr()))
-	result, aborted, err := ui.RunWithContext(cmd.Context(), installationPlan, executor, cmd.InOrStdin(), out, nil)
+	report, aborted, err := ui.RunWithContext(cmd.Context(), installationPlan, executor, cmd.InOrStdin(), out, nil)
 	if aborted {
-		fmt.Fprintln(out, "Instalación cancelada.")
+		fmt.Fprintln(out, "Installation cancelled.")
 		return nil
 	}
-	if result != nil {
-		printExecutionReport(out, result)
+	if report != nil {
+		printExecutionReport(out, report)
 	}
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func printSummary(w io.Writer, categories []menu.Category, p plan.InstallationPlan) {
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "╭────────────────────────────────────────────────╮")
+	fmt.Fprintln(w, "│              Installation Summary               │")
+	fmt.Fprintln(w, "╰────────────────────────────────────────────────╯")
+	fmt.Fprintln(w, "")
+	fmt.Fprintf(w, "  Targets to link/copy:  %d\n", len(p.ManagedTargets()))
+	fmt.Fprintf(w, "  System actions:        %d\n", len(p.ExternalActions()))
+	fmt.Fprintln(w, "")
+
+	for _, cat := range categories {
+		var selected, deselected []string
+		for _, pkg := range cat.Packages {
+			if pkg.Selected {
+				selected = append(selected, pkg.Name)
+			} else {
+				deselected = append(deselected, pkg.Name)
+			}
+		}
+		if len(selected) > 0 {
+			fmt.Fprintf(w, "  ▸ %s\n", cat.Title)
+			for _, n := range selected {
+				fmt.Fprintf(w, "    ✓ %s\n", n)
+			}
+			for _, n := range deselected {
+				fmt.Fprintf(w, "    ✗ %s\n", n)
+			}
+		} else {
+			fmt.Fprintf(w, "  ▸ %s  (skipped)\n", cat.Title)
+		}
+	}
+	fmt.Fprintln(w, "")
 }
 
 func printExecutionReport(w io.Writer, result *report.ExecutionReport) {
