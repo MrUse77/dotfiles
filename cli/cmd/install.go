@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -100,16 +101,29 @@ func discoverTarget(source, destination string, fallback plan.MutationKind, clas
 	return plan.Target{Source: source, Destination: destination, Kind: kind}, true, nil
 }
 
+// ErrRepositoryNotFound marks that no repository clone exists in the current
+// directory or any canonical location. It is distinct from lookup failures
+// (permissions, IO): an error is not proof of absence and must never trigger
+// the mutating missing-clone flow.
+var ErrRepositoryNotFound = errors.New("repository not found")
+
 func resolveRepositoryRoot(startDir string) (string, error) {
 	root, err := findRepositoryRoot(startDir)
 	if err == nil {
 		return root, nil
 	}
+	if !errors.Is(err, ErrRepositoryNotFound) {
+		return "", err
+	}
 	// Fall back to the canonical locations where the bootstrap installer
 	// (scripts/install.sh) clones the repository.
 	for _, candidate := range repositoryCandidates() {
-		if root, cerr := findRepositoryRoot(candidate); cerr == nil {
+		root, cerr := findRepositoryRoot(candidate)
+		if cerr == nil {
 			return root, nil
+		}
+		if !errors.Is(cerr, ErrRepositoryNotFound) {
+			return "", cerr
 		}
 	}
 	return "", err
@@ -137,6 +151,9 @@ func findRepositoryRoot(startDir string) (string, error) {
 	}
 	info, err := os.Stat(current)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("%w: no Git repository root found", ErrRepositoryNotFound)
+		}
 		return "", fmt.Errorf("resolve repository root from %q: %w", startDir, err)
 	}
 	if !info.IsDir() {
@@ -152,7 +169,7 @@ func findRepositoryRoot(startDir string) (string, error) {
 
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", fmt.Errorf("resolve repository root from %q: no Git repository root found", startDir)
+			return "", fmt.Errorf("%w: no Git repository root found", ErrRepositoryNotFound)
 		}
 		current = parent
 	}
