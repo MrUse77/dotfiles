@@ -250,3 +250,7 @@ cd ~/dotfiles
 git pull
 git submodule update --recursive
 ```
+
+## Versionado
+
+El repo usa SemVer (`vMAJOR.MINOR.PATCH`) y publica releases con binarios de `moonarch-cli` vía GitHub Actions (on-tag). Ver [RELEASING.md](RELEASING.md).
