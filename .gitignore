@@ -2,5 +2,4 @@
 .atl/
 
 # Local Go CLI build outputs
-/cli/dots
-/cli/dots-cli
+/cli/moonarch

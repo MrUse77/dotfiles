@@ -8,8 +8,8 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "dots",
-	Short: "Dots CLI - Gestor de dotfiles",
+	Use:   "moonarch",
+	Short: "Moonarch CLI - Gestor de dotfiles",
 	Long:  `Una CLI robusta escrita en Go para administrar y aplicar temas a dotfiles de forma dinámica.`,
 }
 
