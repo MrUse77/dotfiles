@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 
 	"github.com/MrUse77/dots-cli/pkg/installer"
-	"github.com/MrUse77/dots-cli/pkg/installer/external"
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 	"github.com/MrUse77/dots-cli/pkg/installer/report"
-	"github.com/MrUse77/dots-cli/pkg/installer/transaction"
-	"github.com/MrUse77/dots-cli/pkg/installer/ui"
 	"github.com/MrUse77/dots-cli/pkg/installer/ui/menu"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -107,16 +101,29 @@ func discoverTarget(source, destination string, fallback plan.MutationKind, clas
 	return plan.Target{Source: source, Destination: destination, Kind: kind}, true, nil
 }
 
+// ErrRepositoryNotFound marks that no repository clone exists in the current
+// directory or any canonical location. It is distinct from lookup failures
+// (permissions, IO): an error is not proof of absence and must never trigger
+// the mutating missing-clone flow.
+var ErrRepositoryNotFound = errors.New("repository not found")
+
 func resolveRepositoryRoot(startDir string) (string, error) {
 	root, err := findRepositoryRoot(startDir)
 	if err == nil {
 		return root, nil
 	}
+	if !errors.Is(err, ErrRepositoryNotFound) {
+		return "", err
+	}
 	// Fall back to the canonical locations where the bootstrap installer
 	// (scripts/install.sh) clones the repository.
 	for _, candidate := range repositoryCandidates() {
-		if root, cerr := findRepositoryRoot(candidate); cerr == nil {
+		root, cerr := findRepositoryRoot(candidate)
+		if cerr == nil {
 			return root, nil
+		}
+		if !errors.Is(cerr, ErrRepositoryNotFound) {
+			return "", cerr
 		}
 	}
 	return "", err
@@ -144,6 +151,9 @@ func findRepositoryRoot(startDir string) (string, error) {
 	}
 	info, err := os.Stat(current)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("%w: no Git repository root found", ErrRepositoryNotFound)
+		}
 		return "", fmt.Errorf("resolve repository root from %q: %w", startDir, err)
 	}
 	if !info.IsDir() {
@@ -159,101 +169,13 @@ func findRepositoryRoot(startDir string) (string, error) {
 
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", fmt.Errorf("resolve repository root from %q: no Git repository root found", startDir)
+			return "", fmt.Errorf("%w: no Git repository root found", ErrRepositoryNotFound)
 		}
 		current = parent
 	}
 }
 
-// confirmAndInstallGit asks for explicit confirmation and runs the installer's
-// own base-tools action (which includes git) when git is missing. The
-// installer provides the tool it needs on a clean machine instead of forcing
-// the user to preinstall it, reusing the same action the plan would run later.
-func confirmAndInstallGit(in io.Reader, out io.Writer) error {
-	var confirm bool
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title("Git no está instalado y no hay un clon del repo. ¿Actualizo el sistema e instalo las herramientas base (incluye git) para continuar?").
-			Affirmative("Sí, hacelo").
-			Negative("Cancelar").
-			Value(&confirm),
-	))
-	if err := form.WithInput(in).WithOutput(out).Run(); err != nil {
-		return err
-	}
-	if !confirm {
-		return errors.New("git no está instalado; instalalo manualmente y volvé a intentar")
-	}
-
-	base := installer.BaseToolsAction()
-	cmd := exec.Command(base.Command.Name, base.Command.Args...)
-	cmd.Stdout = out
-	cmd.Stderr = out
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("instalar herramientas base: %w", err)
-	}
-	return nil
-}
-
 // location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
-// ensureRepositoryClone clones the dotfiles repository into the canonical
-// location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
-// The cloned ref is the binary's own Version (a v0.1.0 binary installs the
-// v0.1.0 tree), or main for dev builds. DOTFILES_BRANCH overrides the ref
-// for development. An existing clone is updated in place to exactly the
-// requested ref (fetch + detached checkout + submodules); a non-repository
-// directory is an error. The repository URL can be overridden with
-// DOTFILES_REPO, matching scripts/install.sh.
-func ensureRepositoryClone(out io.Writer) (string, error) {
-	candidates := repositoryCandidates()
-	if len(candidates) == 0 {
-		return "", errors.New("cannot resolve home directory")
-	}
-	dest := candidates[0]
-
-	repoURL := os.Getenv("DOTFILES_REPO")
-	if repoURL == "" {
-		repoURL = "https://github.com/MrUse77/dotfiles.git"
-	}
-	ref := os.Getenv("DOTFILES_BRANCH")
-	if ref == "" {
-		if Version != "" && Version != "dev" {
-			ref = Version
-		} else {
-			ref = "main"
-		}
-	}
-
-	if _, err := os.Stat(filepath.Join(dest, ".git")); err == nil {
-		fmt.Fprintf(out, "Actualizando dotfiles en %s (%s)...\n", dest, ref)
-		for _, args := range [][]string{
-			{"fetch", "origin", ref},
-			{"checkout", "--force", "--detach", "FETCH_HEAD"},
-			{"submodule", "update", "--init", "--recursive"},
-		} {
-			cmd := exec.Command("git", append([]string{"-C", dest}, args...)...)
-			cmd.Stdout = out
-			cmd.Stderr = out
-			if err := cmd.Run(); err != nil {
-				return "", fmt.Errorf("actualizar dotfiles en %s: %w", dest, err)
-			}
-		}
-		return dest, nil
-	}
-	if _, err := os.Stat(dest); err == nil {
-		return "", fmt.Errorf("%s ya existe pero no es un clon de dotfiles", dest)
-	}
-
-	fmt.Fprintf(out, "Clonando %s (%s) en %s...\n", repoURL, ref, dest)
-	cmd := exec.Command("git", "clone", "--recurse-submodules", "--branch", ref, repoURL, dest)
-	cmd.Stdout = out
-	cmd.Stderr = out
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("clonar dotfiles en %s: %w", dest, err)
-	}
-	return dest, nil
-}
-
 func requireMoonArchRuntime(repoRoot string) error {
 	for _, source := range []string{
 		filepath.Join(repoRoot, ".local", "bin", "moonarch"),
@@ -287,82 +209,6 @@ Core system packages (zsh, stow, base-devel, git) and dotfiles are
 always installed. Use the menu to toggle groups or dive into each
 category for fine-grained control.`,
 	RunE: runInstall,
-}
-
-func runInstall(cmd *cobra.Command, _ []string) error {
-	out := cmd.OutOrStdout()
-
-	// Resolve (or clone) the repository before showing the menu, so the
-	// interactive selection never runs against a missing clone.
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("resolve repository root: %w", err)
-	}
-	repoRoot, err := resolveRepositoryRoot(workingDir)
-	if err != nil {
-		// On a clean machine git may not exist yet, but the clone (and the
-		// installer itself) need it. Bootstrap it with explicit confirmation
-		// before cloning; the remaining base tools stay an external action.
-		if _, lookupErr := exec.LookPath("git"); lookupErr != nil {
-			if err := confirmAndInstallGit(cmd.InOrStdin(), cmd.ErrOrStderr()); err != nil {
-				return err
-			}
-		}
-		repoRoot, err = ensureRepositoryClone(out)
-		if err != nil {
-			return err
-		}
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home directory: %w", err)
-	}
-
-	categories := menu.DefaultCategories()
-	m := menu.New(categories)
-	p := tea.NewProgram(m, tea.WithInput(cmd.InOrStdin()), tea.WithOutput(cmd.ErrOrStderr()))
-	final, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("menu: %w", err)
-	}
-
-	menuModel, ok := final.(menu.Model)
-	if !ok {
-		return fmt.Errorf("menu: unexpected model type %T", final)
-	}
-	result := menuModel.Result()
-	if result == nil || len(result.Groups) == 0 {
-		fmt.Fprintln(out, "Nothing selected. Exiting.")
-		return nil
-	}
-
-	selected := plan.Options{
-		Mode:            "user",
-		Groups:          result.Groups,
-		ExcludePackages: menu.ExcludedPackages(result.Categories),
-	}
-	installationPlan, err := newInstallPlanner().Build(repoRoot, homeDir, selected)
-	if err != nil {
-		return err
-	}
-
-	// Display summary before the review screen.
-	printSummary(out, result.Categories, installationPlan)
-
-	tx := transaction.New(installationPlan)
-	executor := installer.NewExecutor(tx, external.NewRunner(nil).WithStdio(cmd.InOrStdin(), out, cmd.ErrOrStderr()))
-	report, aborted, err := ui.RunWithContext(cmd.Context(), installationPlan, executor, cmd.InOrStdin(), out, nil)
-	if aborted {
-		fmt.Fprintln(out, "Installation cancelled.")
-		return nil
-	}
-	if report != nil {
-		printExecutionReport(out, report)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func printSummary(w io.Writer, categories []menu.Category, p plan.InstallationPlan) {
