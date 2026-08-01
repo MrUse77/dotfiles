@@ -74,13 +74,13 @@ type Target struct {
 
 // Feature groups selectable during installation.
 const (
-	GroupHyprland   = "hyprland"
-	GroupDev        = "dev"
-	GroupCLI        = "cli"
-	GroupAMD        = "amd"
-	GroupSSHAgent   = "ssh-agent"
-	GroupPlugins    = "hypr-plugins"
-	GroupTheming    = "theming"
+	GroupHyprland = "hyprland"
+	GroupDev      = "dev"
+	GroupCLI      = "cli"
+	GroupAMD      = "amd"
+	GroupSSHAgent = "ssh-agent"
+	GroupPlugins  = "hypr-plugins"
+	GroupTheming  = "theming"
 )
 
 // AllGroups returns every known feature group in display order.
