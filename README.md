@@ -8,8 +8,8 @@ Configuración personal para Arch Linux con Hyprland.
 ## Mini preview
 
 <p align="center">
-  <img src="./image1.png" alt="Preview 1" width="49%" />
-  <img src="./image2.png" alt="Preview 2" width="49%" />
+  <img src="./assets/image1.png" alt="Preview 1" width="49%" />
+  <img src="./assets/image2.png" alt="Preview 2" width="49%" />
 </p>
 
 ## Stack
@@ -94,14 +94,13 @@ Luego ejecuta automáticamente:
 3. Instalar todos los paquetes necesarios (oficiales + AUR)
 4. Configurar `zsh` como shell por defecto
 5. Inicializar submódulos de Git (plugins de zsh + Neovim)
-6. Respaldar configs existentes en `~/.config-backup-<timestamp>`
-7. Copiar todos los configs a `~/.config/`
-8. Copiar `.zshrc`, `.gtkrc-2.0`, `oh-my-posh/`, `.zsh_plugins/`, `.themes/`
-9. Instalar fuentes y cursor theme + `fc-cache`
-10. Aplicar temas GTK via `gsettings`
-11. Habilitar servicios (`upower`, `power-profiles-daemon`)
-12. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
-13. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
+6. Respaldar configs existentes en `~/.dots-backups/<runID>/` (los backups se retienen, no se borran)
+7. Instalar configs en `~/.config/` y root files (`.zshrc`, `.gtkrc-2.0`, etc.) con transacción: cada target se respalda antes de mutar y, si algo falla, se restaura automáticamente desde el backup
+8. Instalar fuentes y cursor theme + `fc-cache`
+9. Aplicar temas GTK via `gsettings`
+10. Habilitar servicios (`upower`, `power-profiles-daemon`)
+11. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
+12. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
 
 ### Runtime theme selection (normal install)
 
@@ -146,6 +145,16 @@ To return to a known-good bundle, select its name with the same selector command
 1. Reiniciar sesión o el sistema
 2. Abrir `qt5ct` → seleccionar estilo **kvantum**
 3. Ejecutar `nwg-look` para confirmar los temas GTK
+
+### Restauración de backups
+
+Cada instalación deja un backup retenido en `~/.dots-backups/<runID>/` (archivos originales + `inventory.json`). Para volver al estado previo a una instalación:
+
+```bash
+./moonarch restore
+```
+
+Elegís el run y los targets interactivamente. Para ir directo a un run: `./moonarch restore --run <ID>`. Los backups nunca se borran automáticamente; si querés liberar espacio, eliminá el directorio del run a mano.
 
 ---
 
