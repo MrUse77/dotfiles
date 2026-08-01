@@ -35,7 +35,7 @@ type fakeCatalog struct {
 	err     error
 }
 
-func (f *fakeCatalog) ExternalActions(opts Options) ([]ExternalAction, error) {
+func (f *fakeCatalog) ExternalActions(repoRoot, homeDir string, opts Options) ([]ExternalAction, error) {
 	return f.actions, f.err
 }
 

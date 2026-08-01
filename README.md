@@ -46,7 +46,7 @@ Configuración personal para Arch Linux con Hyprland.
 curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 ```
 
-Clona el repo en `~/dotfiles` (con submódulos), compila el instalador, lo deja como binario `moonarch-cli` en `~/.local/bin/` y corre `moonarch-cli install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
+Clona el repo en `~/.cache/dotfiles` (descartable; el repo es la fuente de verdad), compila el instalador, lo deja como binario `moonarch-cli` en `~/.local/bin/` y corre `moonarch-cli install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
 
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
@@ -55,7 +55,7 @@ Clona el repo en `~/dotfiles` (con submódulos), compila el instalador, lo deja 
 ### 1. Clonar el repo
 
 ```bash
-git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/dotfiles
+git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/.cache/dotfiles
 ```
 
 > El flag `--recurse-submodules` es importante. Sin él los plugins de zsh y el
@@ -237,8 +237,14 @@ git submodule status
 ## Actualizar dotfiles en una nueva máquina
 
 ```bash
-git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/dotfiles
-cd ~/dotfiles/cli
+curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
+```
+
+O a mano:
+
+```bash
+git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/.cache/dotfiles
+cd ~/.cache/dotfiles/cli
 go build -o moonarch-cli .
 ./moonarch-cli install
 ```
@@ -246,7 +252,7 @@ go build -o moonarch-cli .
 ## Sincronizar cambios desde otra máquina
 
 ```bash
-cd ~/dotfiles
+cd ~/.cache/dotfiles
 git pull
 git submodule update --recursive
 ```

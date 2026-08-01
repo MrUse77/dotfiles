@@ -7,7 +7,7 @@ import (
 )
 
 func TestActionCatalogGSettingsAreExternalInStableOrder(t *testing.T) {
-	actions, err := NewActionCatalog().ExternalActions(plan.Options{})
+	actions, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

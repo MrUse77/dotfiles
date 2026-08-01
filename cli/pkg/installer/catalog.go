@@ -33,7 +33,8 @@ func NewActionCatalogWithPowerProfilesAndParu(state PowerProfilesState, paruAvai
 }
 
 // ExternalActions returns the selected external operations in execution order.
-func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
+// repoRoot and homeDir anchor repository-scoped and home-scoped commands.
+func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan.Options) ([]plan.ExternalAction, error) {
 	packages := collectPackages(opts)
 
 	actions := []plan.ExternalAction{
@@ -50,8 +51,12 @@ func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.External
 
 	actions = append(actions,
 		action("change default shell to zsh", "chsh", []string{"-s", "/usr/bin/zsh"}, "system", true),
-		action("update git submodules", "git", []string{"submodule", "update", "--init", "--recursive"}, "repository", true),
-		action("create zsh configuration directory", "mkdir", []string{"-p", "~/.config/zsh"}, "filesystem", false),
+	)
+
+	submodules := action("update git submodules", "git", []string{"submodule", "update", "--init", "--recursive"}, "repository", true)
+	submodules.Command.Dir = repoRoot
+	actions = append(actions, submodules,
+		action("create zsh configuration directory", "mkdir", []string{"-p", filepath.Join(homeDir, ".config", "zsh")}, "filesystem", false),
 	)
 
 	if catalog.powerProfiles != nil {

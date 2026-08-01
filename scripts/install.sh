@@ -6,13 +6,13 @@
 #   curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 #
 # Variables de entorno (opcionales):
-#   DOTFILES_DIR     directorio destino (default: $HOME/dotfiles)
+#   DOTFILES_DIR     directorio destino (default: $HOME/.cache/dotfiles)
 #   DOTFILES_REPO    URL del repo (default: https://github.com/MrUse77/dotfiles.git)
 #   DOTFILES_BRANCH  rama a instalar (default: main)
 #
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.cache/dotfiles}"
 DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/MrUse77/dotfiles.git}"
 DOTFILES_BRANCH="${DOTFILES_BRANCH:-main}"
 
@@ -49,8 +49,7 @@ main() {
   mkdir -p "$HOME/.local/bin"
   (cd "$DOTFILES_DIR/cli" && go build -o "$HOME/.local/bin/moonarch-cli" .)
 
-  say "Ejecutando 'moonarch-cli install'..."
-  # Bajo 'curl | bash' el stdin es el pipe de curl, que ya se cerró: el menú
+  say "Ejecutando 'moonarch-cli install'..."  # Bajo 'curl | bash' el stdin es el pipe de curl, que ya se cerró: el menú
   # interactivo necesita el TTY real para capturar teclas.
   if [ ! -t 0 ]; then
     if [ -r /dev/tty ]; then

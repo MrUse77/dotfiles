@@ -122,14 +122,16 @@ func resolveRepositoryRoot(startDir string) (string, error) {
 }
 
 // repositoryCandidates returns the canonical locations for the dotfiles
-// clone, in priority order: DOTFILES_DIR, then $HOME/dotfiles.
+// clone, in priority order: DOTFILES_DIR, then $HOME/.cache/dotfiles.
+// The cache location keeps the clone disposable and predictable: the
+// repository is always the source of truth.
 func repositoryCandidates() []string {
 	var candidates []string
 	if env := os.Getenv("DOTFILES_DIR"); env != "" {
 		candidates = append(candidates, env)
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, "dotfiles"))
+		candidates = append(candidates, filepath.Join(home, ".cache", "dotfiles"))
 	}
 	return candidates
 }
@@ -163,9 +165,11 @@ func findRepositoryRoot(startDir string) (string, error) {
 }
 
 // ensureRepositoryClone clones the dotfiles repository into the canonical
-// location (DOTFILES_DIR or $HOME/dotfiles) and returns its path. The
-// repository URL and branch can be overridden with DOTFILES_REPO and
-// DOTFILES_BRANCH, matching scripts/install.sh.
+// location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
+// An existing clone is updated in place (fetch, checkout, fast-forward
+// pull, submodules); a non-repository directory is an error. The repository
+// URL and branch can be overridden with DOTFILES_REPO and DOTFILES_BRANCH,
+// matching scripts/install.sh.
 func ensureRepositoryClone(out io.Writer) (string, error) {
 	candidates := repositoryCandidates()
 	if len(candidates) == 0 {
@@ -182,7 +186,28 @@ func ensureRepositoryClone(out io.Writer) (string, error) {
 		branch = "main"
 	}
 
-	fmt.Fprintf(out, "No se encontró un clon de dotfiles; clonando %s en %s...\n", repoURL, dest)
+	if _, err := os.Stat(filepath.Join(dest, ".git")); err == nil {
+		fmt.Fprintf(out, "Actualizando dotfiles en %s...\n", dest)
+		for _, args := range [][]string{
+			{"fetch", "origin"},
+			{"checkout", branch},
+			{"pull", "--ff-only", "origin", branch},
+			{"submodule", "update", "--init", "--recursive"},
+		} {
+			cmd := exec.Command("git", append([]string{"-C", dest}, args...)...)
+			cmd.Stdout = out
+			cmd.Stderr = out
+			if err := cmd.Run(); err != nil {
+				return "", fmt.Errorf("actualizar dotfiles en %s: %w", dest, err)
+			}
+		}
+		return dest, nil
+	}
+	if _, err := os.Stat(dest); err == nil {
+		return "", fmt.Errorf("%s ya existe pero no es un clon de dotfiles", dest)
+	}
+
+	fmt.Fprintf(out, "Clonando %s en %s...\n", repoURL, dest)
 	cmd := exec.Command("git", "clone", "--recurse-submodules", "-b", branch, repoURL, dest)
 	cmd.Stdout = out
 	cmd.Stderr = out

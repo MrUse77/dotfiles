@@ -118,7 +118,7 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 		return targets[i].Destination < targets[j].Destination
 	})
 
-	rawActions, err := p.Catalog.ExternalActions(opts)
+	rawActions, err := p.Catalog.ExternalActions(repoRoot, homeDir, opts)
 	if err != nil {
 		return InstallationPlan{}, &PlanError{Phase: "catalog", Cause: err}
 	}
@@ -174,7 +174,7 @@ func (emptyDiscoverer) Discover(repoRoot, homeDir string, opts Options) ([]Targe
 
 type emptyCatalog struct{}
 
-func (emptyCatalog) ExternalActions(opts Options) ([]ExternalAction, error) {
+func (emptyCatalog) ExternalActions(repoRoot, homeDir string, opts Options) ([]ExternalAction, error) {
 	return nil, nil
 }
 
