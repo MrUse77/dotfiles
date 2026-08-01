@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 
@@ -105,6 +107,34 @@ func discoverTarget(source, destination string, fallback plan.MutationKind, clas
 }
 
 func resolveRepositoryRoot(startDir string) (string, error) {
+	root, err := findRepositoryRoot(startDir)
+	if err == nil {
+		return root, nil
+	}
+	// Fall back to the canonical locations where the bootstrap installer
+	// (scripts/install.sh) clones the repository.
+	for _, candidate := range repositoryCandidates() {
+		if root, cerr := findRepositoryRoot(candidate); cerr == nil {
+			return root, nil
+		}
+	}
+	return "", err
+}
+
+// repositoryCandidates returns the canonical locations for the dotfiles
+// clone, in priority order: DOTFILES_DIR, then $HOME/dotfiles.
+func repositoryCandidates() []string {
+	var candidates []string
+	if env := os.Getenv("DOTFILES_DIR"); env != "" {
+		candidates = append(candidates, env)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates, filepath.Join(home, "dotfiles"))
+	}
+	return candidates
+}
+
+func findRepositoryRoot(startDir string) (string, error) {
 	current, err := filepath.Abs(startDir)
 	if err != nil {
 		return "", fmt.Errorf("resolve repository root from %q: %w", startDir, err)
@@ -130,6 +160,36 @@ func resolveRepositoryRoot(startDir string) (string, error) {
 		}
 		current = parent
 	}
+}
+
+// ensureRepositoryClone clones the dotfiles repository into the canonical
+// location (DOTFILES_DIR or $HOME/dotfiles) and returns its path. The
+// repository URL and branch can be overridden with DOTFILES_REPO and
+// DOTFILES_BRANCH, matching scripts/install.sh.
+func ensureRepositoryClone(out io.Writer) (string, error) {
+	candidates := repositoryCandidates()
+	if len(candidates) == 0 {
+		return "", errors.New("cannot resolve home directory")
+	}
+	dest := candidates[0]
+
+	repoURL := os.Getenv("DOTFILES_REPO")
+	if repoURL == "" {
+		repoURL = "https://github.com/MrUse77/dotfiles.git"
+	}
+	branch := os.Getenv("DOTFILES_BRANCH")
+	if branch == "" {
+		branch = "main"
+	}
+
+	fmt.Fprintf(out, "No se encontró un clon de dotfiles; clonando %s en %s...\n", repoURL, dest)
+	cmd := exec.Command("git", "clone", "--recurse-submodules", "-b", branch, repoURL, dest)
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("clonar dotfiles en %s: %w", dest, err)
+	}
+	return dest, nil
 }
 
 func requireMoonArchRuntime(repoRoot string) error {
@@ -170,6 +230,24 @@ category for fine-grained control.`,
 func runInstall(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 
+	// Resolve (or clone) the repository before showing the menu, so the
+	// interactive selection never runs against a missing clone.
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	repoRoot, err := resolveRepositoryRoot(workingDir)
+	if err != nil {
+		repoRoot, err = ensureRepositoryClone(out)
+		if err != nil {
+			return err
+		}
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home directory: %w", err)
+	}
+
 	categories := menu.DefaultCategories()
 	m := menu.New(categories)
 	p := tea.NewProgram(m, tea.WithInput(cmd.InOrStdin()), tea.WithOutput(cmd.ErrOrStderr()))
@@ -186,19 +264,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if result == nil || len(result.Groups) == 0 {
 		fmt.Fprintln(out, "Nothing selected. Exiting.")
 		return nil
-	}
-
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("resolve repository root: %w", err)
-	}
-	repoRoot, err := resolveRepositoryRoot(workingDir)
-	if err != nil {
-		return err
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home directory: %w", err)
 	}
 
 	selected := plan.Options{
