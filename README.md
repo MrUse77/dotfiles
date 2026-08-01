@@ -46,7 +46,7 @@ Configuración personal para Arch Linux con Hyprland.
 curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 ```
 
-Clona el repo en `~/dotfiles` (con submódulos), compila el instalador y corre `moonarch install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
+Clona el repo en `~/dotfiles` (con submódulos), compila el instalador, lo deja como binario `moonarch-cli` en `~/.local/bin/` y corre `moonarch-cli install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
 
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
@@ -71,13 +71,13 @@ git submodule update --init --recursive
 
 ```bash
 cd ~/dotfiles/cli
-go build -o dots
+go build -o moonarch-cli .
 ```
 
 ### 3. Correr el instalador
 
 ```bash
-./moonarch install
+./moonarch-cli install
 ```
 
 El instalador va a preguntarte interactivamente:
@@ -151,18 +151,18 @@ To return to a known-good bundle, select its name with the same selector command
 Cada instalación deja un backup retenido en `~/.dots-backups/<runID>/` (archivos originales + `inventory.json`). Para volver al estado previo a una instalación:
 
 ```bash
-./moonarch restore
+./moonarch-cli restore
 ```
 
-Elegís el run y los targets interactivamente. Para ir directo a un run: `./moonarch restore --run <ID>`. Los backups nunca se borran automáticamente; si querés liberar espacio, eliminá el directorio del run a mano.
+Elegís el run y los targets interactivamente. Para ir directo a un run: `moonarch-cli restore --run <ID>`. Los backups nunca se borran automáticamente; si querés liberar espacio, eliminá el directorio del run a mano.
 
 ---
 
 ## CLI: comandos disponibles
 
 ```bash
-./moonarch install       # Instalador interactivo completo
-./moonarch help          # Ver todos los comandos
+./moonarch-cli install       # Instalador interactivo completo
+./moonarch-cli help          # Ver todos los comandos
 ```
 
 ---
@@ -193,7 +193,7 @@ dotfiles/
 ├── assets/
 │   ├── fonts/          # CaskaydiaCove, CaskaydiaM, Hack Nerd Font
 │   └── icons/          # volantes_cursors
-├── cli/                # Instalador Go (dots)
+├── cli/                # Instalador Go (moonarch-cli)
 │   ├── cmd/            # Comandos cobra del instalador
 │   ├── pkg/
 │   │   └── installer/  # Lógica de instalación del sistema
@@ -239,8 +239,8 @@ git submodule status
 ```bash
 git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/dotfiles
 cd ~/dotfiles/cli
-go build -o dots
-./moonarch install
+go build -o moonarch-cli .
+./moonarch-cli install
 ```
 
 ## Sincronizar cambios desde otra máquina
