@@ -98,6 +98,25 @@ type Options struct {
 	EnableSSHAgent  bool
 }
 
+// PlanRole identifies the purpose of a plan within the installation flow.
+type PlanRole string
+
+const (
+	// PlanRoleSingle is the legacy unified plan containing both managed targets and external actions.
+	PlanRoleSingle PlanRole = "single"
+	// PlanRolePackage is the repository-independent package phase plan.
+	PlanRolePackage PlanRole = "package"
+	// PlanRoleConfiguration is the repository-dependent configuration phase plan.
+	PlanRoleConfiguration PlanRole = "configuration"
+)
+
+// InstallationRun is the immutable identity and option snapshot shared by all
+// phase plans in a single installation attempt.
+type InstallationRun struct {
+	RunID   string
+	Options Options
+}
+
 // HasGroup reports whether a feature group is selected.
 func (o Options) HasGroup(name string) bool {
 	for _, g := range o.Groups {
@@ -124,6 +143,7 @@ type InstallationPlan struct {
 	RunID       string
 	Options     Options
 	Fingerprint string
+	Role        PlanRole
 
 	managedTargets  []Target
 	externalActions []ExternalAction
@@ -132,16 +152,20 @@ type InstallationPlan struct {
 // NewInstallationPlan constructs a plan from internal direct targets. Targets with
 // an empty SourceDigest retain legacy unbound execution semantics.
 func NewInstallationPlan(runID string, targets []Target) (InstallationPlan, error) {
-	return newInstallationPlan(runID, targets, nil)
+	return newInstallationPlanWithRole(runID, "", targets, nil)
 }
 
 // NewInstallationPlanWithActions constructs a plan with managed targets and reviewed external actions.
 func NewInstallationPlanWithActions(runID string, targets []Target, actions []ExternalAction) (InstallationPlan, error) {
-	return newInstallationPlan(runID, targets, actions)
+	return newInstallationPlanWithRole(runID, "", targets, actions)
 }
 
 func newInstallationPlan(runID string, targets []Target, actions []ExternalAction) (InstallationPlan, error) {
-	p := InstallationPlan{RunID: runID, managedTargets: cloneTargets(targets), externalActions: cloneActions(actions)}
+	return newInstallationPlanWithRole(runID, "", targets, actions)
+}
+
+func newInstallationPlanWithRole(runID string, role PlanRole, targets []Target, actions []ExternalAction) (InstallationPlan, error) {
+	p := InstallationPlan{RunID: runID, Role: role, managedTargets: cloneTargets(targets), externalActions: cloneActions(actions)}
 	fp, err := fingerprint(&p)
 	if err != nil {
 		return InstallationPlan{}, &FingerprintError{Cause: err}
@@ -178,6 +202,14 @@ type TargetDiscoverer interface {
 // ActionCatalog enumerates external actions from the selected options.
 type ActionCatalog interface {
 	ExternalActions(repoRoot, homeDir string, opts Options) ([]ExternalAction, error)
+}
+
+// PhaseActionCatalog enumerates external actions for each phase of a two-phase
+// installation. Catalogs that support phase planning implement this interface
+// in addition to ActionCatalog.
+type PhaseActionCatalog interface {
+	PackageActions(homeDir string, opts Options) ([]ExternalAction, error)
+	ConfigurationActions(repoRoot, homeDir string, opts Options, managedTargets []Target) ([]ExternalAction, error)
 }
 
 // SourceOutsideRepoError is returned when a target source is not inside the repository.
@@ -270,6 +302,19 @@ func cloneTargets(ts []Target) []Target {
 	return out
 }
 
+func cloneOptions(opts Options) Options {
+	out := opts
+	if opts.Groups != nil {
+		out.Groups = make([]string, len(opts.Groups))
+		copy(out.Groups, opts.Groups)
+	}
+	if opts.ExcludePackages != nil {
+		out.ExcludePackages = make([]string, len(opts.ExcludePackages))
+		copy(out.ExcludePackages, opts.ExcludePackages)
+	}
+	return out
+}
+
 // SourceDigestForPath returns the content digest for a regular file or directory.
 func SourceDigestForPath(path string) (string, error) {
 	info, err := os.Stat(path)
@@ -350,6 +395,7 @@ func fingerprint(plan *InstallationPlan) (string, error) {
 
 	input := canonicalPlan{
 		RunID:   plan.RunID,
+		Role:    string(plan.Role),
 		Options: plan.Options,
 		Targets: targets,
 		Actions: actions,
@@ -403,6 +449,7 @@ type canonicalAction struct {
 
 type canonicalPlan struct {
 	RunID   string            `json:"run_id"`
+	Role    string            `json:"role,omitempty"`
 	Options Options           `json:"options"`
 	Targets []canonicalTarget `json:"targets"`
 	Actions []canonicalAction `json:"actions"`

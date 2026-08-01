@@ -39,6 +39,81 @@ func BaseToolsAction() plan.ExternalAction {
 	return action("update system and install base tools", "sudo", []string{"pacman", "-Syu", "--noconfirm", "base-devel", "git"}, "privileged", true)
 }
 
+// PackageActions returns the repository-independent external actions for the
+// package phase. Base tools are always first; repository-scoped actions such as
+// submodule updates and power-profile probes are excluded.
+func (catalog ActionCatalog) PackageActions(homeDir string, opts plan.Options) ([]plan.ExternalAction, error) {
+	packages := collectPackages(opts)
+
+	actions := []plan.ExternalAction{
+		BaseToolsAction(),
+	}
+	if !catalog.paruAvailable {
+		actions = append(actions, paruBootstrapActions()...)
+	}
+	actions = append(actions,
+		action("install configured packages", "paru", append([]string{"-S", "--needed", "--noconfirm"}, packages...), "supply-chain", true),
+		action("change default shell to zsh", "chsh", []string{"-s", "/usr/bin/zsh"}, "system", true),
+		action("enable upower", "sudo", []string{"systemctl", "enable", "--now", "upower"}, "privileged", true),
+		action("refresh font cache", "fc-cache", []string{"-f"}, "cache", false),
+	)
+
+	if opts.HasGroup(plan.GroupTheming) || len(opts.Groups) == 0 {
+		actions = append(actions, gtkThemeActions()...)
+	}
+
+	if opts.HasGroup(plan.GroupPlugins) {
+		actions = append(actions, hyprlandPluginActions()...)
+	}
+	for i := range actions {
+		actions[i].Order = i
+	}
+	return actions, nil
+}
+
+// ConfigurationActions returns the repository-dependent external actions for the
+// configuration phase. It receives discovered managed targets so it can avoid
+// claiming paths the transaction owns, such as the zsh configuration directory.
+func (catalog ActionCatalog) ConfigurationActions(repoRoot, homeDir string, opts plan.Options, managedTargets []plan.Target) ([]plan.ExternalAction, error) {
+	actions := []plan.ExternalAction{}
+
+	if catalog.powerProfiles != nil {
+		actions = append(actions, powerProfilesActions(*catalog.powerProfiles)...)
+	}
+
+	zshDir := filepath.Join(homeDir, ".config", "zsh")
+	if !targetOwnsPath(managedTargets, zshDir) {
+		actions = append(actions, action("create zsh configuration directory", "mkdir", []string{"-p", zshDir}, "filesystem", false))
+	}
+
+	for i := range actions {
+		actions[i].Order = i
+	}
+	return actions, nil
+}
+
+// targetOwnsPath reports whether a managed target destination equals, contains,
+// or is contained by path, meaning the transaction owns the path and a separate
+// filesystem action for it is redundant.
+func targetOwnsPath(targets []plan.Target, path string) bool {
+	path = filepath.Clean(path)
+	for _, t := range targets {
+		dest := filepath.Clean(t.Destination)
+		if dest == path {
+			return true
+		}
+		if isPathPrefix(dest, path) || isPathPrefix(path, dest) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPathPrefix(a, b string) bool {
+	prefix := a + string(filepath.Separator)
+	return len(b) > len(prefix) && b[:len(prefix)] == prefix
+}
+
 // ExternalActions returns the selected external operations in execution order.
 // repoRoot and homeDir anchor repository-scoped and home-scoped commands.
 func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan.Options) ([]plan.ExternalAction, error) {
@@ -48,15 +123,10 @@ func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan
 		BaseToolsAction(),
 	}
 	if !catalog.paruAvailable {
-		actions = append(actions,
-			action("clean paru build directory", "rm", []string{"-rf", "--", paruBuildDir}, "filesystem", true),
-			action("bootstrap paru", "git", []string{"clone", "https://aur.archlinux.org/paru.git", paruBuildDir}, "supply-chain", true),
-			plan.ExternalAction{Description: "build and install paru", Command: plan.CommandSpec{Name: "makepkg", Args: []string{"-si", "--noconfirm"}, Dir: paruBuildDir}, Classification: "supply-chain", Irreversible: true},
-		)
+		actions = append(actions, paruBootstrapActions()...)
 	}
-	actions = append(actions, action("install configured packages", "paru", append([]string{"-S", "--needed", "--noconfirm"}, packages...), "supply-chain", true))
-
 	actions = append(actions,
+		action("install configured packages", "paru", append([]string{"-S", "--needed", "--noconfirm"}, packages...), "supply-chain", true),
 		action("change default shell to zsh", "chsh", []string{"-s", "/usr/bin/zsh"}, "system", true),
 	)
 
@@ -75,29 +145,47 @@ func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan
 	)
 
 	if opts.HasGroup(plan.GroupTheming) || len(opts.Groups) == 0 {
-		settings := []struct{ key, value string }{
-			{"gtk-theme", "TokyoNight-zk"}, {"icon-theme", "TokyoNight-SE"},
-			{"cursor-theme", "volantes_cursors"}, {"cursor-size", "24"},
-			{"font-name", "CaskaydiaMono Nerd Font Mono Bold 10"}, {"color-scheme", "prefer-dark"},
-		}
-		for _, setting := range settings {
-			actions = append(actions, action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false))
-		}
+		actions = append(actions, gtkThemeActions()...)
 	}
 
 	if opts.HasGroup(plan.GroupPlugins) {
-		actions = append(actions,
-			action("update Hyprland plugins", "hyprpm", []string{"update"}, "supply-chain", true),
-			action("add Hyprland plugins", "hyprpm", []string{"add", "https://github.com/hyprwm/hyprland-plugins"}, "supply-chain", true),
-			action("enable hyprbars", "hyprpm", []string{"enable", "hyprbars"}, "supply-chain", true),
-			action("add split monitor workspaces", "hyprpm", []string{"add", "https://github.com/zjeffer/split-monitor-workspaces"}, "supply-chain", true),
-			action("enable split monitor workspaces", "hyprpm", []string{"enable", "split-monitor-workspaces"}, "supply-chain", true),
-		)
+		actions = append(actions, hyprlandPluginActions()...)
 	}
 	for i := range actions {
 		actions[i].Order = i
 	}
 	return actions, nil
+}
+
+func paruBootstrapActions() []plan.ExternalAction {
+	return []plan.ExternalAction{
+		action("clean paru build directory", "rm", []string{"-rf", "--", paruBuildDir}, "filesystem", true),
+		action("bootstrap paru", "git", []string{"clone", "https://aur.archlinux.org/paru.git", paruBuildDir}, "supply-chain", true),
+		plan.ExternalAction{Description: "build and install paru", Command: plan.CommandSpec{Name: "makepkg", Args: []string{"-si", "--noconfirm"}, Dir: paruBuildDir}, Classification: "supply-chain", Irreversible: true},
+	}
+}
+
+func gtkThemeActions() []plan.ExternalAction {
+	settings := []struct{ key, value string }{
+		{"gtk-theme", "TokyoNight-zk"}, {"icon-theme", "TokyoNight-SE"},
+		{"cursor-theme", "volantes_cursors"}, {"cursor-size", "24"},
+		{"font-name", "CaskaydiaMono Nerd Font Mono Bold 10"}, {"color-scheme", "prefer-dark"},
+	}
+	actions := make([]plan.ExternalAction, len(settings))
+	for i, setting := range settings {
+		actions[i] = action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false)
+	}
+	return actions
+}
+
+func hyprlandPluginActions() []plan.ExternalAction {
+	return []plan.ExternalAction{
+		action("update Hyprland plugins", "hyprpm", []string{"update"}, "supply-chain", true),
+		action("add Hyprland plugins", "hyprpm", []string{"add", "https://github.com/hyprwm/hyprland-plugins"}, "supply-chain", true),
+		action("enable hyprbars", "hyprpm", []string{"enable", "hyprbars"}, "supply-chain", true),
+		action("add split monitor workspaces", "hyprpm", []string{"add", "https://github.com/zjeffer/split-monitor-workspaces"}, "supply-chain", true),
+		action("enable split monitor workspaces", "hyprpm", []string{"enable", "split-monitor-workspaces"}, "supply-chain", true),
+	}
 }
 
 // collectPackages builds the package list from the selected feature groups.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -964,5 +965,265 @@ func TestBuildPlan_DoesNotMutateDestinationParentDuringPrerequisiteCheck(t *test
 	}
 	if !before.ModTime().Equal(after.ModTime()) {
 		t.Errorf("destination parent mtime changed during planning: %v -> %v", before.ModTime(), after.ModTime())
+	}
+}
+
+// Task 1.1: PlanRole and InstallationRun.
+
+func TestPlanRoleConstants(t *testing.T) {
+	cases := []struct {
+		got  PlanRole
+		want PlanRole
+	}{
+		{PlanRoleSingle, "single"},
+		{PlanRolePackage, "package"},
+		{PlanRoleConfiguration, "configuration"},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("PlanRole = %q, want %q", c.got, c.want)
+		}
+	}
+}
+
+func TestInstallationRun_HoldsRunIDAndOptionsSnapshot(t *testing.T) {
+	base := Options{Mode: "user", Groups: []string{"dev"}, ExcludePackages: []string{"x"}}
+	run := InstallationRun{RunID: "run-1", Options: base}
+	if run.RunID != "run-1" {
+		t.Errorf("RunID = %q, want run-1", run.RunID)
+	}
+	if !reflect.DeepEqual(run.Options, base) {
+		t.Errorf("Options = %#v, want %#v", run.Options, base)
+	}
+	// Mutating the run must not affect the original options.
+	run.Options.Groups = append(run.Options.Groups, "cli")
+	if !reflect.DeepEqual(base.Groups, []string{"dev"}) {
+		t.Errorf("original Groups leaked after run mutation: %v", base.Groups)
+	}
+}
+
+func TestInstallationPlan_RoleIncorporatedIntoFingerprint(t *testing.T) {
+	base := []Target{{Source: "src", Destination: "/dst", Kind: CopyFile}}
+	pkg, err := newInstallationPlanWithRole("run", PlanRolePackage, base, nil)
+	if err != nil {
+		t.Fatalf("package plan: %v", err)
+	}
+	cfg, err := newInstallationPlanWithRole("run", PlanRoleConfiguration, base, nil)
+	if err != nil {
+		t.Fatalf("configuration plan: %v", err)
+	}
+	if pkg.Fingerprint == cfg.Fingerprint {
+		t.Errorf("package and configuration fingerprints must differ when roles differ")
+	}
+	if pkg.Role != PlanRolePackage || cfg.Role != PlanRoleConfiguration {
+		t.Errorf("roles not preserved: pkg=%q cfg=%q", pkg.Role, cfg.Role)
+	}
+}
+
+// Task 1.2: PhaseActionCatalog contract.
+
+type fakePhaseCatalog struct {
+	fakeCatalog
+	packageActions          []ExternalAction
+	packageActionsErr       error
+	configurationActions    []ExternalAction
+	configurationActionsErr error
+}
+
+func (f *fakePhaseCatalog) PackageActions(homeDir string, opts Options) ([]ExternalAction, error) {
+	return f.packageActions, f.packageActionsErr
+}
+
+func (f *fakePhaseCatalog) ConfigurationActions(repoRoot, homeDir string, opts Options, managedTargets []Target) ([]ExternalAction, error) {
+	return f.configurationActions, f.configurationActionsErr
+}
+
+type failingStateReader struct{}
+
+func (failingStateReader) Read(path string) (PreState, error) {
+	return PreState{}, errors.New("state read should not be called")
+}
+
+func TestPhaseActionCatalogContract(t *testing.T) {
+	var _ PhaseActionCatalog = (*fakePhaseCatalog)(nil)
+}
+
+func TestPlanner_PhaseBuildsRequirePhaseCatalog(t *testing.T) {
+	p := New(WithCatalog(&fakeCatalog{}), WithRunIDSource(fixedRunID{id: "run"}))
+	run := InstallationRun{RunID: "run", Options: Options{}}
+
+	_, err := p.BuildPackage(run, t.TempDir())
+	if err == nil {
+		t.Fatal("BuildPackage() expected error with non-phase catalog")
+	}
+	var planErr *PlanError
+	if !errors.As(err, &planErr) || planErr.Phase != "package-catalog" {
+		t.Fatalf("expected package-catalog PlanError, got %T: %v", err, err)
+	}
+
+	repo, home := t.TempDir(), t.TempDir()
+	_, err = p.BuildConfiguration(run, repo, home)
+	if err == nil {
+		t.Fatal("BuildConfiguration() expected error with non-phase catalog")
+	}
+	if !errors.As(err, &planErr) || planErr.Phase != "configuration-catalog" {
+		t.Fatalf("expected configuration-catalog PlanError, got %T: %v", err, err)
+	}
+}
+
+// Task 1.3: phase-specific builders.
+
+func TestPlanner_StartRun_AllocatesRunIDAndCopiesOptions(t *testing.T) {
+	p := New(
+		WithClock(fakeClock{now: time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)}),
+		WithRunIDSource(fixedRunID{id: "run-1"}),
+	)
+	base := Options{Mode: "user", Groups: []string{"dev"}, ExcludePackages: []string{"x"}}
+	run := p.StartRun(base)
+	if run.RunID != "run-1" {
+		t.Errorf("RunID = %q, want run-1", run.RunID)
+	}
+	if !reflect.DeepEqual(run.Options, base) {
+		t.Errorf("Options = %#v, want %#v", run.Options, base)
+	}
+	// Mutating the returned run must not alter the original.
+	run.Options.Groups = append(run.Options.Groups, "cli")
+	if !reflect.DeepEqual(base.Groups, []string{"dev"}) {
+		t.Errorf("original options mutated: %v", base.Groups)
+	}
+}
+
+func TestPlanner_BuildPackage_NoDiscoveryOrStateRead(t *testing.T) {
+	home := t.TempDir()
+	catalog := &fakePhaseCatalog{
+		packageActions: []ExternalAction{{Description: "base", Command: CommandSpec{Name: "base"}, Order: 0}},
+	}
+	p := New(
+		WithCatalog(catalog),
+		WithRunIDSource(fixedRunID{id: "run-1"}),
+		WithDiscoverer(&fakeDiscoverer{err: errors.New("discover must not be called")}),
+		WithStateReader(failingStateReader{}),
+	)
+	run := p.StartRun(Options{Mode: "user"})
+	plan, err := p.BuildPackage(run, home)
+	if err != nil {
+		t.Fatalf("BuildPackage() error = %v", err)
+	}
+	if plan.RunID != "run-1" {
+		t.Errorf("RunID = %q, want run-1", plan.RunID)
+	}
+	if plan.Role != PlanRolePackage {
+		t.Errorf("Role = %q, want %q", plan.Role, PlanRolePackage)
+	}
+	if len(plan.ManagedTargets()) != 0 {
+		t.Errorf("BuildPackage() must not include managed targets: %d", len(plan.ManagedTargets()))
+	}
+	if len(plan.ExternalActions()) != 1 {
+		t.Errorf("len(ExternalActions) = %d, want 1", len(plan.ExternalActions()))
+	}
+	if plan.Fingerprint == "" {
+		t.Error("Fingerprint is empty")
+	}
+}
+
+func TestPlanner_BuildConfiguration_FromDiscoveredSource(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	src := filepath.Join(repo, "file")
+	mustWriteFile(t, src, []byte("source"))
+	catalog := &fakePhaseCatalog{
+		configurationActions: []ExternalAction{{Description: "config", Command: CommandSpec{Name: "cfg"}, Order: 0}},
+	}
+	p := New(
+		WithCatalog(catalog),
+		WithRunIDSource(fixedRunID{id: "run-1"}),
+		WithDiscoverer(&fakeDiscoverer{targets: []Target{{Source: src, Destination: filepath.Join(home, "file"), Kind: CopyFile}}}),
+	)
+	run := p.StartRun(Options{Mode: "user"})
+	plan, err := p.BuildConfiguration(run, repo, home)
+	if err != nil {
+		t.Fatalf("BuildConfiguration() error = %v", err)
+	}
+	if plan.RunID != "run-1" {
+		t.Errorf("RunID = %q, want run-1", plan.RunID)
+	}
+	if plan.Role != PlanRoleConfiguration {
+		t.Errorf("Role = %q, want %q", plan.Role, PlanRoleConfiguration)
+	}
+	if len(plan.ManagedTargets()) != 1 {
+		t.Errorf("len(ManagedTargets) = %d, want 1", len(plan.ManagedTargets()))
+	}
+	if len(plan.ExternalActions()) != 1 {
+		t.Errorf("len(ExternalActions) = %d, want 1", len(plan.ExternalActions()))
+	}
+	if plan.ExternalActions()[0].Description != "config" {
+		t.Errorf("action = %q, want config", plan.ExternalActions()[0].Description)
+	}
+}
+
+func TestPlanner_PhasePlansShareRunIDAndOptionsButHaveDistinctFingerprints(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	src := filepath.Join(repo, "file")
+	mustWriteFile(t, src, []byte("source"))
+	catalog := &fakePhaseCatalog{
+		packageActions:       []ExternalAction{{Description: "pkg", Command: CommandSpec{Name: "pkg"}, Order: 0}},
+		configurationActions: []ExternalAction{{Description: "cfg", Command: CommandSpec{Name: "cfg"}, Order: 0}},
+	}
+	p := New(
+		WithCatalog(catalog),
+		WithRunIDSource(fixedRunID{id: "run-1"}),
+		WithDiscoverer(&fakeDiscoverer{targets: []Target{{Source: src, Destination: filepath.Join(home, "file"), Kind: CopyFile}}}),
+	)
+	run := p.StartRun(Options{Mode: "user"})
+	pkg, err := p.BuildPackage(run, home)
+	if err != nil {
+		t.Fatalf("BuildPackage() error = %v", err)
+	}
+	cfg, err := p.BuildConfiguration(run, repo, home)
+	if err != nil {
+		t.Fatalf("BuildConfiguration() error = %v", err)
+	}
+	if pkg.RunID != cfg.RunID {
+		t.Errorf("RunID mismatch: %q vs %q", pkg.RunID, cfg.RunID)
+	}
+	if !reflect.DeepEqual(pkg.Options, cfg.Options) {
+		t.Errorf("Options mismatch: %#v vs %#v", pkg.Options, cfg.Options)
+	}
+	if pkg.Fingerprint == cfg.Fingerprint {
+		t.Errorf("phase fingerprints must differ")
+	}
+	if pkg.Role != PlanRolePackage || cfg.Role != PlanRoleConfiguration {
+		t.Errorf("unexpected roles: pkg=%q cfg=%q", pkg.Role, cfg.Role)
+	}
+}
+
+func TestPlanner_PhasePlanImmutableAgainstInputMutation(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	src := filepath.Join(repo, "file")
+	mustWriteFile(t, src, []byte("source"))
+	catalog := &fakePhaseCatalog{
+		packageActions: []ExternalAction{{
+			Description: "pkg",
+			Command:     CommandSpec{Name: "pkg", Args: []string{"a"}, Env: map[string]string{"K": "V"}},
+			Order:       0,
+		}},
+	}
+	p := New(WithCatalog(catalog), WithRunIDSource(fixedRunID{id: "run"}))
+	opts := Options{Mode: "user", Groups: []string{"dev"}}
+	run := p.StartRun(opts)
+	plan, err := p.BuildPackage(run, home)
+	if err != nil {
+		t.Fatalf("BuildPackage() error = %v", err)
+	}
+	// Mutate original options and the catalog action.
+	opts.Groups = append(opts.Groups, "cli")
+	catalog.packageActions[0].Command.Args[0] = "mutated"
+	catalog.packageActions[0].Command.Env["K"] = "mutated"
+
+	got := plan.ExternalActions()[0].Command
+	if got.Args[0] != "a" || got.Env["K"] != "V" {
+		t.Errorf("reviewed plan mutated: args=%v env=%v", got.Args, got.Env)
+	}
+	if len(plan.Options.Groups) != 1 || plan.Options.Groups[0] != "dev" {
+		t.Errorf("reviewed plan options mutated: %v", plan.Options.Groups)
 	}
 }

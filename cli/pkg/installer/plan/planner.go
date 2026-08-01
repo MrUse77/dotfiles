@@ -3,6 +3,7 @@ package plan
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,6 +63,112 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 		return InstallationPlan{}, &PlanError{Phase: "discovery", Cause: err}
 	}
 
+	targets, err := p.buildTargets(repoRoot, homeDir, runID, rawTargets)
+	if err != nil {
+		return InstallationPlan{}, err
+	}
+
+	rawActions, err := p.Catalog.ExternalActions(repoRoot, homeDir, opts)
+	if err != nil {
+		return InstallationPlan{}, &PlanError{Phase: "catalog", Cause: err}
+	}
+	actions := sortActions(rawActions)
+
+	plan := InstallationPlan{
+		RunID:           runID,
+		Options:         opts,
+		managedTargets:  cloneTargets(targets),
+		externalActions: cloneActions(actions),
+	}
+	fp, err := fingerprint(&plan)
+	if err != nil {
+		return InstallationPlan{}, &FingerprintError{Cause: err}
+	}
+	plan.Fingerprint = fp
+	return plan, nil
+}
+
+// StartRun allocates a run identity and freezes a deep copy of the accepted options.
+func (p *Planner) StartRun(opts Options) InstallationRun {
+	now := p.Clock.Now()
+	return InstallationRun{
+		RunID:   p.RunIDSource.Generate(now),
+		Options: cloneOptions(opts),
+	}
+}
+
+// BuildPackage constructs the repository-independent package phase plan.
+func (p *Planner) BuildPackage(run InstallationRun, homeDir string) (InstallationPlan, error) {
+	homeDir = filepath.Clean(homeDir)
+
+	phaseCatalog, ok := p.Catalog.(PhaseActionCatalog)
+	if !ok {
+		return InstallationPlan{}, &PlanError{Phase: "package-catalog", Cause: errors.New("catalog does not support phase actions")}
+	}
+
+	rawActions, err := phaseCatalog.PackageActions(homeDir, run.Options)
+	if err != nil {
+		return InstallationPlan{}, &PlanError{Phase: "package-catalog", Cause: err}
+	}
+	actions := sortActions(rawActions)
+
+	plan := InstallationPlan{
+		RunID:           run.RunID,
+		Options:         run.Options,
+		Role:            PlanRolePackage,
+		externalActions: cloneActions(actions),
+	}
+	fp, err := fingerprint(&plan)
+	if err != nil {
+		return InstallationPlan{}, &FingerprintError{Cause: err}
+	}
+	plan.Fingerprint = fp
+	return plan, nil
+}
+
+// BuildConfiguration constructs the repository-dependent configuration phase plan.
+func (p *Planner) BuildConfiguration(run InstallationRun, repoRoot, homeDir string) (InstallationPlan, error) {
+	repoRoot = filepath.Clean(repoRoot)
+	homeDir = filepath.Clean(homeDir)
+
+	phaseCatalog, ok := p.Catalog.(PhaseActionCatalog)
+	if !ok {
+		return InstallationPlan{}, &PlanError{Phase: "configuration-catalog", Cause: errors.New("catalog does not support phase actions")}
+	}
+
+	rawTargets, err := p.Discoverer.Discover(repoRoot, homeDir, run.Options)
+	if err != nil {
+		return InstallationPlan{}, &PlanError{Phase: "discovery", Cause: err}
+	}
+
+	targets, err := p.buildTargets(repoRoot, homeDir, run.RunID, rawTargets)
+	if err != nil {
+		return InstallationPlan{}, err
+	}
+
+	managedTargets := cloneTargets(targets)
+	rawActions, err := phaseCatalog.ConfigurationActions(repoRoot, homeDir, run.Options, managedTargets)
+	if err != nil {
+		return InstallationPlan{}, &PlanError{Phase: "configuration-catalog", Cause: err}
+	}
+	actions := sortActions(rawActions)
+
+	plan := InstallationPlan{
+		RunID:           run.RunID,
+		Options:         run.Options,
+		Role:            PlanRoleConfiguration,
+		managedTargets:  cloneTargets(targets),
+		externalActions: cloneActions(actions),
+	}
+	fp, err := fingerprint(&plan)
+	if err != nil {
+		return InstallationPlan{}, &FingerprintError{Cause: err}
+	}
+	plan.Fingerprint = fp
+	return plan, nil
+}
+
+func (p *Planner) buildTargets(repoRoot, homeDir, runID string, rawTargets []Target) ([]Target, error) {
 	// Index destinations so a target can be nested inside another represented directory.
 	destSet := make(map[string]struct{}, len(rawTargets))
 	for _, t := range rawTargets {
@@ -85,25 +192,25 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 
 		resolved, binding, err := buildSourceBinding(t.Source, t.Kind)
 		if err != nil {
-			return InstallationPlan{}, &PlanError{Phase: "source-check", Cause: err}
+			return nil, &PlanError{Phase: "source-check", Cause: err}
 		}
 		t.ResolvedSource = resolved
 		t.SourceDigest = binding.Digest
 		t.SourceBinding = binding
 		if err := validateDestinationParent(t.Destination, destSet, t.Kind); err != nil {
-			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: err}
+			return nil, &PlanError{Phase: "prerequisite", Cause: err}
 		}
 
 		if t.PreState.Type == "" {
 			pre, err := p.StateReader.Read(t.Destination)
 			if err != nil {
-				return InstallationPlan{}, &PlanError{Phase: "pre-state", Cause: err}
+				return nil, &PlanError{Phase: "pre-state", Cause: err}
 			}
 			t.PreState = pre
 		}
 
 		if t.Destination == homeDir {
-			return InstallationPlan{}, &PlanError{Phase: "prerequisite", Cause: fmt.Errorf("destination %q cannot be the home directory: the backup root would live inside the target", t.Destination)}
+			return nil, &PlanError{Phase: "prerequisite", Cause: fmt.Errorf("destination %q cannot be the home directory: the backup root would live inside the target", t.Destination)}
 		}
 
 		t.BackupPath = BackupPath(homeDir, runID, t.Destination)
@@ -111,17 +218,16 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 	}
 
 	if err := validateTargets(repoRoot, targets); err != nil {
-		return InstallationPlan{}, err
+		return nil, err
 	}
 
 	sort.Slice(targets, func(i, j int) bool {
 		return targets[i].Destination < targets[j].Destination
 	})
+	return targets, nil
+}
 
-	rawActions, err := p.Catalog.ExternalActions(repoRoot, homeDir, opts)
-	if err != nil {
-		return InstallationPlan{}, &PlanError{Phase: "catalog", Cause: err}
-	}
+func sortActions(rawActions []ExternalAction) []ExternalAction {
 	actions := make([]ExternalAction, len(rawActions))
 	copy(actions, rawActions)
 	sort.Slice(actions, func(i, j int) bool {
@@ -130,19 +236,7 @@ func (p *Planner) Build(repoRoot, homeDir string, opts Options) (InstallationPla
 		}
 		return actions[i].Description < actions[j].Description
 	})
-
-	plan := InstallationPlan{
-		RunID:           runID,
-		Options:         opts,
-		managedTargets:  cloneTargets(targets),
-		externalActions: cloneActions(actions),
-	}
-	fp, err := fingerprint(&plan)
-	if err != nil {
-		return InstallationPlan{}, &FingerprintError{Cause: err}
-	}
-	plan.Fingerprint = fp
-	return plan, nil
+	return actions
 }
 
 func validateDestinationParent(dest string, destSet map[string]struct{}, kind MutationKind) error {
