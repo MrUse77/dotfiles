@@ -35,10 +35,11 @@ Configuración personal para Arch Linux con Hyprland.
 
 - Arch Linux (o derivado)
 - Conexión a internet
-- `go` instalado (`sudo pacman -S go`)
 - `rofi-wayland` instalado (lanzador unificado)
 - Hack Nerd Font instalada (iconos y tipografía del menú)
 - Calculadora opcional: `rofi-calc-wayland` (o equivalente) junto con `libqalculate`
+
+> El flujo rápido no requiere Go ni Git: baja el binario ya compilado. La instalación manual de abajo sí necesita Go.
 
 ### Instalación rápida (un comando)
 
@@ -46,7 +47,7 @@ Configuración personal para Arch Linux con Hyprland.
 curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 ```
 
-Clona la **última release estable** (tag `vX.Y.Z`) en `~/.cache/dotfiles` (descartable; el repo es la fuente de verdad), **descarga el binario `moonarch-cli` publicado** en esa release (verificado por checksum, sin necesitar Go) y corre `moonarch-cli install` con sus confirmaciones interactivas. El binario clona su propia versión — nunca `main` (rama de desarrollo). Para desarrollo (compila con Go): `DOTFILES_BRANCH=main curl -fsSL ... | bash`. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
+Baja el binario `moonarch-cli` de la **última release estable** (verificado por checksum, sin Go ni Git) y corre `moonarch-cli install` con sus confirmaciones interactivas. El binario clona el repo en `~/.cache/dotfiles` si falta (siempre su propia versión, nunca `main`) e instala con backups y rollback. Para cambiar el destino del clon: `DOTFILES_DIR=~/otro/lugar moonarch-cli install`. Para desarrollo, usá la instalación manual de abajo.
 
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
@@ -67,10 +68,10 @@ Si ya clonaste sin ese flag:
 git submodule update --init --recursive
 ```
 
-### 2. Compilar el instalador
+### 2. Compilar el instalador (requiere Go: `sudo pacman -S go`)
 
 ```bash
-cd ~/dotfiles/cli
+cd ~/.cache/dotfiles/cli
 go build -o moonarch-cli .
 ```
 
