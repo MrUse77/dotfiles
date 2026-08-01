@@ -546,6 +546,9 @@ func validateBackupStat(stat *unix.Stat_t, component string, require0700 bool) e
 }
 
 func (t *Transaction) inventoryEntry(dest string) *InventoryEntry {
+	if t.inventory == nil {
+		return nil
+	}
 	for i := range t.inventory.Entries {
 		if t.inventory.Entries[i].Target.Destination == dest {
 			return &t.inventory.Entries[i]
@@ -1001,6 +1004,32 @@ func (t *Transaction) cleanupRuntimeSocketStage(err error, entry *InventoryEntry
 		_ = t.fs.RemoveAll(stage)
 	}
 	return incomplete
+}
+
+// RestoreTarget restores a single previously installed target to its
+// pre-install state using the retained backup. Targets that did not exist
+// before the install (StateAbsent) have their installed destination removed.
+// The retained backup is never deleted.
+func (t *Transaction) RestoreTarget(tgt plan.Target) error {
+	if tgt.PreState.Type == plan.StateAbsent {
+		exists, err := pathExists(t.fs, tgt.Destination)
+		if err != nil {
+			return fmt.Errorf("check destination: %w", err)
+		}
+		if exists {
+			if err := t.fs.RemoveAll(tgt.Destination); err != nil {
+				return fmt.Errorf("remove installed destination: %w", err)
+			}
+		}
+		return nil
+	}
+	if tgt.BackupPath == "" {
+		return fmt.Errorf("no backup path for %q", tgt.Destination)
+	}
+	if _, err := t.fs.Lstat(tgt.BackupPath); err != nil {
+		return fmt.Errorf("backup %q is not readable: %w", tgt.BackupPath, err)
+	}
+	return t.restoreFromBackup(tgt)
 }
 
 func (t *Transaction) restoreFromBackup(tgt plan.Target) error {

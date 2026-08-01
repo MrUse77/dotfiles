@@ -156,14 +156,15 @@ func TestTransaction_Prepare_DeterministicBackupLocation(t *testing.T) {
 
 	src := filepath.Join(repo, "src")
 	mustWriteFile(t, src, []byte("s"))
-	dest := filepath.Join(home, "target")
+	dest := filepath.Join(home, ".config", "target")
+	mustMkdir(t, filepath.Dir(dest))
 	mustWriteFile(t, dest, []byte("d"))
 
 	p := buildPlan(t, repo, home, []plan.Target{
 		{Source: src, Destination: dest, Kind: plan.CopyFile},
 	})
 	targets := p.ManagedTargets()
-	want := plan.BackupPath(filepath.Dir(dest), p.RunID, dest)
+	want := plan.BackupPath(home, p.RunID, dest)
 	if targets[0].BackupPath != want {
 		t.Errorf("BackupPath = %q, want %q", targets[0].BackupPath, want)
 	}

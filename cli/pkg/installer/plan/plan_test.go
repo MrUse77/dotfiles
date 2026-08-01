@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -397,7 +398,8 @@ func TestBuildPlan_DeterministicBackupPath(t *testing.T) {
 	mustWriteFile(t, src, []byte("x"))
 
 	runID := "20260712T120000Z-abc"
-	dest := filepath.Join(home, "target")
+	dest := filepath.Join(home, ".config", "target")
+	mustMkdirAll(t, filepath.Join(home, ".config"))
 	disc := &fakeDiscoverer{
 		targets: []Target{
 			{Source: src, Destination: dest, Kind: CopyFile},
@@ -412,9 +414,32 @@ func TestBuildPlan_DeterministicBackupPath(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	want := BackupPath(filepath.Dir(dest), runID, dest)
+	want := BackupPath(home, runID, dest)
 	if plan.managedTargets[0].BackupPath != want {
 		t.Errorf("BackupPath = %q, want %q", plan.managedTargets[0].BackupPath, want)
+	}
+}
+
+func TestBuildPlan_WholeHomeDestinationRejected(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	src := filepath.Join(repo, "config")
+	mustMkdirAll(t, src)
+	mustWriteFile(t, filepath.Join(src, "managed.conf"), []byte("x"))
+
+	disc := &fakeDiscoverer{
+		targets: []Target{
+			{Source: src, Destination: home, Kind: CopyTree},
+		},
+	}
+
+	_, err := New(WithDiscoverer(disc)).Build(repo, home, Options{})
+	if err == nil {
+		t.Fatal("expected whole-home destination to be rejected")
+	}
+	if !strings.Contains(err.Error(), "home directory") {
+		t.Errorf("error = %q, want mention of the home directory", err)
 	}
 }
 

@@ -112,15 +112,24 @@ The persisted inventory MUST contain a complete record of every managed target, 
 
 ### Requirement: Backup Path Isolation
 
-Backup paths MUST be located within a run-scoped directory that is isolated from the managed target destinations. The backup path derivation MUST be deterministic based on the run ID and destination. Backup paths MUST NOT be redirectable through symlinks at the backup root or intermediate components.
+Backup paths MUST be located within a single run-scoped root anchored at the user's home directory (`$HOME/.dots-backups/<runID>/`), regardless of each target's destination. Retained backups and the persisted inventory MUST NOT be scattered inside managed directories or next to their targets. The backup path derivation MUST be deterministic based on the run ID and destination. Backup paths MUST NOT be redirectable through symlinks at the backup root or intermediate components.
 
 #### Scenario: Backup path is inside run-scoped directory
 
 - GIVEN a managed target with destination `$HOME/.config/app/config.yml`
 - AND a run ID `20260713-abc123`
 - WHEN the system computes the backup path
-- THEN the backup path MUST be under a `.dots-backups/<runID>/` directory
+- THEN the backup path MUST be under `$HOME/.dots-backups/<runID>/`
 - AND the backup path MUST NOT overlap with any managed target destination
+
+#### Scenario: Nested target backup anchored at home
+
+- GIVEN a managed target with destination `$HOME/.config/hypr/hyprland.conf`
+- AND a managed root-level file with destination `$HOME/.zshrc`
+- AND a run ID `20260713-abc123`
+- WHEN the system computes both backup paths
+- THEN both backups MUST be under the same `$HOME/.dots-backups/<runID>/` root
+- AND neither backup SHALL be created inside `$HOME/.config/` or any other managed directory
 
 #### Scenario: Backup collision detected before mutation
 
