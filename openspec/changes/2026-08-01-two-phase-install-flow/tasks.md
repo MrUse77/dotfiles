@@ -243,7 +243,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write failing tests in `cli/cmd/repository_acquirer_test.go`:
+- [x] Write failing tests in `cli/cmd/repository_acquirer_test.go`:
   - Test `RepositoryRequest` struct with `Destination`, `Ref`, `URL` fields
   - Test `RepositoryAcquisition` struct with `Root`, `Destination`, `Ref` fields
   - Test `RepositoryAcquirer` interface with `Acquire(ctx, request, output)` method
@@ -256,19 +256,19 @@ RED:
   - Test local-Git integration coverage is skippable under `testing.Short()`
 
 GREEN:
-- [ ] Create `cli/cmd/repository_acquirer.go`
-- [ ] Add `RepositoryRequest` and `RepositoryAcquisition` types
-- [ ] Add `RepositoryAcquirer` interface
-- [ ] Implement read-only destination preflight
-- [ ] Implement production `RepositoryAcquirer` with context-aware Git command seam
-- [ ] Use frozen request instead of second environment lookup
-- [ ] Preserve existing clone contract (absent destination: clone; usable destination: fetch/checkout; non-repository: fail)
-- [ ] Run `cd cli && go test ./cmd/...`
+- [x] Create `cli/cmd/repository_acquirer.go`
+- [x] Add `RepositoryRequest` and `RepositoryAcquisition` types
+- [x] Add `RepositoryAcquirer` interface
+- [x] Implement read-only destination preflight
+- [x] Implement production `RepositoryAcquirer` with context-aware Git command seam
+- [x] Use frozen request instead of second environment lookup
+- [x] Preserve existing clone contract (absent destination: clone; usable destination: fetch/checkout; non-repository: fail)
+- [x] Run `cd cli && go test ./cmd/...`
 
 REFACTOR:
-- [ ] Extract from `install.go` if appropriate
-- [ ] Keep `ensureRepositoryClone` as narrow compatibility wrapper if needed
-- [ ] Remove `confirmAndInstallGit` branch from `runInstall`
+- [x] Extract from `install.go` if appropriate
+- [x] Keep `ensureRepositoryClone` as narrow compatibility wrapper if needed
+- [x] Remove `confirmAndInstallGit` branch from `runInstall`
 
 **Verification:** `cd cli && go test ./cmd/... -v`
 
@@ -285,7 +285,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write failing tests in `cli/pkg/installer/ui/review_test.go` and `cli/pkg/installer/ui/two_phase_test.go`:
+- [x] Write failing tests in `cli/pkg/installer/ui/review_test.go` and `cli/pkg/installer/ui/two_phase_test.go`:
   - Test `TwoPhaseReviewDetails` struct with `RepositoryDestination` and `RepositoryRef`
   - Test `ReviewPackagePlanWithContext` displays all Phase A actions and irreversible classifications
   - Test review shows frozen repository destination and ref
@@ -299,17 +299,17 @@ RED:
   - Test cancellation before config execution produces no transaction
 
 GREEN:
-- [ ] Add `TwoPhaseReviewDetails` struct to `cli/pkg/installer/ui/review.go`
-- [ ] Implement `ReviewPackagePlanWithContext` reusing Bubble Tea review mechanics
-- [ ] Create `cli/pkg/installer/ui/two_phase.go`
-- [ ] Implement `DisplayConfigurationPlan` as output-only function
-- [ ] Add phase-status formatting helpers
-- [ ] Test Bubble Tea behavior via direct `Model.Update()` state transitions
-- [ ] Run `cd cli && go test ./pkg/installer/ui/...`
+- [x] Add `TwoPhaseReviewDetails` struct to `cli/pkg/installer/ui/review.go`
+- [x] Implement `ReviewPackagePlanWithContext` reusing Bubble Tea review mechanics
+- [x] Create `cli/pkg/installer/ui/two_phase.go`
+- [x] Implement `DisplayConfigurationPlan` as output-only function
+- [x] Add phase-status formatting helpers
+- [x] Test Bubble Tea behavior via direct `Model.Update()` state transitions
+- [x] Run `cd cli && go test ./pkg/installer/ui/...`
 
 REFACTOR:
-- [ ] Ensure legacy `RunWithContext` contract is unchanged
-- [ ] Document the difference between review and display
+- [x] Ensure legacy `RunWithContext` contract is unchanged
+- [x] Document the difference between review and display
 
 **Verification:** `cd cli && go test ./pkg/installer/ui/... -v`
 
@@ -324,7 +324,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write failing tests in `cli/cmd/install_report_test.go`:
+- [x] Write failing tests in `cli/cmd/install_report_test.go`:
   - Test `printTwoPhaseExecutionReport` labels each phase and both plan fingerprints
   - Test emits `completed` only when all applicable phases complete
   - Test identifies package/acquisition/configuration primary failure without discarding earlier outcomes
@@ -335,14 +335,14 @@ RED:
   - Test existing `printExecutionReport` tests continue to pass
 
 GREEN:
-- [ ] Create `cli/cmd/install_report.go`
-- [ ] Implement `printTwoPhaseExecutionReport` function
-- [ ] Leave existing `printExecutionReport` unchanged
-- [ ] Run `cd cli && go test ./cmd/...`
+- [x] Create `cli/cmd/install_report.go`
+- [x] Implement `printTwoPhaseExecutionReport` function
+- [x] Leave existing `printExecutionReport` unchanged
+- [x] Run `cd cli && go test ./cmd/...`
 
 REFACTOR:
-- [ ] Ensure output is clear and actionable
-- [ ] Verify no false rollback wording
+- [x] Ensure output is clear and actionable
+- [x] Verify no false rollback wording
 
 **Verification:** `cd cli && go test ./cmd/... -v`
 
@@ -357,7 +357,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write failing tests in `cli/cmd/install_flow_test.go`:
+- [x] Write failing tests in `cli/cmd/install_flow_test.go`:
   - Test `runInstallWithDeps` accepts injected dependencies for deterministic testing
   - Test `runExistingCloneInstall` uses legacy helper only
   - Test `runMissingCloneInstall` uses two-phase helper
@@ -369,18 +369,18 @@ RED:
   - Test coordinator data flow: locator + preflight → menu → frozen run + request → package plan → acceptance → executor → acquirer → config plan → display → transaction → aggregate report
 
 GREEN:
-- [ ] Create `cli/cmd/install_flow.go`
-- [ ] Add `runInstallWithDeps` with phase interfaces/factories and dependency injection
-- [ ] Implement `runExistingCloneInstall` helper preserving current code path
-- [ ] Implement `runMissingCloneInstall` coordinator with explicit phase boundaries
-- [ ] Ensure coordinator stops at every phase boundary (package failure, acquisition failure, config planning/display cancellation, managed transaction failure, Phase-B external failure)
-- [ ] Use `ExternalOnlyExecutor` for Phase B with no managed targets
-- [ ] Report configuration transaction as `not required` when no targets
-- [ ] Run `cd cli && go test ./cmd/...`
+- [x] Create `cli/cmd/install_flow.go`
+- [x] Add `runInstallWithDeps` with phase interfaces/factories and dependency injection
+- [x] Implement `runExistingCloneInstall` helper preserving current code path
+- [x] Implement `runMissingCloneInstall` coordinator with explicit phase boundaries
+- [x] Ensure coordinator stops at every phase boundary (package failure, acquisition failure, config planning/display cancellation, managed transaction failure, Phase-B external failure)
+- [x] Use `ExternalOnlyExecutor` for Phase B with no managed targets
+- [x] Report configuration transaction as `not required` when no targets
+- [x] Run `cd cli && go test ./cmd/...`
 
 REFACTOR:
-- [ ] Ensure phase boundaries are explicit and testable
-- [ ] Document the coordinator's stop conditions
+- [x] Ensure phase boundaries are explicit and testable
+- [x] Document the coordinator's stop conditions
 
 **Verification:** `cd cli && go test ./cmd/... -v`
 
@@ -395,7 +395,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write/update failing tests in `cli/cmd/install_test.go`:
+- [x] Write/update failing tests in `cli/cmd/install_test.go`:
   - Test `runInstall` routes through `runInstallWithDeps` with production dependencies
   - Test keep Cobra registration, repository helpers, and `installDiscoverer`
   - Test remove direct pre-menu clone
@@ -403,16 +403,16 @@ RED:
   - Test existing tests continue to pass
 
 GREEN:
-- [ ] Modify `cli/cmd/install.go` to route `runInstall` through `runInstallWithDeps`
-- [ ] Keep Cobra registration, repository helpers, and `installDiscoverer`
-- [ ] Remove direct pre-menu clone path
-- [ ] Remove `confirmAndInstallGit` call from `runInstall`
-- [ ] Keep `ensureRepositoryClone` as compatibility wrapper if needed
-- [ ] Run `cd cli && go test ./cmd/...`
+- [x] Modify `cli/cmd/install.go` to route `runInstall` through `runInstallWithDeps`
+- [x] Keep Cobra registration, repository helpers, and `installDiscoverer`
+- [x] Remove direct pre-menu clone path
+- [x] Remove `confirmAndInstallGit` call from `runInstall`
+- [x] Keep `ensureRepositoryClone` as compatibility wrapper if needed
+- [x] Run `cd cli && go test ./cmd/...`
 
 REFACTOR:
-- [ ] Ensure backward compatibility
-- [ ] Clean up any dead code
+- [x] Ensure backward compatibility
+- [x] Clean up any dead code
 
 **Verification:** `cd cli && go test ./cmd/... -v`
 
@@ -427,7 +427,7 @@ REFACTOR:
 **Strict TDD:**
 
 RED:
-- [ ] Write failing end-to-end tests using injected fakes:
+- [x] Write failing end-to-end tests using injected fakes:
   - Test clean machine (no Git, no clone): menu shown, package phase runs base tools first, repository acquired, config plan displayed, managed transaction executes
   - Test Git present, no clone: same two-phase route
   - Test existing clone: legacy single-plan flow unchanged
@@ -442,14 +442,14 @@ RED:
   - Test event log proves no command probe calls before acceptance
 
 GREEN:
-- [ ] Implement fake `CommandRunner`, `RepositoryAcquirer`, `Executor`, and `Transaction`
-- [ ] Build event log to track invocation order
-- [ ] Run all scenarios
-- [ ] Run `cd cli && go test ./cmd/... -v`
+- [x] Implement fake `CommandRunner`, `RepositoryAcquirer`, `Executor`, and `Transaction`
+- [x] Build event log to track invocation order
+- [x] Run all scenarios
+- [x] Run `cd cli && go test ./cmd/... -v`
 
 REFACTOR:
-- [ ] Ensure fakes are reusable
-- [ ] Document the test scenarios
+- [x] Ensure fakes are reusable
+- [x] Document the test scenarios
 
 **Verification:** `cd cli && go test ./cmd/... -v`
 
@@ -462,16 +462,16 @@ REFACTOR:
 - `cd cli && go test ./...`
 
 **Acceptance criteria:**
-- [ ] All existing tests pass
-- [ ] All new tests pass
-- [ ] Code compiles without errors
-- [ ] Route selection works correctly (existing clone → single-plan, no clone → two-phase)
-- [ ] Pre-acceptance is read-only (no mutation, no command execution)
-- [ ] Single consent authorizes both phases
-- [ ] Phase boundaries are enforced (package failure stops acquisition/config, acquisition failure stops config)
-- [ ] Aggregate reporting is truthful (no false rollback claims, no false success labels)
-- [ ] Existing-clone behavior is unchanged
-- [ ] End-to-end flow tests pass with fakes
+- [x] All existing tests pass
+- [x] All new tests pass
+- [x] Code compiles without errors
+- [x] Route selection works correctly (existing clone → single-plan, no clone → two-phase)
+- [x] Pre-acceptance is read-only (no mutation, no command execution)
+- [x] Single consent authorizes both phases
+- [x] Phase boundaries are enforced (package failure stops acquisition/config, acquisition failure stops config)
+- [x] Aggregate reporting is truthful (no false rollback claims, no false success labels)
+- [x] Existing-clone behavior is unchanged
+- [x] End-to-end flow tests pass with fakes
 
 **Rollback boundary:** Revert changes to `install.go`, `install_flow.go`, `repository_acquirer.go`, `install_report.go`, and their test files. Work unit 1 remains intact.
 
