@@ -40,6 +40,18 @@ Configuración personal para Arch Linux con Hyprland.
 - Hack Nerd Font instalada (iconos y tipografía del menú)
 - Calculadora opcional: `rofi-calc-wayland` (o equivalente) junto con `libqalculate`
 
+### Instalación rápida (un comando)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
+```
+
+Clona el repo en `~/dotfiles` (con submódulos), compila el instalador y corre `moonarch install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
+
+> La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
+
+### Instalación manual
+
 ### 1. Clonar el repo
 
 ```bash
@@ -65,7 +77,7 @@ go build -o dots
 ### 3. Correr el instalador
 
 ```bash
-./dots install
+./moonarch install
 ```
 
 El instalador va a preguntarte interactivamente:
@@ -140,8 +152,8 @@ To return to a known-good bundle, select its name with the same selector command
 ## CLI: comandos disponibles
 
 ```bash
-./dots install       # Instalador interactivo completo
-./dots help          # Ver todos los comandos
+./moonarch install       # Instalador interactivo completo
+./moonarch help          # Ver todos los comandos
 ```
 
 ---
@@ -219,7 +231,7 @@ git submodule status
 git clone --recurse-submodules https://github.com/MrUse77/dotfiles.git ~/dotfiles
 cd ~/dotfiles/cli
 go build -o dots
-./dots install
+./moonarch install
 ```
 
 ## Sincronizar cambios desde otra máquina
