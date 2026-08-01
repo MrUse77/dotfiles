@@ -56,6 +56,11 @@ jobs:
               | grep -E '^\- (feat|fix)' | head -50 || true
           } > /tmp/changelog.md
 
+      - name: Generate checksums
+        run: |
+          cd cli/dist
+          sha256sum moonarch-cli-* > SHA256SUMS.txt
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,4 +68,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --notes-file /tmp/changelog.md \
-            cli/dist/moonarch-cli-*
+            cli/dist/moonarch-cli-* cli/dist/SHA256SUMS.txt
