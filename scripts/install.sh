@@ -5,18 +5,15 @@
 # Uso:
 #   curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 #
-# Por defecto instala la última release estable (tag vX.Y.Z): clona el repo
-# en ~/.cache/dotfiles y baja el binario publicado de la release (sin Go).
-#
-# Variables de entorno (opcionales):
-#   DOTFILES_DIR     directorio destino (default: $HOME/.cache/dotfiles)
-#   DOTFILES_REPO    URL del repo (default: https://github.com/MrUse77/dotfiles.git)
-#   DOTFILES_BRANCH  rama para desarrollo (override; compila con Go, versión dev)
+# Baja el binario moonarch-cli de la última release estable (con verificación
+# de checksum) y lo ejecuta. El binario se encarga del resto: clona el repo
+# en ~/.cache/dotfiles si falta, instala los dotfiles y deja los backups.
+# No requiere Go ni Git.
 #
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.cache/dotfiles}"
-DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/MrUse77/dotfiles.git}"
+REPO="MrUse77/dotfiles"
+API="https://api.github.com/repos/${REPO}"
 
 say() { printf '\033[1;34m[dots]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[dots]\033[0m error: %s\n' "$*" >&2; exit 1; }
@@ -27,15 +24,12 @@ require() {
   fi
 }
 
-# latest_release prints the highest SemVer tag (vMAJOR.MINOR.PATCH) of the
-# repository. The installer always targets the last stable release, never
-# the development branch.
+# latest_release returns the tag of the newest non-draft, non-prerelease
+# release of the repository.
 latest_release() {
-  git ls-remote --tags --refs "$DOTFILES_REPO" 2>/dev/null \
-    | sed 's|.*refs/tags/||' \
-    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
-    | sort -V \
-    | tail -n 1
+  curl -fsSL "${API}/releases/latest" \
+    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' \
+    | head -n 1
 }
 
 # install_release_binary downloads the release binary for the host
@@ -52,7 +46,7 @@ install_release_binary() {
 
   mkdir -p "$HOME/.local/bin"
   local bin="$HOME/.local/bin/moonarch-cli"
-  local base="https://github.com/MrUse77/dotfiles/releases/download/${REF}"
+  local base="https://github.com/${REPO}/releases/download/${REF}"
   local file="moonarch-cli-linux-${arch}"
 
   say "Descargando moonarch-cli ${REF} (linux/${arch})..."
@@ -80,43 +74,13 @@ install_release_binary() {
 }
 
 main() {
-  local dev_build=0
-  if [ -n "${DOTFILES_BRANCH:-}" ]; then
-    REF="$DOTFILES_BRANCH"
-    dev_build=1
-  else
-    REF="$(latest_release)"
-    if [ -z "$REF" ]; then
-      die "no se encontró ninguna release (tag vX.Y.Z) en $DOTFILES_REPO"
-    fi
-    say "Usando la última release: $REF"
+  REF="$(latest_release)"
+  if [ -z "$REF" ]; then
+    die "no se pudo determinar la última release de ${REPO}"
   fi
+  say "Usando la última release: $REF"
 
-  say "Instalador de dotfiles (MrUse77)"
-  say "Directorio: $DOTFILES_DIR | Ref: $REF"
-
-  require git "git"
-
-  if [ -d "$DOTFILES_DIR/.git" ]; then
-    say "Actualizando el clon existente en $DOTFILES_DIR..."
-    git -C "$DOTFILES_DIR" fetch origin "$REF"
-    git -C "$DOTFILES_DIR" checkout --force --detach FETCH_HEAD
-    git -C "$DOTFILES_DIR" submodule update --init --recursive
-  elif [ -e "$DOTFILES_DIR" ]; then
-    die "$DOTFILES_DIR ya existe pero no es un clon de dotfiles. Movelo o borralo y volvé a intentar."
-  else
-    say "Clonando $DOTFILES_REPO en $DOTFILES_DIR..."
-    git clone --recurse-submodules --branch "$REF" "$DOTFILES_REPO" "$DOTFILES_DIR"
-  fi
-
-  if [ "$dev_build" = "1" ]; then
-    require go "go"
-    say "Modo desarrollo: compilando moonarch-cli desde $REF..."
-    mkdir -p "$HOME/.local/bin"
-    (cd "$DOTFILES_DIR/cli" && go build -o "$HOME/.local/bin/moonarch-cli" .)
-  else
-    install_release_binary
-  fi
+  install_release_binary
 
   say "Ejecutando 'moonarch-cli install'..."
   # Bajo 'curl | bash' el stdin es el pipe de curl, que ya se cerró: el menú
