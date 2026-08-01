@@ -1,63 +1,92 @@
-# Apply Progress: Two-Phase Install Flow — Work Unit 2
+# Apply Progress — 2026-08-01-two-phase-install-flow
 
-## Status
+Strict TDD evidence. Test runner: `cd cli && go test ./...`.
 
-- Work Unit: 2 of 2
-- Scope: `feat(cli): orchestrate missing-clone installs in two phases` — command routing, repository acquisition, single-consent UI, phase-aware reporting, and end-to-end flow tests
-- All Work Unit 2 tasks implemented and verified
-- Work Unit 1 remains intact and passing
-- Last test run: `cd cli && go test ./...` — PASS
+## Work Unit 1 — feat(installer): phase-scoped plans and bootstrap execution
 
-## TDD Cycle Evidence
+### 1.1 PlanRole + InstallationRun (plan package)
 
-| Task | RED test | GREEN implementation | Test command / result |
-|------|----------|---------------------|----------------------|
-| 2.1 Repository Acquirer | `TestRepositoryRequest_Fields`, `TestRepositoryAcquisition_Fields`, `TestRepositoryAcquirer_Interface`, `TestPreflightRepositoryDestination_*`, `TestAcquire_*`, `TestBuildRepositoryRequest_*`, `TestEnsureRepositoryClone_WrapperStillWorks` | Created `cli/cmd/repository_acquirer.go` with `RepositoryRequest`, `RepositoryAcquisition`, `RepositoryAcquirer`, read-only `PreflightRepositoryDestination`, context-aware Git runner, and `BuildRepositoryRequest` | `cd cli && go test ./cmd -run 'TestRepository|TestPreflight|TestAcquire|TestBuildRepository|TestEnsureRepository' -v` PASS |
-| 2.2 Two-Phase UI | `TestTwoPhaseReviewDetails_Fields`, `TestPackageReviewModel_*`, `TestReviewPackagePlanWithContext_*`, `TestDisplayConfigurationPlan_*` | Created `cli/pkg/installer/ui/two_phase.go` with `TwoPhaseReviewDetails`, `PackageReviewModel`, `ReviewPackagePlanWithContext`, and `DisplayConfigurationPlan` | `cd cli && go test ./pkg/installer/ui -v` PASS |
-| 2.3 Aggregate Report Printer | `TestPrintTwoPhaseExecutionReport_*`, `TestExistingPrintExecutionReport_Unchanged` | Created `cli/cmd/install_report.go` with `printTwoPhaseExecutionReport` | `cd cli && go test ./cmd -run 'TestPrint|TestExistingPrint' -v` PASS |
-| 2.4 Phase Routing | `TestRunInstallWithDeps_RoutesExistingCloneToLegacyFlow`, `TestRunInstallWithDeps_RoutesMissingCloneToTwoPhaseFlow`, `TestRunInstallWithDeps_RouteIsReevaluatedPerInvocation`, `TestRunInstallWithDeps_PackageFailureStopsBeforeAcquisition`, `TestRunInstallWithDeps_AcquisitionFailureStopsBeforeConfiguration`, `TestRunInstallWithDeps_MenuAndReviewBeforeAnyMutation`, `TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction`, `TestRunInstallWithDeps_ConfigurationWithNoManagedTargetsUsesExternalOnlyExecutor`, `TestRunInstallWithDeps_ContextCancelledBeforeConfigurationProducesNoTransaction` | Created `cli/cmd/install_flow.go` with `runInstallWithDeps`, `runExistingCloneInstall`, `runMissingCloneInstall`, injectable dependencies, and phase boundaries | `cd cli && go test ./cmd -v` PASS |
-| 2.5 Install.go Routing | `TestRunInstallWithDeps_*` (route through production deps), `TestExistingPrintExecutionReport_Unchanged`, `TestResolveRepositoryRoot_*` | Modified `cli/cmd/install.go` to route through `runInstallWithDeps`; removed `confirmAndInstallGit` and direct pre-menu clone; kept `installCmd`, `installDiscoverer`, repository helpers | `cd cli && go test ./cmd -v` PASS |
-| 2.6 End-to-End Fakes | `TestRunInstallWithDeps_*` (event-log, ordering, pre-acceptance read-only, rollback, cancellation, retry) | Implemented `eventLog`, fake locator/menu/review/acquirer/executors/runners/planners in `cli/cmd/install_flow_test.go` | `cd cli && go test ./cmd -v` PASS |
-| 2.7 Work Unit 2 Verification | All existing + new tests pass | — | `cd cli && go test ./...` PASS |
+- ✅ Written (RED): `TestPlanRoleConstants`, `TestInstallationRun_HoldsRunIDAndOptionsSnapshot`, `TestInstallationPlan_RoleIncorporatedIntoFingerprint` (`cli/pkg/installer/plan/plan_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/plan/...`
+- ✅ Triangulation: role-empty legacy fingerprint stability + role-incorporated fingerprint; run snapshot immutability against options mutation.
 
-## Files Changed
+### 1.2 PhaseActionCatalog contract
 
-- `cli/cmd/install.go` — route through `runInstallWithDeps`; removed `confirmAndInstallGit` and direct pre-menu clone
-- `cli/cmd/install_flow.go` — new coordinator, dependency injection, legacy and two-phase helpers
-- `cli/cmd/install_flow_test.go` — end-to-end flow tests with fakes and event log
-- `cli/cmd/repository_acquirer.go` — new repository acquisition types, preflight, and production acquirer
-- `cli/cmd/repository_acquirer_test.go` — acquisition tests and local-Git integration
-- `cli/cmd/install_report.go` — new aggregate `printTwoPhaseExecutionReport`
-- `cli/cmd/install_report_test.go` — aggregate report tests
-- `cli/pkg/installer/ui/two_phase.go` — new `TwoPhaseReviewDetails`, `PackageReviewModel`, `ReviewPackagePlanWithContext`, `DisplayConfigurationPlan`
-- `cli/pkg/installer/ui/two_phase_test.go` — two-phase UI tests
-- `openspec/changes/2026-08-01-two-phase-install-flow/tasks.md` — Work Unit 2 checkboxes marked complete
-- `openspec/changes/2026-08-01-two-phase-install-flow/apply-progress.md` — this merged progress
+- ✅ Written (RED): `TestPhaseActionCatalogContract`, `TestPlanner_PhaseBuildsRequirePhaseCatalog` (`cli/pkg/installer/plan/plan_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/plan/...`
+- ✅ Triangulation: missing phase catalog rejected; provided catalog accepted.
 
-## Deviations from Design
+### 1.3 Planner StartRun / BuildPackage / BuildConfiguration
 
-- `TwoPhaseReviewDetails` was placed in `ui/two_phase.go` instead of `ui/review.go`; the struct is exported and reachable by the same package.
-- The production package planner uses `installer.NewActionCatalogWithParu(installer.DetectParu())` (no power-profile probe) so no `systemctl` command runs before acceptance.
-- Configuration planning with no managed targets uses the existing `ExternalOnlyExecutor` and reports `TransactionNotRequired`.
-- `installDependencies` includes `legacyExecutor`, `packageExecutor`, `configExecutor`, `runner`, and `programRunner` for deterministic tests.
+- ✅ Written (RED): `TestPlanner_StartRun_*`, `TestPlanner_BuildPackage_NoDiscoveryOrStateRead`, `TestPlanner_BuildConfiguration_FromDiscoveredSource`, `TestPlanner_PhasePlansShareRunIDAndOptionsButHaveDistinctFingerprints`, `TestPlanner_PhasePlanImmutableAgainstInputMutation` (`cli/pkg/installer/plan/plan_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/plan/...`
+- ✅ Triangulation: package plan never touches discoverer/state reader; two phase plans share run/options but differ in fingerprint; input mutation cannot alter a reviewed plan.
 
-## Remaining Work
+### 1.4 Catalog PackageActions / ConfigurationActions
 
-- None. Work Unit 2 is complete. Verify is next; archive follows after verification.
+- ✅ Written (RED): `TestActionCatalog_PackageActions_*`, `TestActionCatalog_ConfigurationActions_*`, `TestActionCatalog_PhaseListsAreDisjoint`, `TestActionCatalog_ExternalActionsUnchanged` (`cli/pkg/installer/catalog_phase_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/...`
+- ✅ Triangulation: disjoint ownership (submodules → acquisition; zsh mkdir → configuration when a managed target owns `~/.config/zsh`); legacy `ExternalActions` unchanged.
 
-## PR Boundary
+### 1.5 ExternalOnlyExecutor
 
-- **PR 1** (previous unit): `feat(installer): phase-scoped plans and bootstrap execution` — planner/catalog partition, `ExternalOnlyExecutor`, aggregate report types.
-- **PR 2** (this unit): `feat(cli): orchestrate missing-clone installs in two phases` — wired routing, repository acquisition, single-consent UI, aggregate report printer, end-to-end flow tests.
-- Chain strategy: `stacked-to-main` (per cached delivery strategy).
+- ✅ Written (RED): `TestExternalOnlyExecutor_*` (`cli/pkg/installer/executor_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/...`
+- ✅ Triangulation: reports completed/failed/skipped in reviewed order; rejects managed targets; never creates a managed executor; legacy `Executor.Execute` ordering tests still pass.
 
-## Risks
+### 1.6 Two-phase report types + ExecutionReport.InventoryPath
 
-- Legacy route regression: covered by existing `cli/cmd/install_test.go` tests and new `TestRunInstallWithDeps_RoutesExistingCloneToLegacyFlow`.
-- Pre-acceptance mutation: covered by event-log tests and `TestNewInstallPackagePlanner_DoesNotCallDetectPowerProfiles`.
-- Phase boundary leakage: covered by failure-injection tests (package failure, acquisition failure, cancellation).
-- Aggregate report truthfulness: covered by `TestPrintTwoPhaseExecutionReport_*` and failure-injection tests.
+- ✅ Written (RED): `TestTwoPhaseOutcomeConstants`, `TestInstallPhaseConstants`, `TestPhaseStateConstants`, `TestTransactionStateConstants`, `TestTwoPhaseExecutionReport_Struct`, `TestExecutionReport_InventoryPathField` (`cli/pkg/installer/report/two_phase_test.go`, `cli/pkg/installer/report/report_test.go`)
+- ✅ Passed (GREEN): `go test ./pkg/installer/report/... ./pkg/installer/transaction/...`
+- ✅ Triangulation: two-phase states distinct; inventory path populated by the transaction report builder.
 
-## Previous Work Unit 1 Progress
+### 1.7 Safety Net (Work Unit 1)
 
-The Work Unit 1 progress is merged into this file. Work Unit 1 remains intact; all its tests continue to pass.
+- ✅ Passed: full regression `cd cli && go test ./...` — all packages green.
+
+## Work Unit 2 — feat(cli): orchestrate missing-clone installs in two phases
+
+### 2.1 Repository acquisition (repository_acquirer.go)
+
+- ✅ Written (RED): `TestRepositoryAcquirer_*` (`cli/cmd/repository_acquirer_test.go`): frozen version/dev/override ref reaches the Git seam; recursive submodules; conflict directory retained; acquisition failure performs no cleanup; no Git lookup controls route choice.
+- ✅ Passed (GREEN): `go test ./cmd -run TestRepositoryAcquirer`
+- ✅ Triangulation: version/dev/override refs; clone vs update of existing clone; local-Git integration under `testing.Short()`.
+
+### 2.2 Route selection + error boundary (repositoryLocator)
+
+- ✅ Written (RED): `TestRepositoryLocator_PropagatesLookupErrors`, `TestRepositoryLocator_AbsenceIsNotAnError` (`cli/cmd/install_flow_test.go`) — a lookup error must propagate, never convert into the mutating missing-clone route.
+- ✅ Passed (GREEN): `go test ./cmd -run TestRepositoryLocator` + `TestResolveRepositoryRoot` (sentinel `ErrRepositoryNotFound`; missing candidates are absence, not errors).
+- ✅ Triangulation: absent repo → `Found:false, nil`; unreadable/non-directory start → error; existing clone → `Found:true`.
+
+### 2.3 runInstallWithDeps routing + single consent
+
+- ✅ Written (RED): `TestRunInstallWithDeps_Routes*` (`cli/cmd/install_flow_test.go`): existing clone uses only the legacy helper; no clone selects the two-phase helper regardless of Git availability; route re-evaluated per invocation; event log proves menu/review occur before runner/acquirer/transaction calls; decline invokes no phase.
+- ✅ Passed (GREEN): `go test ./cmd -run TestRunInstallWithDeps`
+- ✅ Triangulation: consent decline vs accept; existing vs missing routes; configuration display has no second confirmation.
+
+### 2.4 Two-phase UI display (ui/two_phase.go)
+
+- ✅ Written (RED): `TestTwoPhase*` (`cli/pkg/installer/ui/two_phase_test.go`): initial screen includes irreversible Phase-A actions, destination/ref, deferred targets/actions, rollback disclosure; configuration display is output-only (no confirmation transition/input).
+- ✅ Passed (GREEN): `go test ./pkg/installer/ui/...`
+- ✅ Triangulation: phase-status formatting; direct `Model.Update()` state transitions.
+
+### 2.5 Aggregate reporting (install_report.go)
+
+- ✅ Written (RED): `TestPrintTwoPhaseExecutionReport*` (`cli/cmd/install_report_test.go`): full success contains two fingerprints and inventory; package/acquisition failures are incomplete rather than successful; no transaction means no inventory; configuration rollback names managed-only recovery.
+- ✅ Passed (GREEN): `go test ./cmd -run TestPrintTwoPhaseExecutionReport`
+- ✅ Triangulation: success, package failure, acquisition failure, config rollback.
+
+### 2.6 Configuration phase reuses the existing transaction
+
+- ✅ Written (RED): `TestRunInstallWithDeps_ConfigPhase*` (`cli/cmd/install_flow_test.go`): config planner receives the acquired root and accepted snapshot; Phase-A actions never appear in Phase B; managed failures retain existing rollback/inventory; Phase-B external failure reported without claiming package/clone rollback.
+- ✅ Passed (GREEN): `go test ./cmd -run TestRunInstallWithDeps` + existing `./pkg/installer/transaction/...` regression suite.
+- ✅ Triangulation: rollback and restore tests unchanged and passing.
+
+### 2.7 Safety Net (Work Unit 2)
+
+- ✅ Passed: full regression `cd cli && go test ./...` — all packages green; `go vet ./...` clean; `gofmt -l` empty.
+
+## Verify remediation (post-verify blockers)
+
+- CRITICAL route-selection defect fixed with RED tests first: `TestRepositoryLocator_PropagatesLookupErrors` failed before the `ErrRepositoryNotFound` sentinel and error propagation in `resolveRepositoryRoot`/`Locate`; all green after.
+- Full suite re-run after remediation: `cd cli && go test ./...` PASS.

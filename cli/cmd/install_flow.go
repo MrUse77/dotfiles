@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,7 +40,12 @@ func (repositoryLocator) Locate(startDir string) (RepositoryState, error) {
 	if err == nil {
 		return RepositoryState{Root: root, Found: true}, nil
 	}
-	return RepositoryState{Found: false}, nil
+	if errors.Is(err, ErrRepositoryNotFound) {
+		return RepositoryState{Found: false}, nil
+	}
+	// A lookup error is neither proof of absence nor a safe basis for the
+	// mutating missing-clone flow: propagate it.
+	return RepositoryState{}, err
 }
 
 // PhaseExecutor runs a phase plan and returns a per-phase execution report.

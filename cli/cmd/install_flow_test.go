@@ -770,3 +770,33 @@ var _ = transaction.New(plan.InstallationPlan{})
 var _ = external.NewRunner(nil)
 var _ = menu.Category{}
 var _ = tea.KeyMsg{}
+
+func TestRepositoryLocator_PropagatesLookupErrors(t *testing.T) {
+	// A start directory that is a regular file is not a repository, but the
+	// lookup failure is a real error, not proof of absence: it must propagate
+	// so the missing-clone (mutating) flow never runs on lookup errors.
+	notADir := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(notADir, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	loc := repositoryLocator{}
+	if _, err := loc.Locate(notADir); err == nil {
+		t.Fatal("Locate() error = nil, want propagation of the lookup error")
+	}
+}
+
+func TestRepositoryLocator_AbsenceIsNotAnError(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", "")
+
+	loc := repositoryLocator{}
+	state, err := loc.Locate(t.TempDir())
+	if err != nil {
+		t.Fatalf("Locate() error = %v, want nil for absence", err)
+	}
+	if state.Found {
+		t.Error("Found = true, want false when no repository exists anywhere")
+	}
+}
