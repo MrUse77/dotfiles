@@ -82,6 +82,7 @@ const ManualRecoveryNextAction = "inspect named inventory and retained artifacts
 // ExecutionReport is the immutable, typed result of an installation attempt.
 type ExecutionReport struct {
 	Fingerprint        string
+	InventoryPath      string
 	ManagedTargets     []TargetOutcome
 	ExternalActions    []ActionOutcome
 	BackupPaths        []string
@@ -90,6 +91,79 @@ type ExecutionReport struct {
 	RecoveryState      RecoveryState
 	RecoveryArtifacts  []RecoveryArtifact
 	RecoveryNextAction string
+}
+
+// AttemptOutcome is the aggregate result of a two-phase installation attempt.
+type AttemptOutcome string
+
+const (
+	OutcomeCompleted  AttemptOutcome = "completed"
+	OutcomeIncomplete AttemptOutcome = "incomplete"
+	OutcomeFailed     AttemptOutcome = "failed"
+	OutcomeCancelled  AttemptOutcome = "cancelled"
+)
+
+// InstallPhase identifies one phase of a two-phase installation.
+type InstallPhase string
+
+const (
+	PhasePackage       InstallPhase = "package"
+	PhaseRepository    InstallPhase = "repository"
+	PhaseConfiguration InstallPhase = "configuration"
+)
+
+// PhaseState is the state of a single phase within a two-phase installation.
+type PhaseState string
+
+const (
+	PhaseNotStarted PhaseState = "not-started"
+	PhaseCompleted  PhaseState = "completed"
+	PhaseFailed     PhaseState = "failed"
+	PhaseSkipped    PhaseState = "skipped"
+	PhaseCancelled  PhaseState = "cancelled"
+)
+
+// TransactionState is the state of the managed transaction in the configuration phase.
+type TransactionState string
+
+const (
+	TransactionNotStarted  TransactionState = "not-started"
+	TransactionStarted     TransactionState = "started"
+	TransactionCompleted   TransactionState = "completed"
+	TransactionNotRequired TransactionState = "not-required"
+)
+
+// PhaseExecution is the result of a single phase that produced an execution report.
+type PhaseExecution struct {
+	State           PhaseState
+	PlanFingerprint string
+	Report          *ExecutionReport
+}
+
+// ConfigurationExecution extends PhaseExecution with the managed transaction state.
+type ConfigurationExecution struct {
+	PhaseExecution
+	TransactionState TransactionState
+	InventoryPath    string
+}
+
+// RepositoryExecution records the result of repository acquisition.
+type RepositoryExecution struct {
+	State       PhaseState
+	Destination string
+	Ref         string
+	Cause       error
+}
+
+// TwoPhaseExecutionReport is the aggregate result of a package phase, repository
+// acquisition, and configuration phase that share a single run identity.
+type TwoPhaseExecutionReport struct {
+	RunID              string
+	Outcome            AttemptOutcome
+	PrimaryFailedPhase InstallPhase
+	Package            PhaseExecution
+	Repository         RepositoryExecution
+	Configuration      ConfigurationExecution
 }
 
 // PlanError represents a failure during the planning phase.

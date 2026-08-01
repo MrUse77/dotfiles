@@ -127,8 +127,8 @@ jobs:
         with:
           globs: |
             **/*.md
-            !openspec/changes/archive/**/*.md
-            !cli/openspec/changes/archive/**/*.md
+            !openspec/changes/**/*.md
+            !cli/openspec/changes/**/*.md
           config: .github/.markdownlint.jsonc
 
   # -----------------------------------------------------------

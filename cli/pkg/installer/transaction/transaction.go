@@ -1691,6 +1691,9 @@ func (t *Transaction) buildReport(cause error) *report.ExecutionReport {
 	if t.inventory == nil {
 		return rpt
 	}
+	if t.inventory.Path != "" {
+		rpt.InventoryPath = t.inventory.Path
+	}
 	if t.inventory.Lifecycle == InventoryRecoveryIncomplete {
 		rpt.RecoveryState = report.RecoveryManualRecoveryRequired
 		rpt.RecoveryNextAction = report.ManualRecoveryNextAction
