@@ -125,3 +125,28 @@ Before mutating any managed target, the installer MUST verify that the backup fo
 - WHEN the installer performs the recoverability pre-check
 - THEN the installer SHALL abort before mutating this target
 - AND the installer SHALL report the recoverability failure
+
+### Requirement: Manual Restoration From Retained Backups
+
+The installer MUST provide a manual restore command (`dots restore`) that restores managed targets from retained backups. Restoration SHALL use the retained backup content, never a re-generation of the original. The retained backups MUST NOT be deleted by the restore command.
+
+#### Scenario: Restore a file target from its retained backup
+
+- GIVEN a managed file target was installed in a completed run with a retained backup
+- WHEN the user runs `dots restore` and selects that target
+- THEN the destination SHALL be replaced with the exact content captured in the backup
+- AND the backup SHALL remain on disk
+
+#### Scenario: Restore removes targets that did not exist before the install
+
+- GIVEN a managed target had no pre-existing content (absent pre-state) and was created by the install
+- WHEN the user restores that target
+- THEN the installed destination SHALL be removed
+- AND the restore SHALL not fail when the destination is already absent
+
+#### Scenario: Modified destination is confirmed before overwrite
+
+- GIVEN a destination was modified after the installation (content differs from the installed digest)
+- WHEN the user selects it for restore
+- THEN the restore SHALL ask for confirmation before overwriting the destination
+- AND the restore SHALL be cancelled when the user declines
