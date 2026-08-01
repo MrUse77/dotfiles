@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +11,15 @@ import (
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 	"github.com/MrUse77/dots-cli/pkg/installer/report"
 )
+
+func readFileString(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
+}
 
 func TestResolveRepositoryRoot(t *testing.T) {
 	tests := []struct {
@@ -299,5 +309,83 @@ func TestPrintExecutionReportIncludesFingerprintAndRetainedBackup(t *testing.T) 
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("report output missing %q: %s", want, out.String())
 		}
+	}
+}
+
+func TestResolveRepositoryRoot_FallsBackToCanonicalHome(t *testing.T) {
+	home := t.TempDir()
+	clone := filepath.Join(home, "dotfiles")
+	if err := os.MkdirAll(filepath.Join(clone, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir clone: %v", err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", "")
+
+	root, err := resolveRepositoryRoot(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolveRepositoryRoot() error = %v", err)
+	}
+	if root != clone {
+		t.Errorf("root = %q, want %q", root, clone)
+	}
+}
+
+func TestResolveRepositoryRoot_DotfilesDirEnvWins(t *testing.T) {
+	home := t.TempDir()
+	envClone := filepath.Join(home, "custom-location")
+	homeClone := filepath.Join(home, "dotfiles")
+	for _, dir := range []string{envClone, homeClone} {
+		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", envClone)
+
+	root, err := resolveRepositoryRoot(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolveRepositoryRoot() error = %v", err)
+	}
+	if root != envClone {
+		t.Errorf("root = %q, want DOTFILES_DIR %q", root, envClone)
+	}
+}
+
+func TestEnsureRepositoryClone(t *testing.T) {
+	source := t.TempDir()
+	mustRunGit(t, source, "init", "-q", "-b", "main")
+	mustWriteFile(t, filepath.Join(source, ".zshrc"), []byte("zsh"))
+	mustRunGit(t, source, "add", ".")
+	mustRunGit(t, source, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", "")
+	t.Setenv("DOTFILES_REPO", source)
+	t.Setenv("DOTFILES_BRANCH", "main")
+
+	var out strings.Builder
+	root, err := ensureRepositoryClone(&out)
+	if err != nil {
+		t.Fatalf("ensureRepositoryClone() error = %v", err)
+	}
+	want := filepath.Join(home, "dotfiles")
+	if root != want {
+		t.Errorf("root = %q, want %q", root, want)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		t.Errorf("clone missing .git: %v", err)
+	}
+	if got := readFileString(t, filepath.Join(root, ".zshrc")); got != "zsh" {
+		t.Errorf("cloned .zshrc = %q, want zsh", got)
+	}
+}
+
+func mustRunGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }
