@@ -17,6 +17,7 @@ import (
 	"github.com/MrUse77/dots-cli/pkg/installer/ui"
 	"github.com/MrUse77/dots-cli/pkg/installer/ui/menu"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -164,6 +165,37 @@ func findRepositoryRoot(startDir string) (string, error) {
 	}
 }
 
+// confirmAndInstallGit asks for explicit confirmation and runs the installer's
+// own base-tools action (which includes git) when git is missing. The
+// installer provides the tool it needs on a clean machine instead of forcing
+// the user to preinstall it, reusing the same action the plan would run later.
+func confirmAndInstallGit(in io.Reader, out io.Writer) error {
+	var confirm bool
+	form := huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().
+			Title("Git no está instalado y no hay un clon del repo. ¿Actualizo el sistema e instalo las herramientas base (incluye git) para continuar?").
+			Affirmative("Sí, hacelo").
+			Negative("Cancelar").
+			Value(&confirm),
+	))
+	if err := form.WithInput(in).WithOutput(out).Run(); err != nil {
+		return err
+	}
+	if !confirm {
+		return errors.New("git no está instalado; instalalo manualmente y volvé a intentar")
+	}
+
+	base := installer.BaseToolsAction()
+	cmd := exec.Command(base.Command.Name, base.Command.Args...)
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("instalar herramientas base: %w", err)
+	}
+	return nil
+}
+
+// location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
 // ensureRepositoryClone clones the dotfiles repository into the canonical
 // location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
 // The cloned ref is the binary's own Version (a v0.1.0 binary installs the
@@ -268,6 +300,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	repoRoot, err := resolveRepositoryRoot(workingDir)
 	if err != nil {
+		// On a clean machine git may not exist yet, but the clone (and the
+		// installer itself) need it. Bootstrap it with explicit confirmation
+		// before cloning; the remaining base tools stay an external action.
+		if _, lookupErr := exec.LookPath("git"); lookupErr != nil {
+			if err := confirmAndInstallGit(cmd.InOrStdin(), cmd.ErrOrStderr()); err != nil {
+				return err
+			}
+		}
 		repoRoot, err = ensureRepositoryClone(out)
 		if err != nil {
 			return err

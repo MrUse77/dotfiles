@@ -39,7 +39,7 @@ Configuración personal para Arch Linux con Hyprland.
 - Hack Nerd Font instalada (iconos y tipografía del menú)
 - Calculadora opcional: `rofi-calc-wayland` (o equivalente) junto con `libqalculate`
 
-> El flujo rápido no requiere Go ni Git: baja el binario ya compilado. La instalación manual de abajo sí necesita Go.
+> El flujo rápido no requiere Go ni Git: baja el binario ya compilado. En una máquina sin git, el propio instalador lo instala (con tu confirmación) antes de clonar el repo. La instalación manual de abajo sí necesita Go.
 
 ### Instalación rápida (un comando)
 

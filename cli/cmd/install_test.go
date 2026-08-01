@@ -64,6 +64,11 @@ func TestResolveRepositoryRoot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Isolate HOME so the canonical fallback (~/.cache/dotfiles) can
+			// never leak a real clone into the test.
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("DOTFILES_DIR", "")
+
 			root := t.TempDir()
 			if tt.withMarker {
 				if err := os.Mkdir(filepath.Join(root, ".git"), 0755); err != nil {

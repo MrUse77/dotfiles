@@ -32,13 +32,20 @@ func NewActionCatalogWithPowerProfilesAndParu(state PowerProfilesState, paruAvai
 	return ActionCatalog{powerProfiles: &state, paruAvailable: paruAvailable}
 }
 
+// BaseToolsAction returns the privileged action that updates the system and
+// installs the base toolchain (including git). It is the same action used by
+// the planner and by the clean-machine bootstrap before cloning.
+func BaseToolsAction() plan.ExternalAction {
+	return action("update system and install base tools", "sudo", []string{"pacman", "-Syu", "--noconfirm", "base-devel", "git"}, "privileged", true)
+}
+
 // ExternalActions returns the selected external operations in execution order.
 // repoRoot and homeDir anchor repository-scoped and home-scoped commands.
 func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan.Options) ([]plan.ExternalAction, error) {
 	packages := collectPackages(opts)
 
 	actions := []plan.ExternalAction{
-		action("update system and install base tools", "sudo", []string{"pacman", "-Syu", "--noconfirm", "base-devel", "git"}, "privileged", true),
+		BaseToolsAction(),
 	}
 	if !catalog.paruAvailable {
 		actions = append(actions,
