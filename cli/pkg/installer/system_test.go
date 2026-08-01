@@ -37,7 +37,7 @@ func TestActionCatalogDoesNotContainProfileTeeActions(t *testing.T) {
 	}
 }
 
-func TestActionCatalogSSHAgentOptionAddsOnlyEnableAction(t *testing.T) {
+func TestActionCatalogSSHAgentOptionNoLongerAddsAction(t *testing.T) {
 	withoutSSHAgent, err := NewActionCatalog().ExternalActions(plan.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -46,13 +46,9 @@ func TestActionCatalogSSHAgentOptionAddsOnlyEnableAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := len(withSSHAgent), len(withoutSSHAgent)+1; got != want {
-		t.Fatalf("SSH agent option added %d actions, want 1", got-len(withoutSSHAgent))
-	}
-
-	action := withSSHAgent[len(withoutSSHAgent)]
-	if action.Description != "enable SSH agent" || action.Command.Name != "systemctl" || len(action.Command.Args) != 4 || action.Command.Args[0] != "--user" || action.Command.Args[1] != "enable" || action.Command.Args[2] != "--now" || action.Command.Args[3] != "ssh-agent" {
-		t.Errorf("unexpected SSH agent action: %#v", action)
+	// SSH agent is now handled via .zshrc, not via systemd.
+	if len(withSSHAgent) != len(withoutSSHAgent) {
+		t.Fatalf("SSH agent option changed action count by %d, want 0", len(withSSHAgent)-len(withoutSSHAgent))
 	}
 }
 

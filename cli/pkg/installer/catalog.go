@@ -34,17 +34,8 @@ func NewActionCatalogWithPowerProfilesAndParu(state PowerProfilesState, paruAvai
 
 // ExternalActions returns the selected external operations in execution order.
 func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.ExternalAction, error) {
-	packages := []string{
-		"zsh", "stow", "hyprland", "hyprlock", "hyprpaper", "hypridle", "hyprsunset",
-		"hyprpolkitagent", "waybar", "wofi", "dunst", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk",
-		"ghostty", "zellij", "neovim", "yazi", "fzf", "eza", "bat", "zoxide", "ripgrep", "fd",
-		"wl-clipboard", "direnv", "unzip", "reflector", "lazygit", "thunar", "gvfs", "upower",
-		"power-profiles-daemon", "qt5ct", "qt6ct", "nwg-look", "kvantum", "cpio", "cmake", "meson",
-		"oh-my-posh-bin", "fnm", "nwg-dock-hyprland", "herdr-bin", "aur/eww", "aur/wlogout",
-	}
-	if opts.HasAMD {
-		packages = append(packages, "corectrl")
-	}
+	packages := collectPackages(opts)
+
 	actions := []plan.ExternalAction{
 		action("update system and install base tools", "sudo", []string{"pacman", "-Syu", "--noconfirm", "base-devel", "git"}, "privileged", true),
 	}
@@ -71,18 +62,18 @@ func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.External
 		action("refresh font cache", "fc-cache", []string{"-f"}, "cache", false),
 	)
 
-	settings := []struct{ key, value string }{
-		{"gtk-theme", "TokyoNight-zk"}, {"icon-theme", "TokyoNight-SE"},
-		{"cursor-theme", "volantes_cursors"}, {"cursor-size", "24"},
-		{"font-name", "CaskaydiaMono Nerd Font Mono Bold 10"}, {"color-scheme", "prefer-dark"},
+	if opts.HasGroup(plan.GroupTheming) || len(opts.Groups) == 0 {
+		settings := []struct{ key, value string }{
+			{"gtk-theme", "TokyoNight-zk"}, {"icon-theme", "TokyoNight-SE"},
+			{"cursor-theme", "volantes_cursors"}, {"cursor-size", "24"},
+			{"font-name", "CaskaydiaMono Nerd Font Mono Bold 10"}, {"color-scheme", "prefer-dark"},
+		}
+		for _, setting := range settings {
+			actions = append(actions, action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false))
+		}
 	}
-	for _, setting := range settings {
-		actions = append(actions, action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false))
-	}
-	if opts.EnableSSHAgent {
-		actions = append(actions, action("enable SSH agent", "systemctl", []string{"--user", "enable", "--now", "ssh-agent"}, "external", true))
-	}
-	if opts.InstallPlugins {
+
+	if opts.HasGroup(plan.GroupPlugins) {
 		actions = append(actions,
 			action("update Hyprland plugins", "hyprpm", []string{"update"}, "supply-chain", true),
 			action("add Hyprland plugins", "hyprpm", []string{"add", "https://github.com/hyprwm/hyprland-plugins"}, "supply-chain", true),
@@ -95,6 +86,70 @@ func (catalog ActionCatalog) ExternalActions(opts plan.Options) ([]plan.External
 		actions[i].Order = i
 	}
 	return actions, nil
+}
+
+// collectPackages builds the package list from the selected feature groups.
+// Base packages are always included; optional groups add their own packages.
+func collectPackages(opts plan.Options) []string {
+	base := []string{
+		"zsh", "stow", "unzip", "reflector", "cpio", "cmake", "meson",
+		"thunar", "gvfs", "upower", "power-profiles-daemon",
+	}
+
+	groups := map[string][]string{
+		plan.GroupHyprland: {
+			"hyprland", "hyprlock", "hyprpaper", "hypridle", "hyprsunset",
+			"hyprpolkitagent", "aur/waybar-git", "rofi", "dunst",
+			"xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk",
+			"nwg-look",
+		},
+		plan.GroupDev: {
+			"ghostty", "kitty", "zellij", "herdr-bin", "neovim", "yazi", "lazygit", "fnm",
+		},
+		plan.GroupCLI: {
+			"fzf", "eza", "bat", "zoxide", "ripgrep", "fd",
+			"wl-clipboard", "direnv",
+		},
+		plan.GroupTheming: {
+			"qt5ct", "qt6ct", "kvantum", "oh-my-posh-bin",
+			"aur/eww", "aur/wlogout",
+		},
+		plan.GroupAMD: {"corectrl"},
+	}
+
+	excludeSet := make(map[string]bool, len(opts.ExcludePackages))
+	for _, p := range opts.ExcludePackages {
+		excludeSet[p] = true
+	}
+
+	packages := make([]string, len(base))
+	copy(packages, base)
+
+	for _, group := range plan.AllGroups() {
+		if opts.HasGroup(group) {
+			if pkgs, ok := groups[group]; ok {
+				for _, p := range pkgs {
+					if !excludeSet[p] {
+						packages = append(packages, p)
+					}
+				}
+			}
+		}
+	}
+
+	// When no groups are selected at all (legacy mode), install everything
+	// but still respect exclusions.
+	if len(opts.Groups) == 0 {
+		for _, pkgs := range groups {
+			for _, p := range pkgs {
+				if !excludeSet[p] {
+					packages = append(packages, p)
+				}
+			}
+		}
+	}
+
+	return packages
 }
 
 func action(description, name string, args []string, classification string, irreversible bool) plan.ExternalAction {

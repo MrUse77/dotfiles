@@ -72,12 +72,51 @@ type Target struct {
 	BackupPath    string
 }
 
+// Feature groups selectable during installation.
+const (
+	GroupHyprland = "hyprland"
+	GroupDev      = "dev"
+	GroupCLI      = "cli"
+	GroupAMD      = "amd"
+	GroupSSHAgent = "ssh-agent"
+	GroupPlugins  = "hypr-plugins"
+	GroupTheming  = "theming"
+)
+
+// AllGroups returns every known feature group in display order.
+func AllGroups() []string {
+	return []string{GroupHyprland, GroupDev, GroupCLI, GroupTheming, GroupAMD, GroupPlugins}
+}
+
 // Options are the user-selected installation options.
 type Options struct {
-	Mode           string
-	HasAMD         bool
-	InstallPlugins bool
-	EnableSSHAgent bool
+	Mode            string
+	Groups          []string
+	ExcludePackages []string
+	HasAMD          bool
+	InstallPlugins  bool
+	EnableSSHAgent  bool
+}
+
+// HasGroup reports whether a feature group is selected.
+func (o Options) HasGroup(name string) bool {
+	for _, g := range o.Groups {
+		if g == name {
+			return true
+		}
+	}
+	// Fall back to legacy boolean flags when no groups are set.
+	if len(o.Groups) == 0 {
+		switch name {
+		case GroupAMD:
+			return o.HasAMD
+		case GroupPlugins:
+			return o.InstallPlugins
+		case GroupSSHAgent:
+			return o.EnableSSHAgent
+		}
+	}
+	return false
 }
 
 // InstallationPlan is the immutable, reviewed plan bound to execution.
