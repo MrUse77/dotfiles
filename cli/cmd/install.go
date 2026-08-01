@@ -165,15 +165,16 @@ func findRepositoryRoot(startDir string) (string, error) {
 	}
 }
 
-// confirmAndInstallGit asks for explicit confirmation and installs git with
-// pacman when it is missing. The installer provides the tool it needs on a
-// clean machine instead of forcing the user to preinstall it.
+// confirmAndInstallGit asks for explicit confirmation and runs the installer's
+// own base-tools action (which includes git) when git is missing. The
+// installer provides the tool it needs on a clean machine instead of forcing
+// the user to preinstall it, reusing the same action the plan would run later.
 func confirmAndInstallGit(in io.Reader, out io.Writer) error {
 	var confirm bool
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().
-			Title("Git no está instalado. ¿Lo instalo con sudo pacman para poder continuar?").
-			Affirmative("Sí, instalalo").
+			Title("Git no está instalado y no hay un clon del repo. ¿Actualizo el sistema e instalo las herramientas base (incluye git) para continuar?").
+			Affirmative("Sí, hacelo").
 			Negative("Cancelar").
 			Value(&confirm),
 	))
@@ -184,11 +185,12 @@ func confirmAndInstallGit(in io.Reader, out io.Writer) error {
 		return errors.New("git no está instalado; instalalo manualmente y volvé a intentar")
 	}
 
-	cmd := exec.Command("sudo", "pacman", "-S", "--noconfirm", "git")
+	base := installer.BaseToolsAction()
+	cmd := exec.Command(base.Command.Name, base.Command.Args...)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("instalar git: %w", err)
+		return fmt.Errorf("instalar herramientas base: %w", err)
 	}
 	return nil
 }
