@@ -177,7 +177,7 @@ type TargetDiscoverer interface {
 
 // ActionCatalog enumerates external actions from the selected options.
 type ActionCatalog interface {
-	ExternalActions(opts Options) ([]ExternalAction, error)
+	ExternalActions(repoRoot, homeDir string, opts Options) ([]ExternalAction, error)
 }
 
 // SourceOutsideRepoError is returned when a target source is not inside the repository.

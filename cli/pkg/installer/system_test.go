@@ -11,7 +11,7 @@ import (
 )
 
 func TestActionCatalogSystemOperationsAreOrderedAndNonExecuting(t *testing.T) {
-	actions, err := NewActionCatalog().ExternalActions(plan.Options{EnableSSHAgent: true})
+	actions, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{EnableSSHAgent: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestActionCatalogSystemOperationsAreOrderedAndNonExecuting(t *testing.T) {
 }
 
 func TestActionCatalogDoesNotContainProfileTeeActions(t *testing.T) {
-	actions, err := NewActionCatalog().ExternalActions(plan.Options{EnableSSHAgent: true})
+	actions, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{EnableSSHAgent: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,11 +38,11 @@ func TestActionCatalogDoesNotContainProfileTeeActions(t *testing.T) {
 }
 
 func TestActionCatalogSSHAgentOptionNoLongerAddsAction(t *testing.T) {
-	withoutSSHAgent, err := NewActionCatalog().ExternalActions(plan.Options{})
+	withoutSSHAgent, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	withSSHAgent, err := NewActionCatalog().ExternalActions(plan.Options{EnableSSHAgent: true})
+	withSSHAgent, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{EnableSSHAgent: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestPowerProfilesActionsRespectTLPAndMaskedUnits(t *testing.T) {
 }
 
 func TestActionCatalogAppliesPowerProfilesState(t *testing.T) {
-	actions, err := NewActionCatalogWithPowerProfiles(PowerProfilesState{TLPActive: true}).ExternalActions(plan.Options{})
+	actions, err := NewActionCatalogWithPowerProfiles(PowerProfilesState{TLPActive: true}).ExternalActions(t.TempDir(), t.TempDir(), plan.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,5 +248,37 @@ func TestCleanHomeCopyTreePreservesRelativeMoonArchCurrentLink(t *testing.T) {
 	}
 	if link != "tokyo-night" {
 		t.Fatalf("current link = %q, want relative tokyo-night", link)
+	}
+}
+
+func TestExternalActions_RepositoryAndHomeScopedCommands(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+
+	actions, err := NewActionCatalog().ExternalActions(repo, home, plan.Options{})
+	if err != nil {
+		t.Fatalf("ExternalActions() error = %v", err)
+	}
+
+	found := map[string]bool{}
+	for _, a := range actions {
+		switch a.Description {
+		case "update git submodules":
+			found["submodules"] = true
+			if a.Command.Dir != repo {
+				t.Errorf("submodules Dir = %q, want repo root %q", a.Command.Dir, repo)
+			}
+		case "create zsh configuration directory":
+			found["zsh-mkdir"] = true
+			want := filepath.Join(home, ".config", "zsh")
+			if len(a.Command.Args) != 2 || a.Command.Args[1] != want {
+				t.Errorf("zsh mkdir args = %v, want [\"-p\" %q]", a.Command.Args, want)
+			}
+		}
+	}
+	for name := range found {
+		if !found[name] {
+			t.Errorf("action %q not found", name)
+		}
 	}
 }

@@ -112,7 +112,7 @@ func TestNewInstallPlannerUsesDetectedParu(t *testing.T) {
 			}
 			t.Setenv("PATH", binDir)
 
-			actions, err := newInstallPlanner().Catalog.ExternalActions(plan.Options{})
+			actions, err := newInstallPlanner().Catalog.ExternalActions(t.TempDir(), t.TempDir(), plan.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -314,7 +314,7 @@ func TestPrintExecutionReportIncludesFingerprintAndRetainedBackup(t *testing.T) 
 
 func TestResolveRepositoryRoot_FallsBackToCanonicalHome(t *testing.T) {
 	home := t.TempDir()
-	clone := filepath.Join(home, "dotfiles")
+	clone := filepath.Join(home, ".cache", "dotfiles")
 	if err := os.MkdirAll(filepath.Join(clone, ".git"), 0o755); err != nil {
 		t.Fatalf("mkdir clone: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestResolveRepositoryRoot_FallsBackToCanonicalHome(t *testing.T) {
 func TestResolveRepositoryRoot_DotfilesDirEnvWins(t *testing.T) {
 	home := t.TempDir()
 	envClone := filepath.Join(home, "custom-location")
-	homeClone := filepath.Join(home, "dotfiles")
+	homeClone := filepath.Join(home, ".cache", "dotfiles")
 	for _, dir := range []string{envClone, homeClone} {
 		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
@@ -369,7 +369,7 @@ func TestEnsureRepositoryClone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensureRepositoryClone() error = %v", err)
 	}
-	want := filepath.Join(home, "dotfiles")
+	want := filepath.Join(home, ".cache", "dotfiles")
 	if root != want {
 		t.Errorf("root = %q, want %q", root, want)
 	}
@@ -378,6 +378,40 @@ func TestEnsureRepositoryClone(t *testing.T) {
 	}
 	if got := readFileString(t, filepath.Join(root, ".zshrc")); got != "zsh" {
 		t.Errorf("cloned .zshrc = %q, want zsh", got)
+	}
+}
+
+func TestEnsureRepositoryClone_UpdatesExisting(t *testing.T) {
+	source := t.TempDir()
+	mustRunGit(t, source, "init", "-q", "-b", "main")
+	mustWriteFile(t, filepath.Join(source, ".zshrc"), []byte("v1"))
+	mustRunGit(t, source, "add", ".")
+	mustRunGit(t, source, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "v1")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", "")
+	t.Setenv("DOTFILES_REPO", source)
+	t.Setenv("DOTFILES_BRANCH", "main")
+
+	var out strings.Builder
+	root, err := ensureRepositoryClone(&out)
+	if err != nil {
+		t.Fatalf("first ensureRepositoryClone() error = %v", err)
+	}
+
+	// Advance the source and re-run: the existing clone must be updated, not
+	// re-cloned or rejected.
+	mustWriteFile(t, filepath.Join(source, ".zshrc"), []byte("v2"))
+	mustRunGit(t, source, "add", ".")
+	mustRunGit(t, source, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "v2")
+
+	root, err = ensureRepositoryClone(&out)
+	if err != nil {
+		t.Fatalf("second ensureRepositoryClone() error = %v", err)
+	}
+	if got := readFileString(t, filepath.Join(root, ".zshrc")); got != "v2" {
+		t.Errorf("updated .zshrc = %q, want v2", got)
 	}
 }
 

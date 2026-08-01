@@ -7,7 +7,7 @@ import (
 )
 
 func TestActionCatalogHyprlandPluginsAreOrderedSupplyChainCommands(t *testing.T) {
-	actions, err := NewActionCatalog().ExternalActions(plan.Options{InstallPlugins: true})
+	actions, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{InstallPlugins: true})
 	if err != nil {
 		t.Fatal(err)
 	}
