@@ -423,3 +423,34 @@ func mustRunGit(t *testing.T, dir string, args ...string) {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }
+
+func TestEnsureRepositoryClone_UsesOwnVersionTag(t *testing.T) {
+	source := t.TempDir()
+	mustRunGit(t, source, "init", "-q", "-b", "main")
+	mustWriteFile(t, filepath.Join(source, ".zshrc"), []byte("tag-content"))
+	mustRunGit(t, source, "add", ".")
+	mustRunGit(t, source, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "tag")
+	mustRunGit(t, source, "tag", "v0.1.0")
+	mustWriteFile(t, filepath.Join(source, ".zshrc"), []byte("main-content"))
+	mustRunGit(t, source, "add", ".")
+	mustRunGit(t, source, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "main")
+
+	old := Version
+	t.Cleanup(func() { Version = old })
+	Version = "v0.1.0"
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("DOTFILES_DIR", "")
+	t.Setenv("DOTFILES_REPO", source)
+	t.Setenv("DOTFILES_BRANCH", "")
+
+	var out strings.Builder
+	root, err := ensureRepositoryClone(&out)
+	if err != nil {
+		t.Fatalf("ensureRepositoryClone() error = %v", err)
+	}
+	if got := readFileString(t, filepath.Join(root, ".zshrc")); got != "tag-content" {
+		t.Errorf("cloned .zshrc = %q, want tag content (not main)", got)
+	}
+}

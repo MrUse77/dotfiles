@@ -25,24 +25,44 @@ require() {
   fi
 }
 
+# latest_release prints the highest SemVer tag (vMAJOR.MINOR.PATCH) of the
+# repository. The installer always targets the last stable release, never
+# the development branch.
+latest_release() {
+  git ls-remote --tags --refs "$DOTFILES_REPO" 2>/dev/null \
+    | sed 's|.*refs/tags/||' \
+    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+    | sort -V \
+    | tail -n 1
+}
+
 main() {
+  if [ -n "${DOTFILES_BRANCH:-}" ]; then
+    REF="$DOTFILES_BRANCH"
+  else
+    REF="$(latest_release)"
+    if [ -z "$REF" ]; then
+      die "no se encontró ninguna release (tag vX.Y.Z) en $DOTFILES_REPO"
+    fi
+    say "Usando la última release: $REF"
+  fi
+
   say "Instalador de dotfiles (MrUse77)"
-  say "Directorio: $DOTFILES_DIR | Rama: $DOTFILES_BRANCH"
+  say "Directorio: $DOTFILES_DIR | Release: $REF"
 
   require git "git"
   require go "go"
 
   if [ -d "$DOTFILES_DIR/.git" ]; then
     say "Actualizando el clon existente en $DOTFILES_DIR..."
-    git -C "$DOTFILES_DIR" fetch origin
-    git -C "$DOTFILES_DIR" checkout "$DOTFILES_BRANCH"
-    git -C "$DOTFILES_DIR" pull --ff-only origin "$DOTFILES_BRANCH"
+    git -C "$DOTFILES_DIR" fetch origin "$REF"
+    git -C "$DOTFILES_DIR" checkout --force --detach FETCH_HEAD
     git -C "$DOTFILES_DIR" submodule update --init --recursive
   elif [ -e "$DOTFILES_DIR" ]; then
     die "$DOTFILES_DIR ya existe pero no es un clon de dotfiles. Movelo o borralo y volvé a intentar."
   else
     say "Clonando $DOTFILES_REPO en $DOTFILES_DIR..."
-    git clone --recurse-submodules -b "$DOTFILES_BRANCH" "$DOTFILES_REPO" "$DOTFILES_DIR"
+    git clone --recurse-submodules --branch "$REF" "$DOTFILES_REPO" "$DOTFILES_DIR"
   fi
 
   say "Compilando e instalando el binario en ~/.local/bin/moonarch-cli..."

@@ -46,7 +46,7 @@ Configuración personal para Arch Linux con Hyprland.
 curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/install.sh | bash
 ```
 
-Clona el repo en `~/.cache/dotfiles` (descartable; el repo es la fuente de verdad), compila el instalador, lo deja como binario `moonarch-cli` en `~/.local/bin/` y corre `moonarch-cli install` con sus confirmaciones interactivas. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
+Clona la **última release estable** (tag `vX.Y.Z`) en `~/.cache/dotfiles` (descartable; el repo es la fuente de verdad), compila el instalador, lo deja como binario `moonarch-cli` en `~/.local/bin/` y corre `moonarch-cli install` con sus confirmaciones interactivas. El binario clona su propia versión — nunca `main` (rama de desarrollo). Para desarrollo: `DOTFILES_BRANCH=main curl -fsSL ... | bash`. Para cambiar el destino: `DOTFILES_DIR=~/otro/lugar curl -fsSL ... | bash`.
 
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
