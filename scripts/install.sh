@@ -45,20 +45,21 @@ main() {
     git clone --recurse-submodules -b "$DOTFILES_BRANCH" "$DOTFILES_REPO" "$DOTFILES_DIR"
   fi
 
-  say "Compilando el instalador..."
-  (cd "$DOTFILES_DIR/cli" && go build -o moonarch .)
+  say "Compilando e instalando el binario en ~/.local/bin/moonarch-cli..."
+  mkdir -p "$HOME/.local/bin"
+  (cd "$DOTFILES_DIR/cli" && go build -o "$HOME/.local/bin/moonarch-cli" .)
 
-  say "Ejecutando 'moonarch install'..."
+  say "Ejecutando 'moonarch-cli install'..."
   # Bajo 'curl | bash' el stdin es el pipe de curl, que ya se cerró: el menú
   # interactivo necesita el TTY real para capturar teclas.
   if [ ! -t 0 ]; then
     if [ -r /dev/tty ]; then
       exec < /dev/tty
     else
-      die "se necesita una terminal interactiva para ejecutar 'moonarch install'"
+      die "se necesita una terminal interactiva para ejecutar 'moonarch-cli install'"
     fi
   fi
-  exec "$DOTFILES_DIR/cli/moonarch" install
+  exec "$HOME/.local/bin/moonarch-cli" install
 }
 
 main "$@"
