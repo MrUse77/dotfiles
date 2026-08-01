@@ -49,6 +49,15 @@ main() {
   (cd "$DOTFILES_DIR/cli" && go build -o moonarch .)
 
   say "Ejecutando 'moonarch install'..."
+  # Bajo 'curl | bash' el stdin es el pipe de curl, que ya se cerró: el menú
+  # interactivo necesita el TTY real para capturar teclas.
+  if [ ! -t 0 ]; then
+    if [ -r /dev/tty ]; then
+      exec < /dev/tty
+    else
+      die "se necesita una terminal interactiva para ejecutar 'moonarch install'"
+    fi
+  fi
   exec "$DOTFILES_DIR/cli/moonarch" install
 }
 
