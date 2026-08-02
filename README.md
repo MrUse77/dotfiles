@@ -113,6 +113,8 @@ Los plugins seleccionados no bloquean la instalación principal. Después de ini
 
 El comando vuelve a mostrar el plan, permite cancelarlo y detiene la secuencia ante el primer error real de `hyprpm`.
 
+Con `--only` elegís un subconjunto de plugins, p. ej. `./moonarch-cli plugins --only hyprbars`; sin el flag se instalan todos los plugins del catálogo (`hyprbars` y `split-monitor-workspaces`).
+
 ### Runtime theme selection (normal install)
 
 The normal user installation deploys the MoonArch selector to `~/.local/bin/moonarch/` and immutable theme bundles to `~/.local/share/moonarch/themes/`. A fresh installation activates Tokyo Night through the relative link:

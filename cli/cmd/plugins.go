@@ -16,13 +16,15 @@ import (
 
 const hyprlandInstanceSignatureEnv = "HYPRLAND_INSTANCE_SIGNATURE"
 
+const onlyPluginsFlag = "only"
+
 // pluginsDependencies is the injectable boundary for the standalone plugins command.
 type pluginsDependencies struct {
 	out           io.Writer
 	errOut        io.Writer
 	input         io.Reader
 	lookupEnv     func(string) (string, bool)
-	buildPlan     func() (plan.InstallationPlan, error)
+	buildPlan     func(selected []string) (plan.InstallationPlan, error)
 	executor      ui.Executor
 	programRunner ui.ProgramRunner
 }
@@ -43,8 +45,12 @@ func defaultPluginsDependencies(cmd *cobra.Command) pluginsDependencies {
 	}
 }
 
-func newHyprlandPluginsPlan() (plan.InstallationPlan, error) {
-	return plan.NewInstallationPlanWithActions("hyprland-plugins", nil, installer.HyprlandPluginActions())
+func newHyprlandPluginsPlan(selected []string) (plan.InstallationPlan, error) {
+	actions, err := installer.HyprlandPluginActions(selected)
+	if err != nil {
+		return plan.InstallationPlan{}, err
+	}
+	return plan.NewInstallationPlanWithActions("hyprland-plugins", nil, actions)
 }
 
 func requireHyprlandInstanceSignature(lookupEnv func(string) (string, bool)) error {
@@ -57,14 +63,14 @@ func requireHyprlandInstanceSignature(lookupEnv func(string) (string, bool)) err
 	return nil
 }
 
-func runPluginsWithDeps(cmd *cobra.Command, deps pluginsDependencies) error {
+func runPluginsWithDeps(cmd *cobra.Command, deps pluginsDependencies, selected []string) error {
 	if err := requireHyprlandInstanceSignature(deps.lookupEnv); err != nil {
 		return err
 	}
 	if deps.buildPlan == nil {
 		return errors.New("plugins command has no plan factory")
 	}
-	pluginPlan, err := deps.buildPlan()
+	pluginPlan, err := deps.buildPlan(selected)
 	if err != nil {
 		return err
 	}
@@ -94,14 +100,23 @@ var pluginsCmd = &cobra.Command{
 	Short: "Instala los plugins de Hyprland con hyprpm",
 	Long: `Instala y habilita los plugins de Hyprland en una sesión activa.
 
-Primero iniciá Hyprland y luego revisá el plan antes de confirmar la ejecución.`,
+Primero iniciá Hyprland y luego revisá el plan antes de confirmar la ejecución.
+
+Sin el flag --only se instalan todos los plugins del catálogo (hyprbars y
+split-monitor-workspaces); con --only elegís uno o más, p. ej. --only hyprbars.`,
 	RunE: runPlugins,
 }
 
 func runPlugins(cmd *cobra.Command, _ []string) error {
-	return runPluginsWithDeps(cmd, defaultPluginsDependencies(cmd))
+	selected, err := cmd.Flags().GetStringSlice(onlyPluginsFlag)
+	if err != nil {
+		return err
+	}
+	return runPluginsWithDeps(cmd, defaultPluginsDependencies(cmd), selected)
 }
 
 func init() {
+	pluginsCmd.Flags().StringSlice(onlyPluginsFlag, nil,
+		"Plugins a instalar. Por defecto instala todos los plugins; ejemplo: --only hyprbars o --only hyprbars,split-monitor-workspaces")
 	rootCmd.AddCommand(pluginsCmd)
 }
