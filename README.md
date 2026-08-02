@@ -50,7 +50,7 @@ curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/insta
 Baja el binario `moonarch-cli` de la **última release estable** (verificado por checksum, sin Go ni Git) y corre `moonarch-cli install` con sus confirmaciones interactivas. El binario clona el repo en `~/.cache/dotfiles` si falta (siempre su propia versión, nunca `main`) e instala con backups y rollback. Para cambiar el destino del clon: `DOTFILES_DIR=~/otro/lugar moonarch-cli install`. Para desarrollo, usá la instalación manual de abajo.
 
 > La instalación ahora tiene dos pasos para los plugins de Hyprland: `install` instala paquetes y configuraciones, pero difiere `hyprpm` para no bloquear una sesión sin Hyprland. Si seleccionás `hypr-plugins`, iniciá Hyprland y ejecutá `moonarch-cli plugins`.
-
+>
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
 ### Instalación manual
