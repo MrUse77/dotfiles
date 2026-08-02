@@ -1,31 +1,37 @@
 package installer
 
 import (
+	"reflect"
 	"testing"
-
-	"github.com/MrUse77/dots-cli/pkg/installer/plan"
 )
 
-func TestActionCatalogHyprlandPluginsAreOrderedSupplyChainCommands(t *testing.T) {
-	actions, err := NewActionCatalog().ExternalActions(t.TempDir(), t.TempDir(), plan.Options{InstallPlugins: true})
-	if err != nil {
-		t.Fatal(err)
+func TestHyprlandPluginActions_OrderedSupplyChainCommands(t *testing.T) {
+	actions := HyprlandPluginActions()
+	want := []struct {
+		args []string
+	}{
+		{args: []string{"update"}},
+		{args: []string{"add", "https://github.com/hyprwm/hyprland-plugins"}},
+		{args: []string{"add", "https://github.com/zjeffer/split-monitor-workspaces"}},
+		{args: []string{"enable", "hyprbars"}},
+		{args: []string{"enable", "split-monitor-workspaces"}},
+		{args: []string{"reload"}},
 	}
-	var last int
-	seen := 0
-	for _, action := range actions {
+	if len(actions) != len(want) {
+		t.Fatalf("HyprlandPluginActions() returned %d actions, want %d", len(actions), len(want))
+	}
+	for i, action := range actions {
+		if action.Order != i {
+			t.Errorf("action[%d].Order = %d, want %d", i, action.Order, i)
+		}
 		if action.Command.Name != "hyprpm" {
-			continue
+			t.Errorf("action[%d].Command.Name = %q, want hyprpm", i, action.Command.Name)
 		}
 		if action.Classification != "supply-chain" {
-			t.Errorf("hyprpm action classified as %q", action.Classification)
+			t.Errorf("action[%d].Classification = %q, want supply-chain", i, action.Classification)
 		}
-		if seen > 0 && action.Order <= last {
-			t.Errorf("hyprpm actions are not ordered: %d after %d", action.Order, last)
+		if !reflect.DeepEqual(action.Command.Args, want[i].args) {
+			t.Errorf("action[%d].Command.Args = %#v, want %#v", i, action.Command.Args, want[i].args)
 		}
-		last, seen = action.Order, seen+1
-	}
-	if seen != 5 {
-		t.Fatalf("hyprpm actions = %d, want 5", seen)
 	}
 }

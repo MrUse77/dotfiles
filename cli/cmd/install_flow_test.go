@@ -800,3 +800,19 @@ func TestRepositoryLocator_AbsenceIsNotAnError(t *testing.T) {
 		t.Error("Found = true, want false when no repository exists anywhere")
 	}
 }
+
+func TestPrintDeferredHyprlandPluginsNotice(t *testing.T) {
+	var out bytes.Buffer
+	printDeferredHyprlandPluginsNotice(&out, []string{plan.GroupPlugins})
+	for _, want := range []string{"Hyprland", "moonarch-cli plugins", "Iniciá Hyprland"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("deferred notice missing %q: %s", want, out.String())
+		}
+	}
+
+	out.Reset()
+	printDeferredHyprlandPluginsNotice(&out, []string{plan.GroupCLI})
+	if out.Len() != 0 {
+		t.Fatalf("notice for non-plugin selection = %q, want empty", out.String())
+	}
+}

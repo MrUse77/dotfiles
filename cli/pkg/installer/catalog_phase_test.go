@@ -46,7 +46,7 @@ func TestActionCatalog_PackageActions_ParuBootstrapWhenMissing(t *testing.T) {
 	}
 }
 
-func TestActionCatalog_PackageActions_IncludesSelectedGroups(t *testing.T) {
+func TestActionCatalog_PackageActions_DefersHyprlandPlugins(t *testing.T) {
 	home := t.TempDir()
 	catalog := NewActionCatalogWithParu(true)
 	opts := plan.Options{Groups: []string{plan.GroupPlugins, plan.GroupTheming}}
@@ -54,14 +54,33 @@ func TestActionCatalog_PackageActions_IncludesSelectedGroups(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PackageActions() error = %v", err)
 	}
-	if !hasAction(actions, "update Hyprland plugins") {
-		t.Error("missing Hyprland plugin update action")
+	if hasAction(actions, "update Hyprland plugins") {
+		t.Error("package plan must defer Hyprland plugin actions")
+	}
+	for _, action := range actions {
+		if action.Command.Name == "hyprpm" {
+			t.Errorf("package plan must not contain hyprpm action: %#v", action)
+		}
 	}
 	if !hasAction(actions, "set gtk-theme") {
 		t.Error("missing GTK theme action")
 	}
 	if hasAction(actions, "enable power profiles") {
 		t.Error("power-profile action must not appear in package plan")
+	}
+}
+
+func TestActionCatalog_ExternalActions_DefersHyprlandPlugins(t *testing.T) {
+	repo, home := t.TempDir(), t.TempDir()
+	catalog := NewActionCatalogWithParu(true)
+	actions, err := catalog.ExternalActions(repo, home, plan.Options{Groups: []string{plan.GroupPlugins}})
+	if err != nil {
+		t.Fatalf("ExternalActions() error = %v", err)
+	}
+	for _, action := range actions {
+		if action.Command.Name == "hyprpm" {
+			t.Errorf("legacy installation plan must not contain hyprpm action: %#v", action)
+		}
 	}
 }
 

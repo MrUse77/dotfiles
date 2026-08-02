@@ -94,7 +94,7 @@ func DefaultCategories() []Category {
 		{
 			Key:         plan.GroupPlugins,
 			Title:       "Hyprland Plugins (hyprpm)",
-			Description: "hyprbars and split-monitor-workspaces. Needs running Hyprland.",
+			Description: "hyprbars and split-monitor-workspaces. Se instalan después con moonarch-cli plugins cuando Hyprland esté corriendo.",
 			Packages: []Package{
 				{Name: "hyprbars", Description: "Title bars for Hyprland windows", Selected: true},
 				{Name: "split-monitor-workspaces", Description: "Per-monitor workspace switching", Selected: true},

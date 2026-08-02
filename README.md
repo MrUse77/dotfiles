@@ -49,6 +49,8 @@ curl -fsSL https://raw.githubusercontent.com/MrUse77/dotfiles/main/scripts/insta
 
 Baja el binario `moonarch-cli` de la **última release estable** (verificado por checksum, sin Go ni Git) y corre `moonarch-cli install` con sus confirmaciones interactivas. El binario clona el repo en `~/.cache/dotfiles` si falta (siempre su propia versión, nunca `main`) e instala con backups y rollback. Para cambiar el destino del clon: `DOTFILES_DIR=~/otro/lugar moonarch-cli install`. Para desarrollo, usá la instalación manual de abajo.
 
+> La instalación ahora tiene dos pasos para los plugins de Hyprland: `install` instala paquetes y configuraciones, pero difiere `hyprpm` para no bloquear una sesión sin Hyprland. Si seleccionás `hypr-plugins`, iniciá Hyprland y ejecutá `moonarch-cli plugins`.
+
 > La instalación manual de abajo sigue siendo válida si preferís controlar cada paso.
 
 ### Instalación manual
@@ -86,7 +88,7 @@ El instalador va a preguntarte interactivamente:
 1. ¿Estás seguro que querés modificar tu sistema?
 2. Modo de instalación: **Usuario** (copia limpia)
 3. ¿Tenés GPU AMD? (instala `corectrl`)
-4. ¿Instalar plugins de Hyprland via `hyprpm`?
+4. ¿Seleccionar plugins de Hyprland para instalarlos después con `moonarch-cli plugins`?
 
 Luego ejecuta automáticamente:
 
@@ -101,7 +103,15 @@ Luego ejecuta automáticamente:
 9. Aplicar temas GTK via `gsettings`
 10. Habilitar servicios (`upower`, `power-profiles-daemon`)
 11. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
-12. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
+12. Si seleccionaste plugins de Hyprland, informar que quedaron diferidos para el segundo paso
+
+Los plugins seleccionados no bloquean la instalación principal. Después de iniciar Hyprland, ejecutá:
+
+```bash
+./moonarch-cli plugins
+```
+
+El comando vuelve a mostrar el plan, permite cancelarlo y detiene la secuencia ante el primer error real de `hyprpm`.
 
 ### Runtime theme selection (normal install)
 
@@ -162,7 +172,8 @@ Elegís el run y los targets interactivamente. Para ir directo a un run: `moonar
 ## CLI: comandos disponibles
 
 ```bash
-./moonarch-cli install       # Instalador interactivo completo
+./moonarch-cli install       # Instalador interactivo de paquetes y dotfiles
+./moonarch-cli plugins       # Instala plugins de Hyprland con Hyprland activo
 ./moonarch-cli help          # Ver todos los comandos
 ```
 
