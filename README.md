@@ -5,7 +5,7 @@ Configuración personal para Arch Linux con Hyprland.
 > **Nota:** Este repo está diseñado para mi setup específico (GPU AMD, tema TokyoNight).
 > El instalador te pregunta sobre las partes opcionales antes de hacer cualquier cosa.
 
-## Mini preview
+## Vista previa
 
 <p align="center">
   <img src="./assets/image1.png" alt="Preview 1" width="49%" />
@@ -23,7 +23,7 @@ Configuración personal para Arch Linux con Hyprland.
 | Bar | Waybar |
 | Lanzador | Rofi |
 | Notificaciones | Dunst |
-| File manager | Thunar + Yazi |
+| Gestor de archivos | Thunar + Yazi |
 | Tema | TokyoNight |
 | Cursor | volantes_cursors |
 
@@ -103,21 +103,21 @@ Luego ejecuta automáticamente:
 11. Configurar variables de entorno Qt/Wayland en `/etc/profile.d/`
 12. (Opcional) Instalar plugins de Hyprland: `hyprbars`, `split-monitor-workspaces`
 
-### Runtime theme selection (normal install)
+### Selección de tema en runtime (instalación normal)
 
-The normal user installation deploys the MoonArch selector to `~/.local/bin/moonarch/` and immutable theme bundles to `~/.local/share/moonarch/themes/`. A fresh installation activates Tokyo Night through the relative link:
+La instalación normal despliega el selector MoonArch en `~/.local/bin/moonarch/` y los bundles de temas inmutables en `~/.local/share/moonarch/themes/`. Una instalación limpia activa Tokyo Night mediante el link relativo:
 
 ```text
 ~/.local/share/moonarch/themes/current -> tokyo-night
 ```
 
-Consumer configurations read their fragments through `current`; do not replace this link with an absolute path or edit bundle contents. Press `Super+Shift+T` to open Rofi and select a valid theme name, or run the selector directly:
+Las configuraciones consumidoras leen sus fragmentos a través de `current`; no reemplaces este link por una ruta absoluta ni edites el contenido de los bundles. Presioná `Super+Shift+T` para abrir Rofi y elegir un nombre de tema válido, o ejecutá el selector directamente:
 
 ```bash
 ~/.local/bin/moonarch/theme-selector <theme-id>
 ```
 
-Running the selector without an ID lists valid bundles in Rofi. Hyprland and Waybar reload after a successful switch; Ghostty reads the selected fragment when a new terminal starts.
+Ejecutar el selector sin un ID lista los bundles válidos en Rofi. Hyprland y Waybar recargan tras un cambio exitoso; Ghostty lee el fragmento seleccionado al abrir una terminal nueva.
 
 ### Atajos de Rofi
 
@@ -131,15 +131,15 @@ Running the selector without an ID lists valid bundles in Rofi. Hyprland and Way
 > La calculadora depende del plugin `calc` de Rofi. Si no está disponible,
 > `Super + R` sigue abriendo el modo `run` normalmente.
 
-### Theme rollback
+### Rollback de tema
 
-Selection validates the complete bundle before changing `current` and replaces the link atomically. If Hyprland or Waybar reload fails, the selector restores the previous link, retries the consumer refresh on a best-effort basis, and exits non-zero. Verify the active bundle with:
+La selección valida el bundle completo antes de cambiar `current` y reemplaza el link de forma atómica. Si la recarga de Hyprland o Waybar falla, el selector restaura el link anterior, reintenta el refresh de los consumidores en modo best-effort y sale con código no cero. Verificá el bundle activo con:
 
 ```bash
 readlink -- ~/.local/share/moonarch/themes/current
 ```
 
-To return to a known-good bundle, select its name with the same selector command. Keep `current` relative to the themes directory; do not repair a failed selection by copying fragments into consumer configuration files.
+Para volver a un bundle que sabés que funciona, seleccioná su nombre con el mismo comando. Mantené `current` relativo al directorio de temas; no repares una selección fallida copiando fragmentos en los archivos de configuración de los consumidores.
 
 ### 4. Después de instalar
 
@@ -184,12 +184,12 @@ dotfiles/
 │   ├── waybar/
 │   ├── rofi/             # Lanzador y menú de sesión
 │   │   ├── style.css
-│   │   └── colors.css  # Variables de color (theming dinámico)
+│   │   └── colors.css  # Variables de color (temas dinámicos)
 │   ├── yazi/
 │   └── zellij/
 ├── .local/
-│   ├── bin/moonarch/   # Theme selector executable
-│   └── share/moonarch/themes/ # Immutable theme bundles
+│   ├── bin/moonarch/   # Ejecutable del selector de temas
+│   └── share/moonarch/themes/ # Bundles de temas inmutables
 ├── .zsh_plugins/       # Plugins de zsh (submodules)
 ├── assets/
 │   ├── fonts/          # CaskaydiaCove, CaskaydiaM, Hack Nerd Font
