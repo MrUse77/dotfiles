@@ -60,6 +60,18 @@ type MenuResult struct {
 	Excluded   []string
 }
 
+func printDeferredHyprlandPluginsNotice(w io.Writer, groups []string) {
+	for _, group := range groups {
+		if group != plan.GroupPlugins {
+			continue
+		}
+		fmt.Fprintln(w, "")
+		fmt.Fprintln(w, "⚠️  Los plugins de Hyprland quedaron diferidos.")
+		fmt.Fprintln(w, "    Iniciá Hyprland y ejecutá moonarch-cli plugins para instalarlos.")
+		return
+	}
+}
+
 // MenuRunner displays the interactive menu and returns the confirmed selections.
 type MenuRunner func(input io.Reader, output io.Writer, errOutput io.Writer) (*MenuResult, error)
 
@@ -175,6 +187,7 @@ func runExistingCloneInstall(cmd *cobra.Command, deps installDependencies, repoR
 		fmt.Fprintln(deps.out, "Nothing selected. Exiting.")
 		return nil
 	}
+	printDeferredHyprlandPluginsNotice(deps.out, selected.Groups)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -221,6 +234,7 @@ func runMissingCloneInstall(cmd *cobra.Command, deps installDependencies) error 
 		fmt.Fprintln(deps.out, "Nothing selected. Exiting.")
 		return nil
 	}
+	printDeferredHyprlandPluginsNotice(deps.out, selected.Groups)
 
 	request, err := BuildRepositoryRequest()
 	if err != nil {

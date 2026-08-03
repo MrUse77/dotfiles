@@ -207,7 +207,10 @@ components to install — from whole groups down to individual packages.
 
 Core system packages (zsh, stow, base-devel, git) and dotfiles are
 always installed. Use the menu to toggle groups or dive into each
-category for fine-grained control.`,
+category for fine-grained control.
+
+If Hyprland plugins are selected, their hyprpm actions are deferred until
+Hyprland is running; then execute moonarch-cli plugins.`,
 	RunE: runInstall,
 }
 

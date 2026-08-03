@@ -62,9 +62,6 @@ func (catalog ActionCatalog) PackageActions(homeDir string, opts plan.Options) (
 		actions = append(actions, gtkThemeActions()...)
 	}
 
-	if opts.HasGroup(plan.GroupPlugins) {
-		actions = append(actions, hyprlandPluginActions()...)
-	}
 	for i := range actions {
 		actions[i].Order = i
 	}
@@ -148,9 +145,6 @@ func (catalog ActionCatalog) ExternalActions(repoRoot, homeDir string, opts plan
 		actions = append(actions, gtkThemeActions()...)
 	}
 
-	if opts.HasGroup(plan.GroupPlugins) {
-		actions = append(actions, hyprlandPluginActions()...)
-	}
 	for i := range actions {
 		actions[i].Order = i
 	}
@@ -176,16 +170,6 @@ func gtkThemeActions() []plan.ExternalAction {
 		actions[i] = action("set "+setting.key, "gsettings", []string{"set", "org.gnome.desktop.interface", setting.key, setting.value}, "external", false)
 	}
 	return actions
-}
-
-func hyprlandPluginActions() []plan.ExternalAction {
-	return []plan.ExternalAction{
-		action("update Hyprland plugins", "hyprpm", []string{"update"}, "supply-chain", true),
-		action("add Hyprland plugins", "hyprpm", []string{"add", "https://github.com/hyprwm/hyprland-plugins"}, "supply-chain", true),
-		action("enable hyprbars", "hyprpm", []string{"enable", "hyprbars"}, "supply-chain", true),
-		action("add split monitor workspaces", "hyprpm", []string{"add", "https://github.com/zjeffer/split-monitor-workspaces"}, "supply-chain", true),
-		action("enable split monitor workspaces", "hyprpm", []string{"enable", "split-monitor-workspaces"}, "supply-chain", true),
-	}
 }
 
 // collectPackages builds the package list from the selected feature groups.
