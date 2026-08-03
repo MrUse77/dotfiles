@@ -175,9 +175,66 @@ Elegís el run y los targets interactivamente. Para ir directo a un run: `moonar
 
 ```bash
 ./moonarch-cli install       # Instalador interactivo de paquetes y dotfiles
+./moonarch-cli update        # Actualiza el binario y dotfiles a la última release
 ./moonarch-cli plugins       # Instala plugins de Hyprland con Hyprland activo
 ./moonarch-cli help          # Ver todos los comandos
 ```
+
+### `moonarch-cli update`
+
+Actualiza el binario gestionado y el cache de dotfiles a la última release
+publicada, y reaplica **solo** la configuración basada en archivos.
+
+> **Solo disponible en builds de release.** Si compilás localmente sin tag,
+> `cmd.Version` es `dev` y el comando sale con `0` sin hacer nada. Para usarlo,
+> descargá el binario de una release o compilá con `-ldflags` inyectando un tag.
+
+```bash
+./moonarch-cli update
+```
+
+Requiere acceso online a GitHub. Podés usar `GITHUB_TOKEN` para evitar límites
+de rate de la API:
+
+```bash
+GITHUB_TOKEN=ghp_xxx ./moonarch-cli update
+```
+
+Qué hace:
+
+1. **Release**: resuelve el último tag de `MrUse77/dotfiles` vía la API de GitHub.
+2. **Binario**: compara la versión instalada con el tag; si es menor, descarga
+   `moonarch-cli-linux-{amd64,arm64}` (según `GOARCH`), verifica el SHA-256 contra
+   `SHA256SUMS.txt` y reemplaza el ejecutable en `~/.local/bin/moonarch-cli` de
+   forma atómica. El nuevo binario se activa en la **próxima invocación**; el
+   proceso actual termina el resto de las etapas sin re-exec.
+3. **Repositorio**: clona o actualiza `~/.cache/dotfiles` exactamente al tag de
+   release (no `main`, no `DOTFILES_DIR`, no `DOTFILES_REPO`, no
+   `DOTFILES_BRANCH`).
+4. **Configuración**: reaplica solo las acciones de archivo (`ConfigurationActions()`)
+   a través de la transacción existente (`transaction.New()`). El rollback de la
+   configuración **no restaura el binario**.
+
+Qué **nunca** ejecuta:
+
+- Instalación de paquetes, `paru`, AUR ni gestores de paquetes.
+- Plugins de Hyprland ni `hyprpm`.
+- Acciones externas o plugins del instalador; solo configuración de archivos.
+
+Si la versión instalada es igual a la última release, el binario se saltea con
+"already-current" y igual se reconcilia el repositorio y se reaplica la
+configuración.
+
+Recuperación ante fallos:
+
+- **Configuración**: usa los backups/inventario de la transacción (`~/.dots-backups/`);
+  el reporte indica si el rollback fue completo, incompleto o requiere
+  intervención manual.
+- **Binario / repositorio**: no están dentro de la transacción. Si fallan, el
+  binario anterior queda intacto; si el repositorio queda en un estado
+  intermedio, restaurá manualmente el tag anterior o descargá de nuevo el asset
+  verificado de la release correspondiente.
+
 
 ---
 

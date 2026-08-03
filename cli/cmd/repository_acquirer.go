@@ -125,10 +125,11 @@ func PreflightRepositoryDestination(dest string) error {
 	return nil
 }
 
-// BuildRepositoryRequest freezes the destination, ref, and URL for the missing-
-// clone route. It honors DOTFILES_DIR, DOTFILES_REPO, DOTFILES_BRANCH, and the
-// binary Version exactly once so the reviewed plan cannot drift before execution.
-func BuildRepositoryRequest() (RepositoryRequest, error) {
+// buildRepositoryRequestFromEnvironment is the environment-backed
+// implementation of BuildRepositoryRequest. It is exposed as a package-level
+// variable so update tests can observe that update never invokes the legacy
+// builder.
+func buildRepositoryRequestFromEnvironment() (RepositoryRequest, error) {
 	candidates := repositoryCandidates()
 	if len(candidates) == 0 {
 		return RepositoryRequest{}, errors.New("cannot resolve repository destination")
@@ -149,6 +150,16 @@ func BuildRepositoryRequest() (RepositoryRequest, error) {
 	}
 
 	return RepositoryRequest{Destination: dest, Ref: ref, URL: repoURL}, nil
+}
+
+// buildRepositoryRequestImpl is the testable hook for BuildRepositoryRequest.
+var buildRepositoryRequestImpl = buildRepositoryRequestFromEnvironment
+
+// BuildRepositoryRequest freezes the destination, ref, and URL for the missing-
+// clone route. It honors DOTFILES_DIR, DOTFILES_REPO, DOTFILES_BRANCH, and the
+// binary Version exactly once so the reviewed plan cannot drift before execution.
+func BuildRepositoryRequest() (RepositoryRequest, error) {
+	return buildRepositoryRequestImpl()
 }
 
 // ensureRepositoryClone remains a narrow compatibility wrapper around the

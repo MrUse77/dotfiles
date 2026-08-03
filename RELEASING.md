@@ -52,3 +52,29 @@ el futuro `moonarch-cli update`.
 ./moonarch-cli version   # dev en builds locales
 # en un release: moonarch v0.1.0 (linux/amd64)
 ```
+
+## Compatibilidad con `moonarch-cli update`
+
+El comando `moonarch-cli update` depende de un contrato estable del release.
+Las siguientes decisiones de pipeline deben conservarse:
+
+- **Tags**: siempre SemVer con prefijo `v`, p. ej. `v1.2.3`. El CLI compara el
+  tag de forma semántica.
+- **Assets**: el release debe publicar exactamente estos dos binarios:
+  - `moonarch-cli-linux-amd64`
+  - `moonarch-cli-linux-arm64`
+- **Checksums**: el release debe incluir `SHA256SUMS.txt` en formato GNU
+  `sha256sum`: una línea por asset, con 64 caracteres hexadecimulares, dos
+  espacios ASCII y el nombre del archivo.
+
+  Ejemplo:
+
+  ```text
+  aabbccdd...001122  moonarch-cli-linux-amd64
+  aabbccdd...112233  moonarch-cli-linux-arm64
+  ```
+
+Romper cualquiera de estos tres elementos (nombre de asset, arquitecturas
+soportadas o formato del checksum) hará que `moonarch-cli update` falle para
+los usuarios de releases anteriores.
+
