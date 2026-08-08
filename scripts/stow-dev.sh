@@ -26,4 +26,4 @@ if [[ "$target" == "$host_home" ]]; then
 fi
 
 mkdir -p -- "$target"
-exec stow --dir="$(dirname -- "$repo_root")" --target="$target" "$(basename -- "$repo_root")"
+exec stow --dir="$repo_root" --target="$target" home

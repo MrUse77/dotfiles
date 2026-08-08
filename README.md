@@ -241,25 +241,31 @@ Recuperación ante fallos:
 
 ```text
 dotfiles/
-├── .config/
-│   ├── dunst/          # Notificaciones
-│   ├── eww/            # Widgets
-│   ├── ghostty/        # Terminal
-│   ├── gtk-3.0/        # Tema GTK3
-│   ├── gtk-4.0/        # Tema GTK4
-│   ├── hypr/           # Hyprland, hyprlock, hyprpaper, hypridle, hyprsunset
-│   │   └── scripts/    # Scripts de autostart
-│   ├── nvim/           # Config de Neovim (submodule → MrUse77/Nvim-config)
-│   ├── waybar/
-│   ├── rofi/             # Lanzador y menú de sesión
-│   │   ├── style.css
-│   │   └── colors.css  # Variables de color (temas dinámicos)
-│   ├── yazi/
-│   └── zellij/
-├── .local/
-│   ├── bin/moonarch/   # Ejecutable del selector de temas
-│   └── share/moonarch/themes/ # Bundles de temas inmutables
-├── .zsh_plugins/       # Plugins de zsh (submodules)
+├── home/                # Espejo exacto del $HOME versionado (paquete stow)
+│   ├── .config/
+│   │   ├── dunst/          # Notificaciones
+│   │   ├── eww/            # Widgets
+│   │   ├── ghostty/        # Terminal
+│   │   ├── gtk-3.0/        # Tema GTK3
+│   │   ├── gtk-4.0/        # Tema GTK4
+│   │   ├── hypr/           # Hyprland, hyprlock, hyprpaper, hypridle, hyprsunset
+│   │   │   └── scripts/    # Scripts de autostart
+│   │   ├── nvim/           # Config de Neovim (submodule → MrUse77/Nvim-config)
+│   │   ├── waybar/
+│   │   ├── rofi/             # Lanzador y menú de sesión
+│   │   │   ├── style.css
+│   │   │   └── colors.css  # Variables de color (temas dinámicos)
+│   │   ├── yazi/
+│   │   └── zellij/
+│   ├── .local/
+│   │   ├── bin/moonarch/   # Ejecutable del selector de temas
+│   │   └── share/moonarch/themes/ # Bundles de temas inmutables
+│   ├── .zsh_plugins/       # Plugins de zsh (submodules)
+│   ├── oh-my-posh/         # Temas de prompt (.omp.json)
+│   ├── .themes/            # Temas GTK
+│   ├── .zshrc
+│   ├── .gtkrc-2.0
+│   └── .stow-local-ignore  # Patrones de exclusión del paquete stow
 ├── assets/
 │   ├── fonts/          # CaskaydiaCove, CaskaydiaM, Hack Nerd Font
 │   └── icons/          # volantes_cursors
@@ -268,15 +274,16 @@ dotfiles/
 │   ├── pkg/
 │   │   └── installer/  # Lógica de instalación del sistema
 │   └── main.go
-├── oh-my-posh/         # Temas de prompt (.omp.json)
-├── .themes/            # Temas GTK
-├── .zshrc
-└── .gtkrc-2.0
+├── scripts/            # Scripts auxiliares (install.sh, stow-dev.sh)
+├── tests/              # Tests de integración (Docker)
+├── openspec/           # Especificaciones de cambios
+├── Temas/              # Paletas de temas (referencia)
+└── hyde_theme_palettes.txt  # Paletas HyDE (referencia)
 ```
 
 > Las configuraciones de `wofi`, `nwg-drawer` y `nwg-dock-hyprland` fueron
 > eliminadas del repo. El lanzador y menú de sesión unificados viven ahora en
-> `.config/rofi/`.
+> `home/.config/rofi/`.
 
 ---
 
@@ -286,11 +293,11 @@ Este repo usa **git submodules** para manejar repos externos sin duplicar códig
 
 | Path | Repo | Descripción |
 |---|---|---|
-| `.config/nvim` | `MrUse77/Nvim-config` | Config personal de Neovim |
-| `.zsh_plugins/fzf-tab` | `Aloxaf/fzf-tab` | Completado con fzf |
-| `.zsh_plugins/zsh-autosuggestions` | `zsh-users/zsh-autosuggestions` | Sugerencias inline |
-| `.zsh_plugins/zsh-history-substring-search` | `zsh-users/zsh-history-substring-search` | Búsqueda en historial |
-| `.zsh_plugins/zsh-syntax-highlighting` | `zsh-users/zsh-syntax-highlighting` | Highlight de sintaxis |
+| `home/.config/nvim` | `MrUse77/Nvim-config` | Config personal de Neovim |
+| `home/.zsh_plugins/fzf-tab` | `Aloxaf/fzf-tab` | Completado con fzf |
+| `home/.zsh_plugins/zsh-autosuggestions` | `zsh-users/zsh-autosuggestions` | Sugerencias inline |
+| `home/.zsh_plugins/zsh-history-substring-search` | `zsh-users/zsh-history-substring-search` | Búsqueda en historial |
+| `home/.zsh_plugins/zsh-syntax-highlighting` | `zsh-users/zsh-syntax-highlighting` | Highlight de sintaxis |
 
 ### Comandos útiles
 

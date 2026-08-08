@@ -8,7 +8,7 @@ body:
       label: Ámbito
       description: ¿En qué parte del repo está el problema?
       options:
-        - Config — .config/, .zshrc, oh-my-posh/, .themes/
+        - Config — home/
         - CLI — cli/
         - Docker / Testing — Dockerfile.test, test.sh
         - Otro
