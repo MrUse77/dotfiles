@@ -515,6 +515,10 @@ func TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction(t *te
 	var captured *report.TwoPhaseExecutionReport
 	acqRoot := t.TempDir()
 	home := t.TempDir()
+	// This test drives the production transaction path, whose backup root is
+	// derived from the flow's homeDir (os.UserHomeDir). Isolate HOME so the
+	// transaction never writes backups into the real user home.
+	t.Setenv("HOME", home)
 
 	pkgPlan, err := plan.NewInstallationPlanWithActions("run-1", nil, []plan.ExternalAction{{Description: "base tools", Command: plan.CommandSpec{Name: "true"}}})
 	if err != nil {
@@ -560,6 +564,9 @@ func TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction(t *te
 	}
 	if captured.Configuration.InventoryPath == "" {
 		t.Fatal("expected inventory path")
+	}
+	if !strings.HasPrefix(captured.Configuration.InventoryPath, home) {
+		t.Fatalf("inventory path %q escaped the isolated test HOME %q", captured.Configuration.InventoryPath, home)
 	}
 }
 
