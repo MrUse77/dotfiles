@@ -59,10 +59,10 @@ end
 local terminal = "ghostty"
 local fileManager = "thunar"
 local rofi = os.getenv("HOME") .. "/.config/rofi/scripts/launch"
-local menu = rofi .. " -show drun"
+local menu = rofi .. " -modes drun,window -no-sidebar-mode -show drun -theme-str 'mainbox { children: [inputbar, mode-switcher, listview, message]; }'"
 local windowMenu = rofi .. " -show window"
 local runMenu = rofi .. " -show run"
-local powerMenu = rofi .. " -show powermenu"
+local powerMenu = os.getenv("HOME") .. "/.config/rofi/scripts/launch-powermenu"
 
 -------------------
 ---- AUTOSTART ----

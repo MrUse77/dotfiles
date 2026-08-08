@@ -2,17 +2,20 @@
 configuration {
     modi: "drun,window,run,calc,powermenu:~/.config/rofi/scripts/powermenu";
 
-    font: "Hack Nerd Font 15";
+    font: "Hack Nerd Font 13";
     show-icons: true;
     icon-theme: "Papirus-Dark";
     drun-display-format: "{name}";
-
+    window-format: "{t}";
+    window-match-fields: "all";
+    window-thumbnail: true;
+    
     matching: "fuzzy";
     case-sensitive: false;
     sorting-method: "fzf";
 
     display-drun: "Apps";
-    display-window: "Windows";
+    display-window: "Active Apps";
     display-run: "Run";
     display-calc: "Calculator";
     display-powermenu: "Power";

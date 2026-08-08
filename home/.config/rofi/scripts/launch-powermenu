@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Powermenu launcher: single centered row of actions, no search bar.
+exec "$HOME/.config/rofi/scripts/launch" -show powermenu \
+    -theme-str 'window { width: 1050px; } mainbox { children: [listview, message]; } listview { columns: 5; lines: 1; spacing: 14px; } element { orientation: horizontal; children: [element-text]; padding: 18px 24px; } element-text { expand: true; horizontal-align: 0.5; vertical-align: 0.5; text-align: center; ellipsize: none; }'
