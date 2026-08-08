@@ -194,10 +194,10 @@ func TestRunInstallWithDeps_RoutesExistingCloneToLegacyFlow(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "bin", "moonarch"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "bin", "moonarch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "share", "moonarch", "themes"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -250,12 +250,15 @@ func TestRunInstallWithDeps_RoutesMissingCloneToTwoPhaseFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1",
-		[]plan.Target{{Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
+		[]plan.Target{{Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
 		[]plan.ExternalAction{{Description: "zsh dir", Command: plan.CommandSpec{Name: "true"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,10 +300,10 @@ func TestRunInstallWithDeps_RouteIsReevaluatedPerInvocation(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "bin", "moonarch"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "bin", "moonarch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "share", "moonarch", "themes"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -456,12 +459,15 @@ func TestRunInstallWithDeps_MenuAndReviewBeforeAnyMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1",
-		[]plan.Target{{Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
+		[]plan.Target{{Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
 		nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	deps := installDependencies{
@@ -515,12 +521,15 @@ func TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction(t *te
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1", []plan.Target{{
-		Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile,
+		Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile,
 	}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

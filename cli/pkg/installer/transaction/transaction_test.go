@@ -232,7 +232,8 @@ func TestTransaction_Prepare_RootLevelFileBackupRoot(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 
-	src := filepath.Join(repo, ".zshrc")
+	mustMkdir(t, filepath.Join(repo, "home"))
+	src := filepath.Join(repo, "home", ".zshrc")
 	mustWriteFile(t, src, []byte("zsh"))
 	dest := filepath.Join(home, ".zshrc")
 	mustWriteFile(t, dest, []byte("old zsh"))

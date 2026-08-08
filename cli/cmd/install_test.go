@@ -138,7 +138,7 @@ func TestNewInstallPlannerUsesDetectedParu(t *testing.T) {
 func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
-	configDir := filepath.Join(repo, ".config")
+	configDir := filepath.Join(repo, "home", ".config")
 	if err := os.MkdirAll(filepath.Join(configDir, "hypr"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -151,12 +151,12 @@ func TestInstallDiscovererIsReadOnlyAndIncludesManagedTargets(t *testing.T) {
 	if err := os.Symlink("hypr", filepath.Join(configDir, "current")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, ".zshrc"), []byte("source"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "home", ".zshrc"), []byte("source"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "bin", "moonarch"),
-		filepath.Join(repo, ".local", "share", "moonarch", "themes", "tokyo-night"),
+		filepath.Join(repo, "home", ".local", "bin", "moonarch"),
+		filepath.Join(repo, "home", ".local", "share", "moonarch", "themes", "tokyo-night"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
@@ -222,17 +222,17 @@ func TestInstallDiscovererKeepsLegacyRootSymlinkAsCopyFile(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "bin", "moonarch"),
-		filepath.Join(repo, ".local", "share", "moonarch", "themes"),
+		filepath.Join(repo, "home", ".local", "bin", "moonarch"),
+		filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(repo, "zshrc-source"), []byte("source"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "home", "zshrc-source"), []byte("source"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("zshrc-source", filepath.Join(repo, ".zshrc")); err != nil {
+	if err := os.Symlink("zshrc-source", filepath.Join(repo, "home", ".zshrc")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -241,7 +241,7 @@ func TestInstallDiscovererKeepsLegacyRootSymlinkAsCopyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, target := range targets {
-		if target.Source == filepath.Join(repo, ".zshrc") {
+		if target.Source == filepath.Join(repo, "home", ".zshrc") {
 			if target.Kind != plan.CopyFile {
 				t.Fatalf("legacy root symlink kind = %q, want %q", target.Kind, plan.CopyFile)
 			}
@@ -262,14 +262,14 @@ func TestInstallDiscovererPlansMoonArchRuntimeTrees(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "bin", "moonarch"),
-		filepath.Join(repo, ".local", "share", "moonarch", "themes", "tokyo-night"),
+		filepath.Join(repo, "home", ".local", "bin", "moonarch"),
+		filepath.Join(repo, "home", ".local", "share", "moonarch", "themes", "tokyo-night"),
 	} {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.Symlink("tokyo-night", filepath.Join(repo, ".local", "share", "moonarch", "themes", "current")); err != nil {
+	if err := os.Symlink("tokyo-night", filepath.Join(repo, "home", ".local", "share", "moonarch", "themes", "current")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,8 +278,8 @@ func TestInstallDiscovererPlansMoonArchRuntimeTrees(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		filepath.Join(repo, ".local", "bin", "moonarch"):             filepath.Join(home, ".local", "bin", "moonarch"),
-		filepath.Join(repo, ".local", "share", "moonarch", "themes"): filepath.Join(home, ".local", "share", "moonarch", "themes"),
+		filepath.Join(repo, "home", ".local", "bin", "moonarch"):             filepath.Join(home, ".local", "bin", "moonarch"),
+		filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"): filepath.Join(home, ".local", "share", "moonarch", "themes"),
 	}
 	for source, destination := range want {
 		found := false

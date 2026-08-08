@@ -245,6 +245,6 @@ func (ActionCatalog) ManagedTargets(repoRoot, homeDir string, _ plan.Options) ([
 	return []plan.Target{
 		{Source: filepath.Join(repoRoot, "assets", "fonts"), Destination: filepath.Join(homeDir, ".local", "share", "fonts"), Kind: plan.CopyTree},
 		{Source: filepath.Join(repoRoot, "assets", "icons"), Destination: filepath.Join(homeDir, ".local", "share", "icons"), Kind: plan.CopyTree},
-		{Source: filepath.Join(repoRoot, ".local", "share", "moonarch", "themes"), Destination: filepath.Join(homeDir, ".local", "share", "moonarch", "themes"), Kind: plan.CopyTree},
+		{Source: filepath.Join(repoRoot, "home", ".local", "share", "moonarch", "themes"), Destination: filepath.Join(homeDir, ".local", "share", "moonarch", "themes"), Kind: plan.CopyTree},
 	}, nil
 }
