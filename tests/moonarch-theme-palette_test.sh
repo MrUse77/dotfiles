@@ -2,34 +2,34 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-themes_root="$repo_root/.local/share/moonarch/themes"
-style_file="$repo_root/.config/waybar/style.css"
-clean_ghostty="$repo_root/.config/ghostty/config-clean"
+themes_root="$repo_root/home/.local/share/moonarch/themes"
+style_file="$repo_root/home/.config/waybar/style.css"
+clean_ghostty="$repo_root/home/.config/ghostty/config-clean"
 
 protected_paths=(
-    .local/share/moonarch/themes/tokyo-night/ghostty.conf
-    .local/share/moonarch/themes/tokyo-night/hyprland.conf
-    .local/share/moonarch/themes/tokyo-night/manifest.toml
-    .local/share/moonarch/themes/tokyo-night/waybar.css
-    .local/share/moonarch/themes/tokyo-night/rofi.rasi
+    home/.local/share/moonarch/themes/tokyo-night/ghostty.conf
+    home/.local/share/moonarch/themes/tokyo-night/hyprland.conf
+    home/.local/share/moonarch/themes/tokyo-night/manifest.toml
+    home/.local/share/moonarch/themes/tokyo-night/waybar.css
+    home/.local/share/moonarch/themes/tokyo-night/rofi.rasi
     Temas/Tokyo_Night/paleta.txt
 )
 protected_files=(
-    .local/share/moonarch/themes/tokyo-night/ghostty.conf
-    .local/share/moonarch/themes/tokyo-night/hyprland.conf
-    .local/share/moonarch/themes/tokyo-night/manifest.toml
-    .local/share/moonarch/themes/tokyo-night/waybar.css
-    .local/share/moonarch/themes/tokyo-night/rofi.rasi
+    home/.local/share/moonarch/themes/tokyo-night/ghostty.conf
+    home/.local/share/moonarch/themes/tokyo-night/hyprland.conf
+    home/.local/share/moonarch/themes/tokyo-night/manifest.toml
+    home/.local/share/moonarch/themes/tokyo-night/waybar.css
+    home/.local/share/moonarch/themes/tokyo-night/rofi.rasi
     Temas/Tokyo_Night/paleta.txt
 )
 
 # Immutable blob IDs from the original Tokyo Night bundle commit.
 declare -A protected_file_hashes=(
-    [.local/share/moonarch/themes/tokyo-night/ghostty.conf]=7e37b35d301ae8061282a2798a83698c479b5312
-    [.local/share/moonarch/themes/tokyo-night/hyprland.conf]=247001b754aad47ce14e9610e181946b96fea84a
-    [.local/share/moonarch/themes/tokyo-night/manifest.toml]=45309b48d1ce282093fe64adb8ebb582d2983794
-    [.local/share/moonarch/themes/tokyo-night/waybar.css]=2b39a86a7c986c48581e6d8aac83d6dc8ff3e830
-    [.local/share/moonarch/themes/tokyo-night/rofi.rasi]=75dbdc802554136deef7fc9f7cb4b6375c3d4bca
+    [home/.local/share/moonarch/themes/tokyo-night/ghostty.conf]=7e37b35d301ae8061282a2798a83698c479b5312
+    [home/.local/share/moonarch/themes/tokyo-night/hyprland.conf]=247001b754aad47ce14e9610e181946b96fea84a
+    [home/.local/share/moonarch/themes/tokyo-night/manifest.toml]=45309b48d1ce282093fe64adb8ebb582d2983794
+    [home/.local/share/moonarch/themes/tokyo-night/waybar.css]=2b39a86a7c986c48581e6d8aac83d6dc8ff3e830
+    [home/.local/share/moonarch/themes/tokyo-night/rofi.rasi]=75dbdc802554136deef7fc9f7cb4b6375c3d4bca
     [Temas/Tokyo_Night/paleta.txt]=b51e9ab96664bd55b26cca8d5b9f59ff9a5c0080
 )
 
