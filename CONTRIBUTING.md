@@ -29,7 +29,7 @@ Este repo tiene **dos ámbitos** con reglas distintas:
 
 | Ámbito | Path | Tipo | Testing |
 |---|---|---|---|
-| **Config** | `.config/`, `.zshrc`, `.themes/`, `oh-my-posh/`, `assets/` | Archivos de configuración | `bash test.sh` (Docker) |
+| **Config** | `home/.config/`, `home/.zshrc`, `home/.themes/`, `home/oh-my-posh/`, `assets/` | Archivos de configuración | `bash test.sh` (Docker) |
 | **CLI** | `cli/` | Proyecto Go (Cobra + Bubbletea) | `go test ./...` + `bash test.sh` |
 
 Un cambio **nunca** debería mezclar ambos ámbitos en un mismo PR sin justificación explícita.
@@ -126,18 +126,18 @@ Usamos [Conventional Commits](https://www.conventionalcommits.org/) en español 
 
 | Scope | Aplica a |
 |---|---|
-| `hypr` | `.config/hypr/` — Hyprland, hyprlock, hyprpaper, hypridle |
-| `waybar` | `.config/waybar/` |
-| `ghostty` | `.config/ghostty/` |
-| `zellij` | `.config/zellij/` |
-| `dunst` | `.config/dunst/` |
-| `eww` | `.config/eww/` |
-| `wofi` | `.config/wofi/` |
-| `yazi` | `.config/yazi/` |
-| `nvim` | `.config/nvim/` (submodule) |
-| `gtk` | `.config/gtk-3.0/`, `.config/gtk-4.0/`, `.gtkrc-2.0`, `.themes/` |
-| `zsh` | `.zshrc`, `.zsh_plugins/` |
-| `omp` | `oh-my-posh/` |
+| `hypr` | `home/.config/hypr/` — Hyprland, hyprlock, hyprpaper, hypridle |
+| `waybar` | `home/.config/waybar/` |
+| `ghostty` | `home/.config/ghostty/` |
+| `zellij` | `home/.config/zellij/` |
+| `dunst` | `home/.config/dunst/` |
+| `eww` | `home/.config/eww/` |
+| `wofi` | `home/.config/wofi/` |
+| `yazi` | `home/.config/yazi/` |
+| `nvim` | `home/.config/nvim/` (submodule) |
+| `gtk` | `home/.config/gtk-3.0/`, `home/.config/gtk-4.0/`, `home/.gtkrc-2.0`, `home/.themes/` |
+| `zsh` | `home/.zshrc`, `home/.zsh_plugins/` |
+| `omp` | `home/oh-my-posh/` |
 | `installer` | `cli/pkg/installer/` |
 | `theme` | `cli/pkg/theme/` |
 | `cli` | `cli/` (general) |
@@ -191,8 +191,8 @@ Breve descripción de qué se modificó y por qué.
 
 ## Archivos afectados
 
-- `.config/waybar/config.jsonc` — agregar módulo de batería
-- `.config/waybar/style.css` — estilos del nuevo módulo
+- `home/.config/waybar/config.jsonc` — agregar módulo de batería
+- `home/.config/waybar/style.css` — estilos del nuevo módulo
 
 ## Testing
 
@@ -226,7 +226,7 @@ Breve descripción de qué se modificó y por qué.
 
 | Acción | ¿Permitida? | Notas |
 |---|---|---|
-| Agregar un config nuevo en `.config/` | ✅ | Documentar en README si es una tool nueva |
+| Agregar un config nuevo en `home/.config/` | ✅ | Documentar en README si es una tool nueva |
 | Modificar valores de config existente | ✅ | Verificar que no rompa defaults |
 | Agregar un paquete al instalador | ✅ | Agregar a la lista correspondiente en `cli/` |
 | Modificar lógica del CLI (`cli/`) | ✅ | Requiere tests (`go test`) |
@@ -314,7 +314,7 @@ git diff --name-only
 git diff --submodule  # debe estar vacío si no se tocaron submodules
 
 # 4. Commit con formato correcto
-git add .config/waybar/config.jsonc .config/waybar/style.css
+git add home/.config/waybar/config.jsonc home/.config/waybar/style.css
 git commit -m "feat(waybar): add battery module with percentage display"
 
 # 5. Push y crear PR
@@ -350,11 +350,11 @@ Este repo usa git submodules para:
 
 | Path | Repo | Qué es |
 |---|---|---|
-| `.config/nvim` | `MrUse77/Nvim-config` | Config de Neovim |
-| `.zsh_plugins/fzf-tab` | `Aloxaf/fzf-tab` | Plugin zsh |
-| `.zsh_plugins/zsh-autosuggestions` | `zsh-users/zsh-autosuggestions` | Plugin zsh |
-| `.zsh_plugins/zsh-history-substring-search` | `zsh-users/zsh-history-substring-search` | Plugin zsh |
-| `.zsh_plugins/zsh-syntax-highlighting` | `zsh-users/zsh-syntax-highlighting` | Plugin zsh |
+| `home/.config/nvim` | `MrUse77/Nvim-config` | Config de Neovim |
+| `home/.zsh_plugins/fzf-tab` | `Aloxaf/fzf-tab` | Plugin zsh |
+| `home/.zsh_plugins/zsh-autosuggestions` | `zsh-users/zsh-autosuggestions` | Plugin zsh |
+| `home/.zsh_plugins/zsh-history-substring-search` | `zsh-users/zsh-history-substring-search` | Plugin zsh |
+| `home/.zsh_plugins/zsh-syntax-highlighting` | `zsh-users/zsh-syntax-highlighting` | Plugin zsh |
 
 ### Reglas para submodules
 
@@ -362,8 +362,8 @@ Este repo usa git submodules para:
 2. **Para actualizar** un submodule:
 
    ```bash
-   git submodule update --remote .zsh_plugins/fzf-tab
-   git add .zsh_plugins/fzf-tab
+   git submodule update --remote home/.zsh_plugins/fzf-tab
+   git add home/.zsh_plugins/fzf-tab
    git commit -m "chore(zsh): update fzf-tab submodule to latest"
    ```
 
@@ -410,7 +410,7 @@ go fmt ./...
 
 | Cambié... | Debo correr... |
 |---|---|
-| Cualquier config en `.config/` | `bash test.sh` (si es posible) |
+| Cualquier config en `home/.config/` | `bash test.sh` (si es posible) |
 | Código Go en `cli/` | `go test ./...` + `go vet ./...` + `go build ./...` |
 | `Dockerfile.test` o `test.sh` | `bash test.sh` |
 | Solo docs | Nada (verificar que el markdown es válido) |
