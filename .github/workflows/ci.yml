@@ -48,10 +48,7 @@ jobs:
             cli:
               - 'cli/**'
             config:
-              - '.config/**'
-              - '.zshrc'
-              - '.themes/**'
-              - 'oh-my-posh/**'
+              - 'home/**'
               - 'scripts/**'
               - 'Dockerfile.test'
               - 'test.sh'

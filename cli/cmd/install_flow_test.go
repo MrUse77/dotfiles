@@ -194,10 +194,10 @@ func TestRunInstallWithDeps_RoutesExistingCloneToLegacyFlow(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "bin", "moonarch"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "bin", "moonarch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "share", "moonarch", "themes"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -250,12 +250,15 @@ func TestRunInstallWithDeps_RoutesMissingCloneToTwoPhaseFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1",
-		[]plan.Target{{Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
+		[]plan.Target{{Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
 		[]plan.ExternalAction{{Description: "zsh dir", Command: plan.CommandSpec{Name: "true"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,10 +300,10 @@ func TestRunInstallWithDeps_RouteIsReevaluatedPerInvocation(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "bin", "moonarch"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "bin", "moonarch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(repo, ".local", "share", "moonarch", "themes"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo, "home", ".local", "share", "moonarch", "themes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -456,12 +459,15 @@ func TestRunInstallWithDeps_MenuAndReviewBeforeAnyMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1",
-		[]plan.Target{{Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
+		[]plan.Target{{Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile}},
 		nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	deps := installDependencies{
@@ -509,18 +515,25 @@ func TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction(t *te
 	var captured *report.TwoPhaseExecutionReport
 	acqRoot := t.TempDir()
 	home := t.TempDir()
+	// This test drives the production transaction path, whose backup root is
+	// derived from the flow's homeDir (os.UserHomeDir). Isolate HOME so the
+	// transaction never writes backups into the real user home.
+	t.Setenv("HOME", home)
 
 	pkgPlan, err := plan.NewInstallationPlanWithActions("run-1", nil, []plan.ExternalAction{{Description: "base tools", Command: plan.CommandSpec{Name: "true"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfgPlan, err := plan.NewInstallationPlanWithActions("run-1", []plan.Target{{
-		Source: filepath.Join(acqRoot, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile,
+		Source: filepath.Join(acqRoot, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: plan.CopyFile,
 	}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(acqRoot, ".zshrc"), []byte("zsh"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Join(acqRoot, "home"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(acqRoot, "home", ".zshrc"), []byte("zsh"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -551,6 +564,9 @@ func TestRunInstallWithDeps_ConfigurationWithManagedTargetsRunsTransaction(t *te
 	}
 	if captured.Configuration.InventoryPath == "" {
 		t.Fatal("expected inventory path")
+	}
+	if !strings.HasPrefix(captured.Configuration.InventoryPath, home) {
+		t.Fatalf("inventory path %q escaped the isolated test HOME %q", captured.Configuration.InventoryPath, home)
 	}
 }
 

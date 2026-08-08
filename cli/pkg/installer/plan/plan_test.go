@@ -58,10 +58,11 @@ func TestBuildPlan(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 
-	zshrc := filepath.Join(repo, ".zshrc")
+	mustMkdirAll(t, filepath.Join(repo, "home"))
+	zshrc := filepath.Join(repo, "home", ".zshrc")
 	mustWriteFile(t, zshrc, []byte("zsh config"))
 
-	configDir := filepath.Join(repo, ".config")
+	configDir := filepath.Join(repo, "home", ".config")
 	mustMkdirAll(t, configDir)
 
 	disc := &fakeDiscoverer{
@@ -198,7 +199,7 @@ func TestBuildPlan_AncestorDescendantOverlapRejection(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 
-	configDir := filepath.Join(repo, ".config")
+	configDir := filepath.Join(repo, "home", ".config")
 	hyprDir := filepath.Join(configDir, "hypr")
 	mustMkdirAll(t, hyprDir)
 
@@ -223,14 +224,15 @@ func TestBuildPlan_RootLevelTargetInclusion(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
 
+	mustMkdirAll(t, filepath.Join(repo, "home"))
 	for _, name := range []string{".zshrc", ".gtkrc-2.0"} {
-		mustWriteFile(t, filepath.Join(repo, name), []byte(name))
+		mustWriteFile(t, filepath.Join(repo, "home", name), []byte(name))
 	}
 
 	disc := &fakeDiscoverer{
 		targets: []Target{
-			{Source: filepath.Join(repo, ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: CopyFile},
-			{Source: filepath.Join(repo, ".gtkrc-2.0"), Destination: filepath.Join(home, ".gtkrc-2.0"), Kind: CopyFile},
+			{Source: filepath.Join(repo, "home", ".zshrc"), Destination: filepath.Join(home, ".zshrc"), Kind: CopyFile},
+			{Source: filepath.Join(repo, "home", ".gtkrc-2.0"), Destination: filepath.Join(home, ".gtkrc-2.0"), Kind: CopyFile},
 		},
 	}
 

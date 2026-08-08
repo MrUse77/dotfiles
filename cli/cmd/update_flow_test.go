@@ -399,8 +399,8 @@ func TestUpdateConfigurationPlanBuilder_UsesOnlyConfigurationActions(t *testing.
 	repo := t.TempDir()
 	home := t.TempDir()
 	for _, path := range []string{
-		filepath.Join(repo, ".local", "bin", "moonarch"),
-		filepath.Join(repo, ".local", "share", "moonarch", "themes", "tokyo-night"),
+		filepath.Join(repo, "home", ".local", "bin", "moonarch"),
+		filepath.Join(repo, "home", ".local", "share", "moonarch", "themes", "tokyo-night"),
 	} {
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatal(err)

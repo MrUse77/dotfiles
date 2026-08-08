@@ -35,7 +35,7 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		}
 	}
 	targets = filtered
-	configRoot := filepath.Join(repoRoot, ".config")
+	configRoot := filepath.Join(repoRoot, "home", ".config")
 	configEntries, err := os.ReadDir(configRoot)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -60,13 +60,13 @@ func (installDiscoverer) Discover(repoRoot, homeDir string, opts plan.Options) (
 		source, destination string
 		kind                plan.MutationKind
 	}{
-		{filepath.Join(repoRoot, ".local", "bin", "moonarch"), filepath.Join(homeDir, ".local", "bin", "moonarch"), plan.CopyTree},
+		{filepath.Join(repoRoot, "home", ".local", "bin", "moonarch"), filepath.Join(homeDir, ".local", "bin", "moonarch"), plan.CopyTree},
 	}
 	for _, name := range []string{".zshrc", ".gtkrc-2.0", "oh-my-posh", ".zsh_plugins", ".themes"} {
 		candidates = append(candidates, struct {
 			source, destination string
 			kind                plan.MutationKind
-		}{filepath.Join(repoRoot, name), filepath.Join(homeDir, name), plan.CopyFile})
+		}{filepath.Join(repoRoot, "home", name), filepath.Join(homeDir, name), plan.CopyFile})
 	}
 	for _, candidate := range candidates {
 		target, present, err := discoverTarget(candidate.source, candidate.destination, candidate.kind, false)
@@ -178,8 +178,8 @@ func findRepositoryRoot(startDir string) (string, error) {
 // location (DOTFILES_DIR or $HOME/.cache/dotfiles) and returns its path.
 func requireMoonArchRuntime(repoRoot string) error {
 	for _, source := range []string{
-		filepath.Join(repoRoot, ".local", "bin", "moonarch"),
-		filepath.Join(repoRoot, ".local", "share", "moonarch", "themes"),
+		filepath.Join(repoRoot, "home", ".local", "bin", "moonarch"),
+		filepath.Join(repoRoot, "home", ".local", "share", "moonarch", "themes"),
 	} {
 		info, err := os.Stat(source)
 		if err != nil {

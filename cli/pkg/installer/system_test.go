@@ -195,7 +195,7 @@ func TestManagedTargetsIncludeMoonArchRuntimeTrees(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"/repo/.local/share/moonarch/themes": "/home/test/.local/share/moonarch/themes"}
+	want := map[string]string{"/repo/home/.local/share/moonarch/themes": "/home/test/.local/share/moonarch/themes"}
 	for source, destination := range want {
 		found := false
 		for _, target := range targets {
@@ -213,7 +213,7 @@ func TestManagedTargetsIncludeMoonArchRuntimeTrees(t *testing.T) {
 func TestCleanHomeCopyTreePreservesRelativeMoonArchCurrentLink(t *testing.T) {
 	repo := t.TempDir()
 	home := t.TempDir()
-	source := filepath.Join(repo, ".local", "share", "moonarch", "themes")
+	source := filepath.Join(repo, "home", ".local", "share", "moonarch", "themes")
 	if err := os.MkdirAll(filepath.Join(source, "tokyo-night"), 0755); err != nil {
 		t.Fatal(err)
 	}

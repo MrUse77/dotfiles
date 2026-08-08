@@ -27,7 +27,7 @@ docker run --rm \
 
         bash scripts/stow-dev.sh "$target"
         test -L "$target/.zshrc"
-        test "$(readlink -f "$target/.zshrc")" = /home/tester/dotfiles/.zshrc
+        test "$(readlink -f "$target/.zshrc")" = /home/tester/dotfiles/home/.zshrc
         test -L "$target/.config"
 
         if bash scripts/stow-dev.sh relative-target; then

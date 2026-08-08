@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-selector="${THEME_SELECTOR:-$repo_root/.local/bin/moonarch/theme-selector}"
+selector="${THEME_SELECTOR:-$repo_root/home/.local/bin/moonarch/theme-selector}"
 
 pass_count=0
 
@@ -231,17 +231,17 @@ grep -c '^pkill -SIGUSR2 waybar$' "$command_log" | grep -qx '2' || fail 'rollbac
 printf 'PASS: Waybar reload failure restores prior link\n'
 pass_count=$((pass_count + 1))
 
-    grep -Fqx 'source = ~/.local/share/moonarch/themes/current/hyprland.conf' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland does not import the current theme'
-    grep -Fq 'theme-selector' "$repo_root/.config/hypr/hyprland.conf" || fail 'Hyprland selector binding is missing'
-    if [[ -f "$repo_root/.config/hypr/hyprland.lua" ]]; then
-        grep -Fq 'theme-selector' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua selector binding is missing'
-        grep -Fq 'dofile' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme fragment is not loaded'
-        grep -Fq '/.local/share/moonarch/themes/current/hyprland.lua' "$repo_root/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme path is missing'
+    grep -Fqx 'source = ~/.local/share/moonarch/themes/current/hyprland.conf' "$repo_root/home/.config/hypr/hyprland.conf" || fail 'Hyprland does not import the current theme'
+    grep -Fq 'theme-selector' "$repo_root/home/.config/hypr/hyprland.conf" || fail 'Hyprland selector binding is missing'
+    if [[ -f "$repo_root/home/.config/hypr/hyprland.lua" ]]; then
+        grep -Fq 'theme-selector' "$repo_root/home/.config/hypr/hyprland.lua" || fail 'Hyprland lua selector binding is missing'
+        grep -Fq 'dofile' "$repo_root/home/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme fragment is not loaded'
+        grep -Fq '/.local/share/moonarch/themes/current/hyprland.lua' "$repo_root/home/.config/hypr/hyprland.lua" || fail 'Hyprland lua theme path is missing'
     fi
-grep -Fqx '@import url("../../.local/share/moonarch/themes/current/waybar.css");' "$repo_root/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
-grep -Fqx '@import url("../../.local/share/moonarch/themes/current/wofi.css");' "$repo_root/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
-grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/.config/ghostty/config" || fail 'Ghostty does not import the current theme'
-if grep -Eq '^[[:space:]]*config-file[[:space:]]*=' "$repo_root/.config/ghostty/config-clean"; then
+grep -Fqx '@import url("../../.local/share/moonarch/themes/current/waybar.css");' "$repo_root/home/.config/waybar/style.css" || fail 'Waybar does not import the current theme'
+grep -Fqx '@import url("../../.local/share/moonarch/themes/current/wofi.css");' "$repo_root/home/.config/wofi/style.css" || fail 'Wofi does not import the current theme'
+grep -Fqx 'config-file = "~/.local/share/moonarch/themes/current/ghostty.conf"' "$repo_root/home/.config/ghostty/config" || fail 'Ghostty does not import the current theme'
+if grep -Eq '^[[:space:]]*config-file[[:space:]]*=' "$repo_root/home/.config/ghostty/config-clean"; then
     fail 'Ghostty clean config must rely on the default profile and define no config-file settings'
 fi
 printf 'PASS: all consumers bind only to the current theme\n'

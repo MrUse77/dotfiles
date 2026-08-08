@@ -8,7 +8,7 @@ body:
       label: Ámbito
       description: ¿A qué parte del repo aplica?
       options:
-        - Config — .config/, .zshrc, oh-my-posh/, .themes/
+        - Config — home/
         - CLI — cli/
         - Docker / Testing — Dockerfile.test, test.sh
         - Documentación

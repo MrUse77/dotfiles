@@ -106,7 +106,7 @@ func TestActionCatalog_ConfigurationActions_OmitsZshDirectoryWhenManaged(t *test
 	repo, home := t.TempDir(), t.TempDir()
 	catalog := NewActionCatalogWithPowerProfiles(PowerProfilesState{})
 	managed := []plan.Target{
-		{Source: filepath.Join(repo, ".config", "zsh"), Destination: filepath.Join(home, ".config", "zsh"), Kind: plan.CopyTree},
+		{Source: filepath.Join(repo, "home", ".config", "zsh"), Destination: filepath.Join(home, ".config", "zsh"), Kind: plan.CopyTree},
 	}
 	actions, err := catalog.ConfigurationActions(repo, home, plan.Options{}, managed)
 	if err != nil {
@@ -121,7 +121,7 @@ func TestActionCatalog_ConfigurationActions_OmitsZshDirectoryWhenParentManaged(t
 	repo, home := t.TempDir(), t.TempDir()
 	catalog := NewActionCatalogWithPowerProfiles(PowerProfilesState{})
 	managed := []plan.Target{
-		{Source: filepath.Join(repo, ".config"), Destination: filepath.Join(home, ".config"), Kind: plan.CopyTree},
+		{Source: filepath.Join(repo, "home", ".config"), Destination: filepath.Join(home, ".config"), Kind: plan.CopyTree},
 	}
 	actions, err := catalog.ConfigurationActions(repo, home, plan.Options{}, managed)
 	if err != nil {
