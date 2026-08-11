@@ -66,6 +66,11 @@ const (
 //
 //	pending → backed-up → staged → original-relocated → mutated → restored
 //
+// Remove flow:
+//
+//	pending → backed-up → removed      (unchanged retired target deleted)
+//	pending → skipped                  (retired target already absent)
+//
 // Failure terminals:
 //
 //	pending → source-drift        (source changed before backup)
@@ -93,6 +98,12 @@ const (
 	// EntryMutated means the source was installed at the destination.
 	EntryMutated InventoryEntryState = "mutated"
 
+	// EntryRemoved means a retired Remove target was backed up and deleted.
+	EntryRemoved InventoryEntryState = "removed"
+
+	// EntrySkipped means a Remove target was already absent and was left untouched.
+	EntrySkipped InventoryEntryState = "skipped"
+
 	// EntryRestored means the original destination was restored from backup during rollback.
 	EntryRestored InventoryEntryState = "restored"
 
@@ -104,14 +115,24 @@ const (
 	EntryFailed InventoryEntryState = "failed"
 )
 
+// ReleaseProvenance records the exact release whose apply or rollback produced
+// the inventory. It is additive: schema-1 inventories that lack it decode with
+// a nil value, which readers report as unknown identity and never treat as
+// invalid for restore.
+type ReleaseProvenance struct {
+	Tag    string `json:"tag"`
+	Digest string `json:"digest"`
+}
+
 // Inventory records every managed target and is persisted as human-readable,
 // versioned JSON. New fields are additive so future unknown fields are ignored.
 type Inventory struct {
-	FormatVersion int                `json:"format_version"`
-	RunID         string             `json:"run_id"`
-	Lifecycle     InventoryLifecycle `json:"lifecycle"`
-	Path          string             `json:"path"`
-	Entries       []InventoryEntry   `json:"entries"`
+	FormatVersion     int                `json:"format_version"`
+	RunID             string             `json:"run_id"`
+	Lifecycle         InventoryLifecycle `json:"lifecycle"`
+	Path              string             `json:"path"`
+	Entries           []InventoryEntry   `json:"entries"`
+	ReleaseProvenance *ReleaseProvenance `json:"release,omitempty"`
 }
 
 // InventoryEntry is one row in the retained inventory.

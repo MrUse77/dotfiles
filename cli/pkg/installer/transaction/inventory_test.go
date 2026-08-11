@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/MrUse77/dots-cli/pkg/installer/plan"
@@ -181,5 +182,147 @@ func TestInventorySchema_IsVersionedAndRecordsLifecycle(t *testing.T) {
 	}
 	if got["lifecycle"] != string(InventoryPrepared) {
 		t.Errorf("lifecycle = %v, want %q", got["lifecycle"], InventoryPrepared)
+	}
+}
+
+// Task 5.5: additive release provenance.
+
+func TestInventory_ReleaseProvenance_RoundTrip(t *testing.T) {
+	inv := &Inventory{
+		FormatVersion:     InventoryFormatVersion,
+		RunID:             "run",
+		Lifecycle:         InventoryCompleted,
+		ReleaseProvenance: &ReleaseProvenance{Tag: "config-v1.2.3", Digest: "abc123"},
+		Entries: []InventoryEntry{{
+			Status: report.TargetMutated,
+			State:  EntryRemoved,
+		}},
+	}
+	data, err := json.Marshal(inv)
+	if err != nil {
+		t.Fatalf("marshal inventory: %v", err)
+	}
+	var got Inventory
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal inventory: %v", err)
+	}
+	if got.ReleaseProvenance == nil {
+		t.Fatal("ReleaseProvenance lost in round-trip")
+	}
+	if got.ReleaseProvenance.Tag != "config-v1.2.3" || got.ReleaseProvenance.Digest != "abc123" {
+		t.Errorf("ReleaseProvenance = %#v, want {config-v1.2.3 abc123}", got.ReleaseProvenance)
+	}
+	if got.Entries[0].State != EntryRemoved {
+		t.Errorf("EntryRemoved state lost in round-trip: %q", got.Entries[0].State)
+	}
+}
+
+// A schema-1 inventory (no release field) decodes with nil provenance and
+// every recorded entry intact.
+func TestInventory_Schema1Decode_NilReleaseProvenance(t *testing.T) {
+	golden := `{
+  "format_version": 1,
+  "run_id": "20260712T120000-old",
+  "lifecycle": "completed",
+  "path": "/home/user/.dots-backups/20260712T120000-old/inventory.json",
+  "entries": [
+    {
+      "target": {
+        "Destination": "/home/user/.zshrc",
+        "Kind": "copy-file",
+        "PreState": {"Type": "file", "Mode": 420},
+        "BackupPath": "/home/user/.dots-backups/20260712T120000-old/2f2e7a73687263"
+      },
+      "original": {"Type": "file", "Mode": 420},
+      "backup_path": "/home/user/.dots-backups/20260712T120000-old/2f2e7a73687263",
+      "state": "mutated",
+      "status": "mutated"
+    }
+  ]
+}`
+	var inv Inventory
+	if err := json.Unmarshal([]byte(golden), &inv); err != nil {
+		t.Fatalf("schema-1 inventory must decode: %v", err)
+	}
+	if inv.FormatVersion != 1 {
+		t.Errorf("FormatVersion = %d, want 1", inv.FormatVersion)
+	}
+	if inv.ReleaseProvenance != nil {
+		t.Errorf("schema-1 inventory decoded with provenance: %#v (want unknown/nil)", inv.ReleaseProvenance)
+	}
+	if len(inv.Entries) != 1 {
+		t.Fatalf("len(Entries) = %d, want 1", len(inv.Entries))
+	}
+	entry := inv.Entries[0]
+	if entry.Target.Destination != "/home/user/.zshrc" || entry.Target.Kind != plan.CopyFile {
+		t.Errorf("schema-1 entry target not intact: %#v", entry.Target)
+	}
+	if entry.State != EntryMutated || entry.Status != report.TargetMutated {
+		t.Errorf("schema-1 entry state/status not intact: %q/%q", entry.State, entry.Status)
+	}
+}
+
+// A nil provenance is omitted from JSON entirely (additive, never breaking).
+func TestInventory_ReleaseProvenance_OmittedWhenNil(t *testing.T) {
+	inv := &Inventory{
+		FormatVersion: InventoryFormatVersion,
+		RunID:         "run",
+		Lifecycle:     InventoryPrepared,
+		Entries: []InventoryEntry{{
+			Status: report.TargetPending,
+			State:  EntryPending,
+		}},
+	}
+	data, err := json.Marshal(inv)
+	if err != nil {
+		t.Fatalf("marshal inventory: %v", err)
+	}
+	if strings.Contains(string(data), "release") {
+		t.Errorf("nil provenance must be omitted from inventory JSON: %s", data)
+	}
+}
+
+// A historical (schema-1) inventory without provenance still restores: the
+// absence of provenance is unknown identity, not an invalid run.
+func TestRestore_Schema1InventoryWithoutProvenanceRestores(t *testing.T) {
+	home := t.TempDir()
+	dest := filepath.Join(home, ".zshrc")
+	backup := filepath.Join(home, ".dots-backups", "run1", "2f2e7a73687263")
+	mustWriteRestoreFixture(t, dest, []byte("installed"), 0o644)
+	mustWriteRestoreFixture(t, backup, []byte("original"), 0o644)
+
+	golden := `{
+  "format_version": 1,
+  "run_id": "run1",
+  "lifecycle": "completed",
+  "path": "` + filepath.Join(home, ".dots-backups", "run1", "inventory.json") + `",
+  "entries": [
+    {
+      "target": {
+        "Destination": "` + dest + `",
+        "Kind": "copy-file",
+        "PreState": {"Type": "file", "Mode": 420},
+        "BackupPath": "` + backup + `"
+      },
+      "original": {"Type": "file", "Mode": 420},
+      "backup_path": "` + backup + `",
+      "state": "mutated",
+      "status": "mutated"
+    }
+  ]
+}`
+	var inv Inventory
+	if err := json.Unmarshal([]byte(golden), &inv); err != nil {
+		t.Fatalf("schema-1 inventory must decode: %v", err)
+	}
+	if inv.ReleaseProvenance != nil {
+		t.Fatalf("schema-1 inventory decoded with provenance: %#v", inv.ReleaseProvenance)
+	}
+	tgt := inv.Entries[0].Target
+	if err := New(restorePlan(t, []plan.Target{tgt})).RestoreTarget(tgt); err != nil {
+		t.Fatalf("RestoreTarget() error = %v", err)
+	}
+	if got := readFileString(t, dest); got != "original" {
+		t.Errorf("restored file = %q, want original (provenance must not block restore)", got)
 	}
 }

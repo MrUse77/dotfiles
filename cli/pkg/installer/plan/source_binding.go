@@ -66,7 +66,12 @@ var sourceBindingCaptureHook func()
 // required by the threat model and returns the resolved path plus a binding.
 // Symlink sources for the Symlink mutation kind are bound to their link value;
 // file and directory sources are bound to opened object identity and content.
+// Remove targets have no source to bind: they return a zero-value binding with
+// an empty kind so no source digest is required or validated.
 func buildSourceBinding(source string, kind MutationKind) (string, SourceBinding, error) {
+	if kind == Remove {
+		return "", SourceBinding{}, nil
+	}
 	for attempt := 1; attempt <= sourceBindingCaptureAttempts; attempt++ {
 		resolved, binding, err := buildSourceBindingAttempt(source, kind)
 		if !errors.Is(err, errSourceBindingChanged) {

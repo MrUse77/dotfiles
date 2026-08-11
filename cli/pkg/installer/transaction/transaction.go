@@ -631,6 +631,8 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 		commitErr = t.commitTree(tgt, boundSource, parent, base)
 	case plan.Symlink:
 		commitErr = t.commitSymlink(tgt, linkValue, parent, base)
+	case plan.Remove:
+		commitErr = t.commitRemove(tgt, entry, actual)
 	default:
 		commitErr = fmt.Errorf("unsupported mutation kind %q", tgt.Kind)
 	}
@@ -643,6 +645,12 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 		}
 		entry.Error = &report.MutationError{Target: tgt, Cause: commitErr}
 		return entry.Error
+	}
+
+	if tgt.Kind == plan.Remove {
+		// commitRemove already recorded EntryRemoved or EntrySkipped; a deleted
+		// destination has no installed identity to record.
+		return nil
 	}
 
 	installed, err := t.reader.Read(tgt.Destination)
@@ -658,6 +666,26 @@ func (t *Transaction) mutateTarget(entry *InventoryEntry) error {
 	}
 	entry.Status = report.TargetMutated
 	entry.State = EntryMutated
+	return nil
+}
+
+// commitRemove executes a plan.Remove target. A target that is already absent
+// (planned absent and freshly verified) is skipped and recorded as
+// EntrySkipped; an unchanged present target was backed up earlier and is now
+// deleted and recorded as EntryRemoved, making it eligible for rollback
+// restoration from that backup.
+func (t *Transaction) commitRemove(tgt plan.Target, entry *InventoryEntry, actual plan.PreState) error {
+	if actual.Type == plan.StateAbsent {
+		entry.Status = report.TargetSkipped
+		entry.State = EntrySkipped
+		return nil
+	}
+	if err := t.fs.RemoveAll(tgt.Destination); err != nil {
+		return &report.MutationError{Target: tgt, Cause: err}
+	}
+	t.mutated = append(t.mutated, tgt)
+	entry.Status = report.TargetMutated
+	entry.State = EntryRemoved
 	return nil
 }
 
@@ -977,6 +1005,12 @@ func unixMode(mode os.FileMode) uint32 {
 }
 
 func (t *Transaction) ownsInstalledTarget(entry *InventoryEntry) bool {
+	if entry.Target.Kind == plan.Remove {
+		// A removed target's installed state is its absence; the backup
+		// restores the deleted path on rollback.
+		_, err := os.Lstat(entry.Target.Destination)
+		return errors.Is(err, os.ErrNotExist)
+	}
 	actual, err := t.reader.Read(entry.Target.Destination)
 	if err != nil || actual.Digest != entry.InstalledDigest || actual.Mode != entry.InstalledMode {
 		return false
@@ -1061,6 +1095,21 @@ func (t *Transaction) restoreDirectory(tgt plan.Target, parent, base string) err
 	if err := t.fs.Chmod(stageDir, tgt.PreState.Mode); err != nil {
 		_ = t.fs.RemoveAll(stageDir)
 		return fmt.Errorf("chmod restore directory: %w", err)
+	}
+
+	destExists, err := pathExists(t.fs, tgt.Destination)
+	if err != nil {
+		_ = t.fs.RemoveAll(stageDir)
+		return fmt.Errorf("check restore destination: %w", err)
+	}
+	if !destExists {
+		// The installed destination is already absent (Remove rollback): stage
+		// the backup directly into place without relocating anything.
+		if err := t.fs.Rename(stageDir, tgt.Destination); err != nil {
+			_ = t.fs.RemoveAll(stageDir)
+			return fmt.Errorf("commit restore directory: %w", err)
+		}
+		return nil
 	}
 
 	trashPath := stageDir + ".dots-trash"

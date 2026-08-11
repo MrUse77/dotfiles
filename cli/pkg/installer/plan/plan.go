@@ -20,6 +20,11 @@ const (
 	CopyFile MutationKind = "copy-file"
 	CopyTree MutationKind = "copy-tree"
 	Symlink  MutationKind = "symlink"
+	// Remove marks a managed target that was installed but is omitted from the
+	// desired set. Remove targets carry empty Source, ResolvedSource, and
+	// SourceDigest (and no SourceBinding): execution deletes the destination
+	// after backup instead of consuming a source.
+	Remove MutationKind = "remove"
 )
 
 // PreStateType records what existed at a target path before installation.
@@ -494,19 +499,21 @@ func resolveSource(source string) (string, os.FileInfo, error) {
 func validateTargets(repoRoot string, targets []Target) error {
 	for i := range targets {
 		t := &targets[i]
-		if !filepath.IsAbs(t.Source) {
-			return &PlanError{Phase: "validation", Cause: fmt.Errorf("target %d source %q is not absolute", i, t.Source)}
-		}
 		if !filepath.IsAbs(t.Destination) {
 			return &PlanError{Phase: "validation", Cause: fmt.Errorf("target %d destination %q is not absolute", i, t.Destination)}
 		}
-		if !isWithinRepo(repoRoot, t.Source) {
-			return &SourceOutsideRepoError{Source: t.Source, RepoRoot: repoRoot}
+		if t.Kind != Remove {
+			if !filepath.IsAbs(t.Source) {
+				return &PlanError{Phase: "validation", Cause: fmt.Errorf("target %d source %q is not absolute", i, t.Source)}
+			}
+			if !isWithinRepo(repoRoot, t.Source) {
+				return &SourceOutsideRepoError{Source: t.Source, RepoRoot: repoRoot}
+			}
+			if !isWithinRepo(repoRoot, t.ResolvedSource) {
+				return &SourceOutsideRepoError{Source: t.ResolvedSource, RepoRoot: repoRoot}
+			}
 		}
-		if !isWithinRepo(repoRoot, t.ResolvedSource) {
-			return &SourceOutsideRepoError{Source: t.ResolvedSource, RepoRoot: repoRoot}
-		}
-		if t.Kind != CopyFile && t.Kind != CopyTree && t.Kind != Symlink {
+		if t.Kind != CopyFile && t.Kind != CopyTree && t.Kind != Symlink && t.Kind != Remove {
 			return &PlanError{Phase: "validation", Cause: fmt.Errorf("target %d has unsupported mutation kind %q", i, t.Kind)}
 		}
 	}
