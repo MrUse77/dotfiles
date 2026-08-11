@@ -4,29 +4,23 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 
-	"github.com/MrUse77/dots-cli/pkg/installer/plan"
-	"github.com/MrUse77/dots-cli/pkg/installer/report"
 	"github.com/MrUse77/dots-cli/pkg/release"
 	"github.com/spf13/cobra"
 )
 
-// countingUpdateFactory records whether it was invoked and returns counting
-// collaborators.
-type countingUpdateFactory struct {
-	called bool
-	deps   updateDependencies
+// countingReleaseClient records call counts for zero-invocation assertions.
+type countingReleaseClient struct {
+	calls int
 }
-
-func (f *countingUpdateFactory) make(_ *cobra.Command) updateDependencies {
-	f.called = true
-	return f.deps
-}
-
-type countingReleaseClient struct{ calls int }
 
 func (c *countingReleaseClient) Latest(context.Context) (release.Release, error) {
+	c.calls++
+	return release.Release{}, nil
+}
+func (c *countingReleaseClient) GetByTag(context.Context, string) (release.Release, error) {
 	c.calls++
 	return release.Release{}, nil
 }
@@ -35,42 +29,25 @@ func (c *countingReleaseClient) Download(context.Context, release.Asset) (io.Rea
 	return nil, nil
 }
 
-type countingBinaryReplacer struct{ calls int }
+// countingBinaryReplacer records replacement calls.
+type countingBinaryReplacer struct {
+	calls int
+}
 
 func (c *countingBinaryReplacer) Replace(context.Context, string, string, io.Reader, io.Reader) error {
 	c.calls++
 	return nil
 }
 
-type countingRepositoryAcquirer struct{ calls int }
-
-func (c *countingRepositoryAcquirer) Acquire(context.Context, RepositoryRequest, io.Writer) (RepositoryAcquisition, error) {
-	c.calls++
-	return RepositoryAcquisition{}, nil
+// countingSelfUpdateFactory records whether it was invoked.
+type countingSelfUpdateFactory struct {
+	called bool
+	deps   selfUpdateDependencies
 }
 
-type countingConfigurationPlanBuilder struct{ calls int }
-
-func (c *countingConfigurationPlanBuilder) Build(string, string) (plan.InstallationPlan, error) {
-	c.calls++
-	return plan.InstallationPlan{}, nil
-}
-
-type countingPhaseExecutor struct{ calls int }
-
-func (c *countingPhaseExecutor) Execute(context.Context, plan.InstallationPlan) (*report.ExecutionReport, error) {
-	c.calls++
-	return nil, nil
-}
-
-type countingReporter struct {
-	starts    []UpdateStage
-	completes []StageResult
-}
-
-func (c *countingReporter) Start(stage UpdateStage) { c.starts = append(c.starts, stage) }
-func (c *countingReporter) Complete(result StageResult) {
-	c.completes = append(c.completes, result)
+func (f *countingSelfUpdateFactory) make(_ *cobra.Command) selfUpdateDependencies {
+	f.called = true
+	return f.deps
 }
 
 func TestUpdateCommand_IsRegistered(t *testing.T) {
@@ -83,13 +60,16 @@ func TestUpdateCommand_IsRegistered(t *testing.T) {
 	}
 }
 
-func TestUpdateCommand_HelpMentionsCLIAndDotfiles(t *testing.T) {
+func TestUpdateCommand_HelpIsCLIOnly(t *testing.T) {
 	cmd, _, err := rootCmd.Find([]string{"update"})
 	if err != nil {
 		t.Fatalf("update command not found: %v", err)
 	}
-	if cmd.Short == "" {
-		t.Fatalf("update command has no short help")
+	if !strings.Contains(cmd.Short, "CLI") {
+		t.Fatalf("update short help = %q, want a CLI mention", cmd.Short)
+	}
+	if strings.Contains(cmd.Short, "dotfiles") {
+		t.Fatalf("update short help must not promise configuration changes: %q", cmd.Short)
 	}
 }
 
@@ -116,32 +96,18 @@ func TestUpdateCommand_RejectsUnknownOnlyFlag(t *testing.T) {
 }
 
 func TestUpdateCommand_DevGuardExitsZeroWithoutCollaborators(t *testing.T) {
-	oldVersion := Version
-	t.Cleanup(func() { Version = oldVersion })
-	Version = "dev"
-
+	releaseClient := &countingReleaseClient{}
+	replacer := &countingBinaryReplacer{}
+	factory := &countingSelfUpdateFactory{deps: selfUpdateDependencies{
+		releaseClient: releaseClient,
+		replacer:      replacer,
+	}}
 	cmd := newUpdateCommand()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-
-	releaseClient := &countingReleaseClient{}
-	replacer := &countingBinaryReplacer{}
-	acquirer := &countingRepositoryAcquirer{}
-	builder := &countingConfigurationPlanBuilder{}
-	executor := &countingPhaseExecutor{}
-	factory := &countingUpdateFactory{deps: updateDependencies{
-		releaseClient: releaseClient,
-		replacer:      replacer,
-		acquirer:      acquirer,
-		planBuilder:   builder,
-		executorFactory: func(p plan.InstallationPlan) PhaseExecutor {
-			executor.calls++
-			return executor
-		},
-	}}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return runUpdateWithFactory(cmd, Version, factory.make)
+		return runSelfUpdateWithFactory(cmd, "dev", factory.make)
 	}
 
 	if err := cmd.Execute(); err != nil {
@@ -150,7 +116,7 @@ func TestUpdateCommand_DevGuardExitsZeroWithoutCollaborators(t *testing.T) {
 	if factory.called {
 		t.Fatalf("factory was called in dev build")
 	}
-	if releaseClient.calls != 0 || replacer.calls != 0 || acquirer.calls != 0 || builder.calls != 0 || executor.calls != 0 {
+	if releaseClient.calls != 0 || replacer.calls != 0 {
 		t.Fatalf("collaborators were invoked in dev build")
 	}
 	if out.String() == "" {

@@ -410,3 +410,104 @@ func TestChecksumAsset(t *testing.T) {
 		}
 	})
 }
+
+func TestGitHubClient_GetByTag(t *testing.T) {
+	doer := &fakeHTTPDoer{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(strings.NewReader(`{
+				"tag_name": "config-v1.2.3",
+				"assets": [{"name": "config-v1.2.3.tar.zst", "browser_download_url": "https://example.com/artifact"}]
+			}`)),
+		},
+	}
+	client := NewGitHubClient(doer, "")
+
+	release, err := client.GetByTag(context.Background(), "config-v1.2.3")
+	if err != nil {
+		t.Fatalf("GetByTag error = %v", err)
+	}
+	if release.Tag != "config-v1.2.3" {
+		t.Fatalf("Tag = %q, want config-v1.2.3", release.Tag)
+	}
+	if len(release.Assets) != 1 || release.Assets[0].Name != "config-v1.2.3.tar.zst" {
+		t.Fatalf("Assets = %+v", release.Assets)
+	}
+	if len(doer.requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(doer.requests))
+	}
+	req := doer.requests[0]
+	if req.Method != http.MethodGet {
+		t.Fatalf("Method = %q, want GET", req.Method)
+	}
+	if req.URL.String() != "https://api.github.com/repos/MrUse77/dotfiles/releases/tags/config-v1.2.3" {
+		t.Fatalf("URL = %q, want exact tags endpoint", req.URL.String())
+	}
+	if req.Header.Get("Accept") != "application/vnd.github+json" {
+		t.Fatalf("Accept header = %q", req.Header.Get("Accept"))
+	}
+}
+
+func TestGitHubClient_GetByTag_Authenticated(t *testing.T) {
+	doer := &fakeHTTPDoer{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"tag_name":"config-v1.2.3"}`)),
+		},
+	}
+	client := NewGitHubClient(doer, "ghp_example")
+
+	if _, err := client.GetByTag(context.Background(), "config-v1.2.3"); err != nil {
+		t.Fatalf("GetByTag error = %v", err)
+	}
+	if auth := doer.requests[0].Header.Get("Authorization"); auth != "Bearer ghp_example" {
+		t.Fatalf("Authorization header = %q, want Bearer ghp_example", auth)
+	}
+}
+
+func TestGitHubClient_GetByTag_RejectsNonConfigSelectorBeforeRequest(t *testing.T) {
+	for _, tag := range []string{"v1.2.3", "latest", "config", "config-v1.2", "config-v1.2.3-beta"} {
+		t.Run(tag, func(t *testing.T) {
+			doer := &fakeHTTPDoer{}
+			client := NewGitHubClient(doer, "")
+
+			_, err := client.GetByTag(context.Background(), tag)
+			if err == nil {
+				t.Fatalf("expected rejection for %q", tag)
+			}
+			var ive *InvalidConfigVersionError
+			if !errors.As(err, &ive) {
+				t.Fatalf("error type = %T, want *InvalidConfigVersionError", err)
+			}
+			if len(doer.requests) != 0 {
+				t.Fatalf("requests = %d, want 0 (selector must be rejected before any HTTP call)", len(doer.requests))
+			}
+		})
+	}
+}
+
+func TestGitHubClient_GetByTag_MissingTagHasNoFallback(t *testing.T) {
+	doer := &fakeHTTPDoer{
+		resp: &http.Response{
+			StatusCode: http.StatusNotFound,
+			Status:     "404 Not Found",
+			Body:       io.NopCloser(strings.NewReader(`{"message":"Not Found"}`)),
+		},
+	}
+	client := NewGitHubClient(doer, "")
+
+	_, err := client.GetByTag(context.Background(), "config-v9.9.9")
+	if err == nil {
+		t.Fatalf("expected error for missing tag")
+	}
+	var he *HTTPStatusError
+	if !errors.As(err, &he) {
+		t.Fatalf("error type = %T, want *HTTPStatusError", err)
+	}
+	if he.StatusCode != http.StatusNotFound {
+		t.Fatalf("StatusCode = %d, want 404", he.StatusCode)
+	}
+	if len(doer.requests) != 1 {
+		t.Fatalf("requests = %d, want exactly 1 (no fallback retry)", len(doer.requests))
+	}
+}
