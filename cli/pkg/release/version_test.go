@@ -130,3 +130,57 @@ func TestCompareVersions(t *testing.T) {
 		})
 	}
 }
+
+// TestParseConfigVersion proves ParseConfigVersion accepts only exact stable
+// config-vMAJOR.MINOR.PATCH tags and rejects latest, channels, prereleases,
+// legacy v* CLI tags, bare "config", and malformed version shapes.
+func TestParseConfigVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		wantTag string
+		wantErr bool
+	}{
+		{name: "exact stable version", raw: "config-v1.2.3", wantTag: "config-v1.2.3"},
+		{name: "strict semver ordering shape", raw: "config-v1.10.0", wantTag: "config-v1.10.0"},
+		{name: "zero minor version", raw: "config-v2.0.0", wantTag: "config-v2.0.0"},
+		{name: "latest rejected", raw: "latest", wantErr: true},
+		{name: "cli v tag rejected", raw: "v1.2.3", wantErr: true},
+		{name: "bare config rejected", raw: "config", wantErr: true},
+		{name: "partial version rejected", raw: "config-v1.2", wantErr: true},
+		{name: "prerelease rejected", raw: "config-v1.2.3-beta.1", wantErr: true},
+		{name: "build metadata rejected", raw: "config-v1.2.3+build", wantErr: true},
+		{name: "leading zero rejected", raw: "config-v01.2.3", wantErr: true},
+		{name: "four segments rejected", raw: "config-v1.2.3.4", wantErr: true},
+		{name: "missing segments rejected", raw: "config-v1", wantErr: true},
+		{name: "bare config-v rejected", raw: "config-v", wantErr: true},
+		{name: "empty rejected", raw: "", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseConfigVersion(tt.raw)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ParseConfigVersion(%q) error = nil, want error", tt.raw)
+				}
+				var ive *InvalidConfigVersionError
+				if !errors.As(err, &ive) {
+					t.Fatalf("ParseConfigVersion(%q) error type = %T, want *InvalidConfigVersionError", tt.raw, err)
+				}
+				if ive.Value != tt.raw {
+					t.Fatalf("InvalidConfigVersionError.Value = %q, want %q", ive.Value, tt.raw)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseConfigVersion(%q) error = %v", tt.raw, err)
+			}
+			if got.Tag != tt.wantTag {
+				t.Fatalf("ParseConfigVersion(%q) Tag = %q, want %q", tt.raw, got.Tag, tt.wantTag)
+			}
+			if got.Digest != "" {
+				t.Fatalf("ParseConfigVersion(%q) Digest = %q, want empty before admission", tt.raw, got.Digest)
+			}
+		})
+	}
+}

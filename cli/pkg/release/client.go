@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -37,7 +38,8 @@ type releaseResponse struct {
 
 // Client is the release client interface used by the update orchestrator.
 type Client interface {
-	Latest(ctx context.Context) (Release, error)
+	Latest(ctx context.Context) (Release, error)               // CLI self-update only
+	GetByTag(ctx context.Context, tag string) (Release, error) // config apply/rollback; rejects non-config-v* and never falls back
 	Download(ctx context.Context, asset Asset) (io.ReadCloser, error)
 }
 
@@ -54,13 +56,29 @@ func NewGitHubClient(doer HTTPDoer, token string) *GitHubClient {
 }
 
 const (
-	latestEndpoint = "https://api.github.com/repos/MrUse77/dotfiles/releases/latest"
-	requestTimeout = 30 * time.Second
+	latestEndpoint  = "https://api.github.com/repos/MrUse77/dotfiles/releases/latest"
+	tagsEndpointFmt = "https://api.github.com/repos/MrUse77/dotfiles/releases/tags/%s"
+	requestTimeout  = 30 * time.Second
 )
 
 // Latest fetches the latest release metadata from GitHub.
 func (c *GitHubClient) Latest(ctx context.Context) (Release, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestEndpoint, nil)
+	return c.fetchRelease(ctx, latestEndpoint)
+}
+
+// GetByTag fetches the release metadata for the exact tag. It rejects any
+// selector that is not an exact config-vMAJOR.MINOR.PATCH tag before making a
+// request, and it never falls back to another release when the tag is missing.
+func (c *GitHubClient) GetByTag(ctx context.Context, tag string) (Release, error) {
+	if _, err := ParseConfigVersion(tag); err != nil {
+		return Release{}, err
+	}
+	return c.fetchRelease(ctx, fmt.Sprintf(tagsEndpointFmt, url.PathEscape(tag)))
+}
+
+// fetchRelease performs the shared GitHub release metadata request and decode.
+func (c *GitHubClient) fetchRelease(ctx context.Context, endpoint string) (Release, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return Release{}, &TransportError{Cause: err}
 	}

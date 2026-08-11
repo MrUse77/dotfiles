@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -132,4 +133,38 @@ func classifyResponse(resp *http.Response) error {
 		return &RateLimitError{StatusCode: resp.StatusCode}
 	}
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
+}
+
+// Config-release lifecycle sentinels. These are classifiable with errors.Is so
+// commands can distinguish lock contention, admission rejection, journal
+// recovery failure, missing identities, and unbound force values without
+// string matching.
+var (
+	// ErrLockContended signals that the exclusive config-release lock is held
+	// by another process.
+	ErrLockContended = errors.New("moonarch release lock is contended")
+	// ErrArtifactRejected signals that an artifact failed admission.
+	ErrArtifactRejected = errors.New("config artifact rejected")
+	// ErrIndeterminateJournal signals that the journal tail cannot be
+	// recovered safely; mutation is blocked.
+	ErrIndeterminateJournal = errors.New("journal tail is indeterminate")
+	// ErrNoPreviousIdentity signals that no previous verified identity exists
+	// to roll back to.
+	ErrNoPreviousIdentity = errors.New("no previous config identity recorded")
+	// ErrOfflineArtifactMissing signals that a retained artifact is not
+	// present in the cache for offline use.
+	ErrOfflineArtifactMissing = errors.New("retained config artifact missing offline")
+	// ErrUnboundForce signals an unbound drift-authorization force value that
+	// cannot authorize anything.
+	ErrUnboundForce = errors.New("unbound force value")
+)
+
+// InvalidConfigVersionError signals that a value is not an exact
+// config-vMAJOR.MINOR.PATCH configuration release tag.
+type InvalidConfigVersionError struct {
+	Value string
+}
+
+func (e *InvalidConfigVersionError) Error() string {
+	return fmt.Sprintf("invalid configuration release version %q: expected exact config-vMAJOR.MINOR.PATCH", e.Value)
 }
