@@ -18,14 +18,24 @@ type CatalogEntry struct {
 	Executable bool   `json:"executable"`
 }
 
+// DependencyDecl declares one external dependency that must be present for the
+// artifact to apply. Checks are read-only: nothing is installed, upgraded,
+// removed, or rolled back.
+type DependencyDecl struct {
+	Name       string `json:"name"`
+	Constraint string `json:"constraint,omitempty"`
+}
+
 // Manifest is the schema-versioned description of a config release artifact.
 // It carries the CLI compatibility range, the declared executable binaries,
-// and the complete managed-target catalog with per-entry digests.
+// the declared external dependencies, and the complete managed-target catalog
+// with per-entry digests.
 type Manifest struct {
-	SchemaVersion  string         `json:"schema_version"`
-	CLICompatRange string         `json:"cli_compat_range"`
-	Binaries       []string       `json:"binaries"`
-	Catalog        []CatalogEntry `json:"catalog"`
+	SchemaVersion   string           `json:"schema_version"`
+	CLICompatRange  string           `json:"cli_compat_range"`
+	Binaries        []string         `json:"binaries"`
+	DependencyDecls []DependencyDecl `json:"dependency_decls,omitempty"`
+	Catalog         []CatalogEntry   `json:"catalog"`
 }
 
 // ParseManifest decodes and validates a manifest document. It rejects empty or
