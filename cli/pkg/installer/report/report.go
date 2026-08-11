@@ -15,6 +15,7 @@ const (
 	TargetBackedUp TargetStatus = "backed-up"
 	TargetMutated  TargetStatus = "mutated"
 	TargetRestored TargetStatus = "restored"
+	TargetSkipped  TargetStatus = "skipped"
 	TargetFailed   TargetStatus = "failed"
 )
 

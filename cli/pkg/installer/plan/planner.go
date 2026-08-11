@@ -181,8 +181,25 @@ func (p *Planner) buildTargets(repoRoot, homeDir, runID string, rawTargets []Tar
 
 	targets := make([]Target, 0, len(rawTargets))
 	for _, t := range rawTargets {
-		t.Source = filepath.Clean(t.Source)
 		t.Destination = filepath.Clean(t.Destination)
+		if t.Kind == Remove {
+			// Remove targets carry no source: execution deletes the destination
+			// after backup, so source-path resolution and binding never apply.
+			t.Source = ""
+			t.ResolvedSource = ""
+			t.SourceDigest = ""
+			t.SourceBinding = SourceBinding{}
+			if !filepath.IsAbs(t.Destination) {
+				t.Destination = filepath.Join(homeDir, t.Destination)
+			}
+			if err := closeTarget(p, homeDir, runID, &t); err != nil {
+				return nil, err
+			}
+			targets = append(targets, t)
+			continue
+		}
+
+		t.Source = filepath.Clean(t.Source)
 		if !filepath.IsAbs(t.Source) {
 			t.Source = filepath.Join(repoRoot, t.Source)
 		}
@@ -201,19 +218,9 @@ func (p *Planner) buildTargets(repoRoot, homeDir, runID string, rawTargets []Tar
 			return nil, &PlanError{Phase: "prerequisite", Cause: err}
 		}
 
-		if t.PreState.Type == "" {
-			pre, err := p.StateReader.Read(t.Destination)
-			if err != nil {
-				return nil, &PlanError{Phase: "pre-state", Cause: err}
-			}
-			t.PreState = pre
+		if err := closeTarget(p, homeDir, runID, &t); err != nil {
+			return nil, err
 		}
-
-		if t.Destination == homeDir {
-			return nil, &PlanError{Phase: "prerequisite", Cause: fmt.Errorf("destination %q cannot be the home directory: the backup root would live inside the target", t.Destination)}
-		}
-
-		t.BackupPath = BackupPath(homeDir, runID, t.Destination)
 		targets = append(targets, t)
 	}
 
@@ -225,6 +232,24 @@ func (p *Planner) buildTargets(repoRoot, homeDir, runID string, rawTargets []Tar
 		return targets[i].Destination < targets[j].Destination
 	})
 	return targets, nil
+}
+
+// closeTarget completes a target after its source is resolved (or, for Remove,
+// skipped): it reads the destination pre-state when absent, rejects the home
+// directory itself, and assigns the deterministic backup path.
+func closeTarget(p *Planner, homeDir, runID string, t *Target) error {
+	if t.PreState.Type == "" {
+		pre, err := p.StateReader.Read(t.Destination)
+		if err != nil {
+			return &PlanError{Phase: "pre-state", Cause: err}
+		}
+		t.PreState = pre
+	}
+	if t.Destination == homeDir {
+		return &PlanError{Phase: "prerequisite", Cause: fmt.Errorf("destination %q cannot be the home directory: the backup root would live inside the target", t.Destination)}
+	}
+	t.BackupPath = BackupPath(homeDir, runID, t.Destination)
+	return nil
 }
 
 func sortActions(rawActions []ExternalAction) []ExternalAction {
@@ -240,6 +265,10 @@ func sortActions(rawActions []ExternalAction) []ExternalAction {
 }
 
 func validateDestinationParent(dest string, destSet map[string]struct{}, kind MutationKind) error {
+	if kind == Remove {
+		// Deletion never writes into the parent; the parent may already be gone.
+		return nil
+	}
 	parent := filepath.Dir(dest)
 	if _, ok := destSet[parent]; ok {
 		return nil
