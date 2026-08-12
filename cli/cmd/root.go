@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/MrUse77/dots-cli/pkg/release"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +18,13 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(commandExitCode(err))
 	}
+}
+
+func commandExitCode(err error) int {
+	if errors.Is(err, release.ErrIndeterminateJournal) {
+		return 2
+	}
+	return 1
 }
