@@ -4,13 +4,15 @@ on:
   push:
     tags:
       - 'v*'
+      - 'config-v*'
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Release ${{ github.ref_name }}
+  release-cli:
+    name: Release CLI ${{ github.ref_name }}
+    if: startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +45,7 @@ jobs:
 
       - name: Generate changelog
         run: |
-          PREV="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          PREV="$(git describe --tags --match 'v[0-9]*' --abbrev=0 HEAD^ 2>/dev/null || true)"
           if [ -n "$PREV" ]; then
             RANGE="${PREV}..HEAD"
           else
@@ -66,6 +68,140 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
+            --latest \
             --title "$GITHUB_REF_NAME" \
             --notes-file /tmp/changelog.md \
             cli/dist/moonarch-cli-* cli/dist/SHA256SUMS.txt
+
+  legacy-bridge:
+    name: Verify legacy latest bridge
+    if: startsWith(github.ref_name, 'config-v')
+    runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.verify.outputs.verified }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Point latest at the highest CLI release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cli_tag="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" \
+              --jq '.[] | select((.draft | not) and (.prerelease | not)) | .tag_name' \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | sed -n '$p' || true
+          )"
+          if [ -z "$cli_tag" ]; then
+            echo '::error::No published stable CLI release can satisfy the legacy bridge.'
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$cli_tag" > "$RUNNER_TEMP/bridge-candidate.json"
+          bash tests/release-bridge_test.sh verify-bridge "$RUNNER_TEMP/bridge-candidate.json"
+          gh release edit "$cli_tag" --latest
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > "$RUNNER_TEMP/latest-release.json"
+
+      - name: Verify bridge tag and assets
+        id: verify
+        run: |
+          bash tests/release-bridge_test.sh verify-bridge "$RUNNER_TEMP/latest-release.json"
+          echo 'verified=true' >> "$GITHUB_OUTPUT"
+
+  release-config:
+    name: Release config ${{ github.ref_name }}
+    needs: legacy-bridge
+    if: startsWith(github.ref_name, 'config-v') && needs.legacy-bridge.outputs.verified == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Validate config tag and materialized submodules
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^config-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' must match config-vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          submodule_status="$(git submodule status --recursive)"
+          if grep -Eq '^[-+U]' <<<"$submodule_status"; then
+            echo '::error::A pinned submodule is missing, conflicted, or at the wrong commit.'
+            exit 1
+          fi
+
+      - name: Build deterministic config artifact
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          payload="$RUNNER_TEMP/config-payload"
+          mkdir -p "$payload" dist
+          cp -a home assets "$payload/"
+          find "$payload" -name .git -exec rm -rf -- {} +
+          rm -f "$payload/home/.local/share/moonarch/themes/current"
+          PAYLOAD="$payload" python3 - <<'PY'
+          import hashlib, json, os, stat
+          from pathlib import Path
+
+          root = Path(os.environ["PAYLOAD"])
+          catalog, binaries = [], []
+          for path in sorted(root.rglob("*"), key=lambda p: p.relative_to(root).as_posix()):
+              rel = path.relative_to(root).as_posix()
+              meta = path.lstat()
+              mode = stat.S_IMODE(meta.st_mode)
+              if stat.S_ISLNK(meta.st_mode):
+                  kind, content = "symlink", os.readlink(path).encode()
+              elif stat.S_ISDIR(meta.st_mode):
+                  kind, content = "dir", f"dir:{rel}".encode()
+              elif stat.S_ISREG(meta.st_mode):
+                  kind, content = "file", path.read_bytes()
+              else:
+                  raise SystemExit(f"unsupported payload object: {rel}")
+              executable = bool(mode & 0o111)
+              catalog.append({"path": rel, "digest": hashlib.sha256(content).hexdigest(),
+                              "mode": mode, "kind": kind, "executable": executable})
+              if kind == "file" and executable:
+                  binaries.append(rel)
+          manifest = {"schema_version": "1", "cli_compat_range": ">= v0.3.0",
+                      "binaries": binaries, "dependency_decls": [], "catalog": catalog}
+          (root / "manifest.json").write_text(json.dumps(manifest, sort_keys=True,
+                                                        separators=(",", ":")) + "\n")
+          PY
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+            --format=posix --pax-option=delete=atime,delete=ctime \
+            -C "$payload" -cf - manifest.json home assets \
+            | zstd -T1 -19 --no-progress -o "dist/$TAG.tar.zst"
+          (cd dist && sha256sum "$TAG.tar.zst" > "$TAG.tar.zst.sha256")
+          cp "$payload/manifest.json" "dist/$TAG.manifest.json"
+
+      - name: Reject an existing release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          proposed="$(awk 'NR == 1 {print $1}' "dist/$TAG.tar.zst.sha256")"
+          existing_tag=''
+          existing_digest=''
+          if existing_tag="$(gh release view "$TAG" --json tagName --jq .tagName 2>/dev/null)"; then
+            mkdir -p "$RUNNER_TEMP/existing-release"
+            if gh release download "$TAG" --pattern "$TAG.tar.zst.sha256" \
+              --dir "$RUNNER_TEMP/existing-release" 2>/dev/null; then
+              existing_digest="$(awk 'NR == 1 {print $1}' \
+                "$RUNNER_TEMP/existing-release/$TAG.tar.zst.sha256")"
+            fi
+          fi
+          bash tests/release-bridge_test.sh assert-new-identity \
+            "$existing_tag" "$existing_digest" "$proposed"
+
+      - name: Publish immutable config release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" --verify-tag --draft --latest=false \
+            --title "$TAG" --notes "Immutable MoonArch configuration $TAG." \
+            "dist/$TAG.tar.zst" "dist/$TAG.tar.zst.sha256" "dist/$TAG.manifest.json"
+          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq .id)"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$release_id" \
+            -F draft=false -f make_latest=false >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > "$RUNNER_TEMP/latest-after.json"
+          bash tests/release-bridge_test.sh verify-bridge "$RUNNER_TEMP/latest-after.json"

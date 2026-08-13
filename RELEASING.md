@@ -77,3 +77,30 @@ Las siguientes decisiones de pipeline deben conservarse:
 Romper cualquiera de estos tres elementos (nombre de asset, arquitecturas
 soportadas o formato del checksum) hará que `moonarch-cli update` falle para
 los usuarios de releases anteriores.
+
+## Releases de configuración
+
+Los tags `config-vMAJOR.MINOR.PATCH` publican configuración autocontenida; no
+reemplazan al CLI ni pueden convertirse en la release `latest` del repositorio.
+Antes de publicar, el workflow fija como `latest` el mayor tag estable `v*` y
+verifica que conserve ambos binarios y `SHA256SUMS.txt`. La publicación falla si
+ese puente de compatibilidad no puede demostrarse, y vuelve a comprobarlo al
+finalizar.
+
+Cada release de configuración incluye:
+
+- `<tag>.tar.zst`, con `manifest.json`, el catálogo completo, assets y
+  submódulos fijados ya materializados.
+- `<tag>.tar.zst.sha256`, sidecar GNU `sha256sum` del archivo final.
+- `<tag>.manifest.json`, copia visible del manifiesto incluido en el archivo.
+
+El tag y el digest forman una identidad inmutable. Si el tag ya tiene una
+release, el workflow rechaza siempre la republicación, incluso cuando el digest
+propuesto coincide; los bytes existentes siguen siendo autoritativos. Los
+artefactos nuevos se crean con `--latest=false`, únicamente después de superar
+el puente, la materialización de submódulos y la validación de identidad.
+
+```bash
+git tag config-v1.0.0 && git push origin config-v1.0.0
+bash tests/release-bridge_test.sh
+```

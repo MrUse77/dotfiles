@@ -78,6 +78,9 @@ main() {
   if [ -z "$REF" ]; then
     die "no se pudo determinar la última release de ${REPO}"
   fi
+  if [[ "$REF" == config-v* ]]; then
+    die "la última release es una release de configuración ($REF), no un binario compatible"
+  fi
   say "Usando la última release: $REF"
 
   install_release_binary
