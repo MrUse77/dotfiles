@@ -59,6 +59,14 @@ func New(p plan.InstallationPlan, opts ...Option) *Transaction {
 // Inventory returns the current inventory. It is nil before Prepare is called.
 func (t *Transaction) Inventory() *Inventory { return t.inventory }
 
+// AcceptObservedStates refreshes the plan pre-states from the actual filesystem
+// state. It records the observed states accepted by an evidence-bound drift
+// authorization, keeping the mutation-phase TOCTOU guard meaningful: any change
+// between acceptance and mutation still fails the guard.
+func (t *Transaction) AcceptObservedStates() error {
+	return t.plan.RefreshPreStates(t.reader)
+}
+
 // Prepare allocates the inventory, creates backup roots, and checks for backup
 // collisions without mutating any managed target.
 func (t *Transaction) Prepare() error {

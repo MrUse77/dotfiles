@@ -185,6 +185,25 @@ func (p InstallationPlan) ManagedTargets() []Target { return cloneTargets(p.mana
 // ExternalActions returns a deep copy of the plan's external actions.
 func (p InstallationPlan) ExternalActions() []ExternalAction { return cloneActions(p.externalActions) }
 
+// RefreshPreStates re-reads the actual state of every managed target and replaces
+// each target's PreState with the observed value. It records the accepted observed
+// state after an evidence-bound drift authorization, so the transaction's TOCTOU
+// guard compares against what the operator accepted; any further change between
+// refresh and mutation still fails the guard.
+func (p *InstallationPlan) RefreshPreStates(reader StateReader) error {
+	if reader == nil {
+		reader = DefaultStateReader()
+	}
+	for i := range p.managedTargets {
+		actual, err := reader.Read(p.managedTargets[i].Destination)
+		if err != nil {
+			return fmt.Errorf("refresh pre-state for %q: %w", p.managedTargets[i].Destination, err)
+		}
+		p.managedTargets[i].PreState = actual
+	}
+	return nil
+}
+
 // Clock provides time for deterministic tests.
 type Clock interface {
 	Now() time.Time
