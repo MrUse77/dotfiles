@@ -407,7 +407,7 @@ func TestConfigApply_PlannerUnionsDesiredAndRetiredAndExcludesThemeCurrent(t *te
 		{Path: "home/.local/share/moonarch/themes/current", Digest: "current", Kind: "symlink"},
 	}}
 
-	configPlan, bundles, err := buildConfigPlan(artifactRoot, home, manifest, baseline)
+	configPlan, bundles, err := buildConfigPlan(artifactRoot, home, manifest, baseline, nil)
 	if err != nil {
 		t.Fatalf("build config plan: %v", err)
 	}
@@ -447,7 +447,7 @@ func TestConfigApply_LegacyWithoutBaselinePreservesUnknownPaths(t *testing.T) {
 		{Path: "home/.zshrc", Digest: "zsh", Kind: "file"},
 	}}
 
-	configPlan, _, err := buildConfigPlan(artifactRoot, home, manifest, nil)
+	configPlan, _, err := buildConfigPlan(artifactRoot, home, manifest, nil, nil)
 	if err != nil {
 		t.Fatalf("build first-apply plan: %v", err)
 	}
@@ -460,6 +460,132 @@ func TestConfigApply_LegacyWithoutBaselinePreservesUnknownPaths(t *testing.T) {
 	}
 	if targets[0].Kind == plan.Remove || targets[0].Destination == filepath.Join(home, ".unknown-local-file") {
 		t.Fatal("unknown non-desired path was inferred as managed removal")
+	}
+}
+
+func TestConfigPlanLegacyThemeDirectoryBaselineDoesNotOverlapBundleTargets(t *testing.T) {
+	t.Parallel()
+
+	artifactRoot := t.TempDir()
+	home := t.TempDir()
+	themesDir := filepath.Join(home, ".local", "share", "moonarch", "themes")
+	for _, bundle := range []string{"catppuccin-latte", "tokyo-night"} {
+		writeTestFile(t, filepath.Join(artifactRoot, "home", ".local", "share", "moonarch", "themes", bundle, "theme.conf"), "desired "+bundle)
+		writeTestFile(t, filepath.Join(themesDir, bundle, "theme.conf"), "installed "+bundle)
+	}
+
+	baseline := configBaseline{
+		themesDir: {Type: plan.StateDirectory, Mode: 0o755, Digest: "legacy-tree-digest"},
+	}
+	manifest := release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{
+		{Path: "home/.local/share/moonarch/themes/catppuccin-latte", Digest: "latte-dir", Kind: "dir"},
+		{Path: "home/.local/share/moonarch/themes/catppuccin-latte/theme.conf", Digest: "latte", Kind: "file"},
+		{Path: "home/.local/share/moonarch/themes/tokyo-night", Digest: "tokyo-dir", Kind: "dir"},
+		{Path: "home/.local/share/moonarch/themes/tokyo-night/theme.conf", Digest: "tokyo", Kind: "file"},
+	}}
+
+	reader := plan.DefaultStateReader()
+	configPlan, bundles, err := buildConfigPlan(artifactRoot, home, manifest, baseline, reader)
+	if err != nil {
+		t.Fatalf("build config plan with legacy theme baseline: %v", err)
+	}
+	if !reflect.DeepEqual(bundles, []string{"catppuccin-latte", "tokyo-night"}) {
+		t.Fatalf("theme bundles = %v, want both bundles", bundles)
+	}
+
+	targets := configPlan.ManagedTargets()
+	for _, target := range targets {
+		if target.Kind == plan.Remove && target.Destination == themesDir {
+			t.Fatal("legacy themes parent directory must not be planned for removal")
+		}
+	}
+	for _, bundle := range []string{"catppuccin-latte", "tokyo-night"} {
+		bundleDest := filepath.Join(themesDir, bundle)
+		var bundleTarget *plan.Target
+		for i := range targets {
+			if targets[i].Destination == bundleDest {
+				bundleTarget = &targets[i]
+			}
+		}
+		if bundleTarget == nil {
+			t.Fatalf("managed targets = %#v, want bundle target %q", targets, bundleDest)
+		}
+		if bundleTarget.Kind != plan.CopyTree {
+			t.Fatalf("bundle target %q kind = %q, want CopyTree", bundleDest, bundleTarget.Kind)
+		}
+		expected, err := reader.Read(bundleDest)
+		if err != nil {
+			t.Fatalf("read expected state for %q: %v", bundleDest, err)
+		}
+		if bundleTarget.PreState != expected || bundleTarget.PreState.Type == plan.StateAbsent {
+			t.Fatalf("bundle target %q pre-state = %#v, want reader-observed %#v", bundleDest, bundleTarget.PreState, expected)
+		}
+	}
+	for i := range targets {
+		for j := i + 1; j < len(targets); j++ {
+			a, b := targets[i].Destination, targets[j].Destination
+			if strings.HasPrefix(b, a+string(filepath.Separator)) || strings.HasPrefix(a, b+string(filepath.Separator)) {
+				t.Fatalf("managed targets overlap: %q and %q", a, b)
+			}
+		}
+	}
+}
+
+func TestConfigPlanBaselineDescendantOfDesiredTreeIsNotRemoved(t *testing.T) {
+	t.Parallel()
+
+	artifactRoot := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, filepath.Join(artifactRoot, "home", "a", "file"), "desired tree content")
+	treeDest := filepath.Join(home, "a")
+	descendant := filepath.Join(home, "a", "b", "file")
+	baseline := configBaseline{
+		descendant: {Type: plan.StateFile, Mode: 0o644, Digest: "legacy-descendant"},
+	}
+	manifest := release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{
+		{Path: "home/a", Digest: "dir", Kind: "dir"},
+		{Path: "home/a/file", Digest: "file", Kind: "file"},
+	}}
+
+	configPlan, _, err := buildConfigPlan(artifactRoot, home, manifest, baseline, plan.DefaultStateReader())
+	if err != nil {
+		t.Fatalf("build config plan: %v", err)
+	}
+	targets := configPlan.ManagedTargets()
+	if len(targets) != 1 || targets[0].Destination != treeDest || targets[0].Kind != plan.CopyTree {
+		t.Fatalf("managed targets = %#v, want only desired tree %q", targets, treeDest)
+	}
+	for _, target := range targets {
+		if target.Kind == plan.Remove && target.Destination == descendant {
+			t.Fatal("baseline descendant under a desired CopyTree must not become a Remove target")
+		}
+	}
+}
+
+func TestConfigPlanUnrelatedBaselineEntryStillBecomesRemove(t *testing.T) {
+	t.Parallel()
+
+	artifactRoot := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, filepath.Join(artifactRoot, "home", ".zshrc"), "desired")
+	retired := filepath.Join(home, ".retired")
+	baseline := configBaseline{
+		retired: {Type: plan.StateFile, Mode: 0o644, Digest: "old-retired"},
+	}
+	manifest := release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{
+		{Path: "home/.zshrc", Digest: "zsh", Kind: "file"},
+	}}
+
+	configPlan, _, err := buildConfigPlan(artifactRoot, home, manifest, baseline, plan.DefaultStateReader())
+	if err != nil {
+		t.Fatalf("build config plan: %v", err)
+	}
+	kinds := map[string]plan.MutationKind{}
+	for _, target := range configPlan.ManagedTargets() {
+		kinds[target.Destination] = target.Kind
+	}
+	if kinds[retired] != plan.Remove {
+		t.Fatalf("planned targets = %#v, want %q as Remove", kinds, retired)
 	}
 }
 
@@ -776,7 +902,7 @@ func TestConfigApply_DriftedRemovalBlocked(t *testing.T) {
 			return &release.State{Current: &release.Identity{Tag: "config-v1.0.0", Digest: strings.Repeat("e", 64)}}, nil
 		},
 		loadBaseline: func(*release.State) (configBaseline, error) { return nil, nil },
-		buildPlan: func(string, string, release.Manifest, configBaseline) (plan.InstallationPlan, []string, error) {
+		buildPlan: func(string, string, release.Manifest, configBaseline, plan.StateReader) (plan.InstallationPlan, []string, error) {
 			return configPlan, []string{"tokyo-night"}, nil
 		},
 		prepareTheme: func(string, []string, string) (configThemeMutation, error) {

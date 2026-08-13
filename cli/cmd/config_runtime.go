@@ -54,7 +54,7 @@ type configRuntimeDependencies struct {
 	acquireArtifact    func(context.Context, string) (acquiredConfigArtifact, error)
 	readState          func(string) (*release.State, error)
 	loadBaseline       func(*release.State) (configBaseline, error)
-	buildPlan          func(string, string, release.Manifest, configBaseline) (plan.InstallationPlan, []string, error)
+	buildPlan          func(string, string, release.Manifest, configBaseline, plan.StateReader) (plan.InstallationPlan, []string, error)
 	prepareTheme       func(string, []string, string) (configThemeMutation, error)
 	newTransaction     func(plan.InstallationPlan) configManagedTransaction
 	stateReader        plan.StateReader
@@ -236,22 +236,23 @@ func readConfigManifest(path string) (release.Manifest, error) {
 	return release.ParseManifest(data)
 }
 
-func buildConfigPlan(artifactRoot, home string, manifest release.Manifest, baseline configBaseline) (plan.InstallationPlan, []string, error) {
+func buildConfigPlan(artifactRoot, home string, manifest release.Manifest, baseline configBaseline, reader plan.StateReader) (plan.InstallationPlan, []string, error) {
+	if reader == nil {
+		reader = plan.DefaultStateReader()
+	}
 	targets, bundles, err := discoverConfigTargets(artifactRoot, home, manifest)
 	if err != nil {
 		return plan.InstallationPlan{}, nil, err
 	}
 	themeCurrent := filepath.Join(home, ".local", "share", "moonarch", "themes", "current")
 	desired := make(map[string]struct{}, len(targets))
+	desiredKinds := make(map[string]plan.MutationKind, len(targets))
 	for i := range targets {
 		destination := filepath.Clean(targets[i].Destination)
 		targets[i].Destination = destination
 		desired[destination] = struct{}{}
-		if expected, ok := baseline[destination]; ok {
-			targets[i].PreState = expected
-		} else {
-			targets[i].PreState = plan.PreState{Type: plan.StateAbsent}
-		}
+		desiredKinds[destination] = targets[i].Kind
+		targets[i].PreState = resolveConfigPreState(destination, baseline, reader)
 	}
 	for destination, expected := range baseline {
 		destination = filepath.Clean(destination)
@@ -262,6 +263,9 @@ func buildConfigPlan(artifactRoot, home string, manifest release.Manifest, basel
 			return plan.InstallationPlan{}, nil, fmt.Errorf("baseline destination %q escapes home %q", destination, home)
 		}
 		if _, ok := desired[destination]; ok {
+			continue
+		}
+		if baselineCoveredByDesired(destination, desiredKinds) {
 			continue
 		}
 		targets = append(targets, plan.Target{
@@ -280,6 +284,47 @@ func buildConfigPlan(artifactRoot, home string, manifest release.Manifest, basel
 		return plan.InstallationPlan{}, nil, err
 	}
 	return configPlan, bundles, nil
+}
+
+// resolveConfigPreState assigns the pre-installation state of a desired target.
+// An exact baseline key keeps its recorded identity; otherwise, when a baseline
+// StateDirectory entry is a proper ancestor of the destination (legacy schema-1
+// whole-tree management), the current filesystem state is read so the migration
+// stays drift-free. Any read failure or absent destination falls back to absent.
+func resolveConfigPreState(destination string, baseline configBaseline, reader plan.StateReader) plan.PreState {
+	if expected, ok := baseline[destination]; ok {
+		return expected
+	}
+	for ancestor, expected := range baseline {
+		if expected.Type != plan.StateDirectory {
+			continue
+		}
+		if !pathWithin(ancestor, destination) {
+			continue
+		}
+		actual, err := reader.Read(destination)
+		if err != nil || actual.Type == plan.StateAbsent {
+			return plan.PreState{Type: plan.StateAbsent}
+		}
+		return actual
+	}
+	return plan.PreState{Type: plan.StateAbsent}
+}
+
+// baselineCoveredByDesired reports whether a baseline destination is already
+// represented by the desired set: either it is a proper ancestor of a desired
+// destination (removing it would destroy desired content), or it is a proper
+// descendant of a desired CopyTree destination (the tree copy covers it).
+func baselineCoveredByDesired(destination string, desiredKinds map[string]plan.MutationKind) bool {
+	for desiredDestination, kind := range desiredKinds {
+		if pathWithin(destination, desiredDestination) {
+			return true
+		}
+		if kind == plan.CopyTree && pathWithin(desiredDestination, destination) {
+			return true
+		}
+	}
+	return false
 }
 
 func discoverConfigTargets(artifactRoot, home string, manifest release.Manifest) ([]plan.Target, []string, error) {
@@ -1097,11 +1142,15 @@ func (r *configRuntime) Apply(ctx context.Context, out io.Writer, req configAppl
 	if err != nil {
 		return err
 	}
+	reader := r.deps.stateReader
+	if reader == nil {
+		reader = plan.DefaultStateReader()
+	}
 	buildPlan := r.deps.buildPlan
 	if buildPlan == nil {
 		buildPlan = buildConfigPlan
 	}
-	configPlan, bundles, err := buildPlan(artifact.Root, r.deps.paths.home, artifact.Manifest, baseline)
+	configPlan, bundles, err := buildPlan(artifact.Root, r.deps.paths.home, artifact.Manifest, baseline, reader)
 	if err != nil {
 		return err
 	}
@@ -1122,10 +1171,6 @@ func (r *configRuntime) Apply(ctx context.Context, out io.Writer, req configAppl
 		}
 	}
 	tx := newTransaction(configPlan)
-	reader := r.deps.stateReader
-	if reader == nil {
-		reader = plan.DefaultStateReader()
-	}
 	writeState := r.deps.writeState
 	if writeState == nil {
 		writeState = func(state *release.State) error { return state.WriteAtomic(r.deps.paths.state) }
@@ -1258,11 +1303,15 @@ func (r *configRuntime) Rollback(ctx context.Context, out io.Writer, req configR
 	if err != nil {
 		return err
 	}
+	reader := r.deps.stateReader
+	if reader == nil {
+		reader = plan.DefaultStateReader()
+	}
 	buildPlan := r.deps.buildPlan
 	if buildPlan == nil {
 		buildPlan = buildConfigPlan
 	}
-	configPlan, bundles, err := buildPlan(artifactRoot, r.deps.paths.home, manifest, baseline)
+	configPlan, bundles, err := buildPlan(artifactRoot, r.deps.paths.home, manifest, baseline, reader)
 	if err != nil {
 		return err
 	}
@@ -1283,10 +1332,6 @@ func (r *configRuntime) Rollback(ctx context.Context, out io.Writer, req configR
 		}
 	}
 	tx := newTransaction(configPlan)
-	reader := r.deps.stateReader
-	if reader == nil {
-		reader = plan.DefaultStateReader()
-	}
 	candidate := *state.Previous
 	preflight := func() error {
 		result, err := checkConfigPreflight(configPlan, reader, candidate, req.AuthorizeDrift)
