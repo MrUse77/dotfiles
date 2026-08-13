@@ -82,7 +82,7 @@ func TestConfigRollback_UsesRetainedArtifactOfflineAndSwapsIdentities(t *testing
 			return release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{}}, nil
 		},
 		loadBaseline: func(*release.State) (configBaseline, error) { return nil, nil },
-		buildPlan: func(root, _ string, _ release.Manifest, _ configBaseline) (plan.InstallationPlan, []string, error) {
+		buildPlan: func(root, _ string, _ release.Manifest, _ configBaseline, _ plan.StateReader) (plan.InstallationPlan, []string, error) {
 			events = append(events, "plan")
 			if root != artifactRoot {
 				t.Fatalf("plan root = %q, want %q", root, artifactRoot)
