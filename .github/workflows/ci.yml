@@ -47,12 +47,16 @@ jobs:
           filters: |
             cli:
               - 'cli/**'
+              - '.github/workflows/ci.yml'
             config:
               - 'home/**'
               - 'scripts/**'
               - 'Dockerfile.test'
               - 'test.sh'
               - 'tests/moonarch-theme-palette_test.sh'
+              - 'tests/release-bridge_test.sh'
+              - '.github/workflows/release.yml'
+              - '.github/workflows/ci.yml'
             docs:
               - '**/*.md'
 
@@ -88,7 +92,8 @@ jobs:
         run: go vet ./...
 
       - name: Go test
-        run: go test -v -race -count=1 ./...
+        working-directory: .
+        run: cd cli && go test -race -count=1 ./...
 
       - name: Go build
         run: go build ./...
@@ -108,6 +113,9 @@ jobs:
 
       - name: Run test.sh
         run: bash test.sh
+
+      - name: Verify release bridge fixtures
+        run: bash tests/release-bridge_test.sh
 
   # -----------------------------------------------------------
   # Docs: Markdown lint
