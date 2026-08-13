@@ -197,11 +197,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" --verify-tag --draft --latest=false \
+          gh release create "$TAG" --verify-tag --latest=false \
             --title "$TAG" --notes "Immutable MoonArch configuration $TAG." \
             "dist/$TAG.tar.zst" "dist/$TAG.tar.zst.sha256" "dist/$TAG.manifest.json"
-          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq .id)"
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$release_id" \
-            -F draft=false -f make_latest=false >/dev/null
           gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > "$RUNNER_TEMP/latest-after.json"
           bash tests/release-bridge_test.sh verify-bridge "$RUNNER_TEMP/latest-after.json"

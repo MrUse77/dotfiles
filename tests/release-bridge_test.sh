@@ -82,7 +82,10 @@ ci="$repo_root/.github/workflows/ci.yml"
 grep -Fq 'tests/release-bridge_test.sh verify-bridge' "$workflow" || fail 'release workflow does not invoke the bridge gate'
 grep -Fq 'tests/release-bridge_test.sh assert-new-identity' "$workflow" || fail 'release workflow does not invoke the identity gate'
 grep -Fq -- '--latest=false' "$workflow" || fail 'config releases are not prevented from becoming latest'
-grep -Fq -- '--draft --latest=false' "$workflow" || fail 'config assets are not staged before publication'
+grep -Fq -- '--verify-tag --latest=false' "$workflow" || fail 'config publication is not direct and latest-safe'
+build_line="$(grep -n -F 'Build deterministic config artifact' "$workflow" | cut -d: -f1 | head -n 1)"
+publish_line="$(grep -n -F 'Publish immutable config release' "$workflow" | cut -d: -f1 | head -n 1)"
+[[ -n "$build_line" && -n "$publish_line" && "$build_line" -lt "$publish_line" ]] || fail 'config assets are not built before publication'
 grep -Fq 'submodules: recursive' "$workflow" || fail 'release workflow does not materialize pinned submodules'
 grep -Fq -- "--mtime='@0'" "$workflow" || fail 'release archive does not normalize timestamps'
 grep -Fq 'manifest.json home assets' "$workflow" || fail 'manifest is not the first archive entry'
