@@ -1,93 +1,67 @@
 @import url("../../.local/share/moonarch/themes/current/waybar.css");
+
+/* ============================================================
+   Waybar — base
+   ============================================================ */
 * {
   border: none;
   border-radius: 0;
-  font-family:
-    "Hack Nerd Font", Roboto, Helvetica, Arial, sans-serif; /* Tu fuente es CRÍTICA aquí */
-  font-size: 15px;
+  font-family: "Hack Nerd Font", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
   font-weight: 600;
-}
-#workspaces {
-  padding: 0;
-  margin: 0;
-}
-/* Eliminamos el fondo negro total */
-window#waybar {
-  background-color: transparent; /* Seguimos con el fondo transparente */
-  color: @text_main;
-  margin: 0;
-  padding: 5px 0;
+  min-height: 0;
 }
 
-/* --- MÓDULOS FLOTANTES --- */
+window#waybar {
+  background-color: transparent;
+  color: @text_main;
+}
+
+@keyframes blink {
+  to {
+    background-color: alpha(@urgent_red, 0.4);
+  }
+}
+
+/* ============================================================
+   Píldoras flotantes (grupos de módulos)
+   ============================================================ */
 .modules-left,
 .modules-center,
 .modules-right {
-  background-color: @bg_dark; /* Usamos el azul muy oscuro */
-  border-radius: 12px;
-  padding: 5px 15px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  /* Theme-derived shadows keep the modules tied to the selected bundle. */
-  box-shadow:
-    0 4px 8px alpha(@accent_blue, 0.4),
-    0 -4px 8px alpha(@accent_blue, 0.4),
-    0 2px 4px alpha(@accent_blue, 0.2),
-    0 -2px 4px alpha(@accent_blue, 0.2);
+  background-color: alpha(@bg_dark, 0.88);
+  border: 1px solid alpha(@accent_blue, 0.22);
+  border-radius: 14px;
+  padding: 6px 12px;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  /* Sombra de profundidad sutil; el glow azul en 4 direcciones
+     se reemplaza por un borde tenue que respeta el tema. */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
+/* Match Hyprland's 20px gaps_out at the screen edges. */
 .modules-left {
-  margin-left: 10px;
+  margin-left: 20px;
 }
 
 .modules-right {
-  margin-right: 10px;
+  margin-right: 20px;
 }
 
 .modules-center {
   padding: 0;
   margin: 0;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-/* --- WORKSPACES --- */
-#workspaces button {
-  color: shade(@text_main, 0.55);
-  padding-left: 5px;
-  border-radius: 5px;
-  padding-right: 10px;
-  
-  margin: 0 1px;
-}
-
-#workspaces button.active {
-  color: @accent_blue; /* Selected theme accent */
-  border-bottom: 2px solid @accent_blue;
-  background-color: alpha(@accent_blue, 0.1);
-  transition: all 0.3s ease;
-}
-
-#workspaces button.urgent {
-  color: @urgent_red;
-}
-
-/* Atacamos el texto interno (label) */
-#workspaces button label {
-  margin: 0;
-  /* En GTK3, esto a veces ayuda a centrar el texto dentro del label */
-  font-size: 16px;
-}
-
-#workspaces button:hover {
-  background-color: alpha(@accent_blue, 0.1);
-}
-
-#mpd,
-#power,
-#notification,
+/* ============================================================
+   Módulos individuales (estado base unificado)
+   ============================================================ */
 #clock,
-#battery,
+#upower,
 #cpu,
 #memory,
 #disk,
@@ -95,135 +69,139 @@ window#waybar {
 #backlight,
 #network,
 #pulseaudio,
-#custom-media,
 #tray,
 #mode,
 #idle_inhibitor,
 #custom-pacman,
-#mpd {
-  padding: 0 10px;
-  margin: 0 10px;
-  font-weight: bold;
+#custom-notification,
+#custom-launcher,
+#custom-power {
   color: @text_main;
-  border-radius: 10px;
+  padding: 2px 10px;
+  margin: 0 2px;
+  border-radius: 9px;
+  transition: all 0.2s ease;
 }
 
-#workspaces span {
-  margin: 0;
-  padding: 0 10px;
+/* ============================================================
+   Workspaces
+   ============================================================ */
+#workspaces {
+  padding: 0;
+  margin: 0 4px;
 }
 
-#groups-hardware {
-  min-width: 600px;
-  background-color: mix(@bg_dark, @text_main, 0.2);
-  border-radius: 15px;
-  padding-left: 10px;
-  margin: 4px;
-  box-shadow: 0 2px 3px 2px alpha(@bg_dark, 0.9);
-}
-#cpu,
-#memory,
-#temperature,
-#power-profiles-daemon {
-  background-color: transparent; /* Importante: el fondo lo da el grupo */
-  margin: 0;
-  padding: 0 10px;
-  border-radius: 0;
-}
-/* ~/.config/waybar/style.css */
-
-#custom-notification {
-  /* Agrega espacio a la derecha del icono de notificaciones */
-  margin-left: 10px;
-  margin-right: 15px;
-  /* Opcional: Color de fondo o letra para diferenciar */
+#workspaces button {
+  color: alpha(@text_main, 0.55);
+  padding: 2px 8px;
+  margin: 2px 1px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
+#workspaces button.active {
+  background-color: alpha(@accent_blue, 0.85);
+  color: @bg_dark;
+}
+
+/* El workspace activo también lleva la clase visible; el selector
+   combinado gana por especificidad y mantiene el punto oscuro. */
+#workspaces button.active.visible {
+  color: @bg_dark;
+}
+
+#workspaces button.visible {
+  color: @accent_blue;
+}
+
+#workspaces button.urgent {
+  color: @urgent_red;
+  animation: blink 1s infinite;
+}
+
+/* ============================================================
+   Taskbar
+   ============================================================ */
 #taskbar button {
-  padding: 10px;
-  box-shadow: 0 2px 3px 1px alpha(@bg_dark, 0.5);
-  border-radius:5px;
+  padding: 2px 8px;
+  margin: 2px 1px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 #taskbar button.active {
-  color: @accent_blue; /* Selected theme accent */
-  border-bottom: 2px solid @accent_blue;
-  background-color: alpha(@accent_blue, 0.1);
-  transition: all 0.3s ease;
-}
-#taskbar button:hover {
-  color: @accent_blue; /* Selected theme accent */
-  box-shadow: 0 2px 3px 2px alpha(@bg_dark, 0.9);
-  border-radius: 5px
-}
-#custom-power {
-  /* Agrega espacio a la izquierda del botón de apagado */
-  margin-left: 10px;
-  /* Un poco de espacio extra a la derecha para que no pegue con el borde de la pantalla */
-  margin-right: 15px;
+  background-color: alpha(@accent_blue, 0.85);
+  color: @bg_dark;
 }
 
-#tray {
-  box-shadow: 0 2px 3px 1px alpha(@bg_dark, 0.5);
+/* ============================================================
+   Separadores
+   ============================================================ */
+#custom-sep {
+  color: alpha(@gray, 0.55);
+  font-size: 10px;
+  margin: 0 2px;
+  padding: 0;
 }
-#tray:hover {
-	
-  background-color: alpha(@accent_blue, 0.1);
-  color: @accent_blue; /* Selected theme accent */
-  box-shadow: 0 2px 3px 2px alpha(@bg_dark, 0.9);
+
+/* ============================================================
+   Grupo hardware (transparente dentro de la píldora)
+   ============================================================ */
+#groups-hardware {
+  background-color: transparent;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
-#custom-launcher {
-  padding-left: 10px;
-  padding-right: 15px;
-  box-shadow: 0 2px 3px 1px alpha(@bg_dark, 0.5);
-  border-radius:5px;
+
+#cpu,
+#memory,
+#temperature {
+  background-color: transparent;
+  margin: 0;
+  padding: 2px 10px;
 }
-#custom-launcher:hover {
-  background-color: alpha(@accent_blue, 0.1);
-  box-shadow: 0 2px 3px 2px alpha(@bg_dark, 0.9);
+
+/* ============================================================
+   Reloj
+   ============================================================ */
+#clock {
+  padding: 2px 14px;
+  margin: 0;
+  font-weight: bold;
 }
-#battery,
+
+/* ============================================================
+   Batería
+   ============================================================ */
+#upower,
 #network,
 #pulseaudio {
   font-family: "CaskaydiaMono Nerd Font";
   font-weight: bold;
-  color: @text_main;
-  padding: 0 10px;
-}
-#battery.charging {
-  color: @accent_blue; /* Selected theme accent while charging */
 }
 
-#battery.warning:not(.charging) {
-  color: @urgent_red; /* Selected theme warning color */
-  animation-name: blink;
-  animation-duration: 0.5s;
-  animation-iteration-count: infinite;
-}
-
-#battery {
-  color: @text_main; /* Selected theme text color */
-}
-
-#battery.charging {
+#upower.charging {
   color: @accent_blue;
 }
 
-#clock {
-  padding-right: 5rem;
-  padding-left: 5rem;
-  margin: 0;
-  font-weight: bold;
-  color: @text_main;
-  box-shadow: 0 2px 3px 1px alpha(@bg_dark, 0.5);
+#upower.warning,
+#upower.critical {
+  color: @urgent_red;
+  animation: blink 1s infinite;
 }
-#clock:hover {
-  background: alpha(@bg_dark, 0.2);
-}
-#custom-pacman{
-	border-radius:11px;
-}
-#custom-pacman:hover{
 
-  background-color: alpha(@accent_blue, 0.1);
+/* ============================================================
+   Tooltip
+   ============================================================ */
+tooltip {
+  background-color: @bg_dark;
+  border: 1px solid alpha(@accent_blue, 0.3);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+tooltip label {
+  color: @text_main;
 }

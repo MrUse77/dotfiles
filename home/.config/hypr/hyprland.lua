@@ -74,7 +74,7 @@ local powerMenu = os.getenv("HOME") .. "/.config/rofi/scripts/launch-powermenu"
 hl.on("hyprland.start", function()
 	hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
 	hl.exec_cmd(
-		"/usr/lib/hyprpolkitagent/hyprpolkitagent & waybar & hyprctl setcursor volantes_cursors 24 & dunst & hyprsunset"
+		"/usr/lib/hyprpolkitagent/hyprpolkitagent & waybar & eww daemon & hyprctl setcursor volantes_cursors 24 & dunst & hyprsunset"
 	)
 	hl.exec_cmd("hyprpm reload -n & hyprpaper & corectrl & /usr/lib/xdg-desktop-portal-hyprland")
 end)
@@ -142,17 +142,18 @@ hl.config({
 		gaps_in = 10,
 		gaps_out = 20,
 
-		border_size = 5,
+		-- Match Waybar's thin, theme-colored outline.
+		border_size = 1,
 
-		-- https://wiki.hypr.land/Configuring/Basics/Variables/#variable-types for info about colors
+		-- Match Waybar's subtle 22% accent border.
 		col = {
-			active_border = "rgba(262738aa)",
-			inactive_border = "rgba(595959aa)",
+			active_border = "rgba(7aa2f738)",
+			inactive_border = "rgba(41486838)",
 		},
 
 		-- Set to true to enable resizing windows by clicking and dragging on borders and gaps
 		resize_on_border = true,
-		extend_border_grab_area = 0,
+		extend_border_grab_area = 8,
 
 		-- Please see https://wiki.hypr.land/Configuring/Advanced-and-Cool/Tearing/ before you turn this on
 		allow_tearing = true,
@@ -161,18 +162,19 @@ hl.config({
 	},
 
 	decoration = {
-		rounding = 15,
+		rounding = 14,
 		rounding_power = 10,
 
 		-- Change transparency of focused and unfocused windows
 		active_opacity = 0.9,
 		inactive_opacity = 0.5,
 
+		-- Match Waybar's soft black shadow: 18px range and 35% opacity.
 		shadow = {
 			enabled = true,
-			range = 5,
-			render_power = 2,
-			color = 0xee7aa2f7, -- rgba(122, 162, 247, 1) -> 0xee + RGB
+			range = 18,
+			render_power = 3,
+			color = 0x59000000,
 		},
 
 		-- https://wiki.hypr.land/Configuring/Advanced-and-Cool/Blur/
@@ -203,30 +205,65 @@ if theme_file then
 	end
 end
 
+-- The Tokyo Night bundle is intentionally immutable. Its legacy Hyprland border
+-- aliases predate the shared Waybar palette, so align the active consumer here
+-- without changing the bundle or affecting other selectable themes.
+local function shell_quote(value)
+	return "'" .. value:gsub("'", "'\\''") .. "'"
+end
+
+local theme_link = os.getenv("HOME") .. "/.local/share/moonarch/themes/current"
+local theme_probe = io.popen("readlink -- " .. shell_quote(theme_link), "r")
+local active_theme = theme_probe and theme_probe:read("*l") or nil
+if theme_probe then
+	theme_probe:close()
+end
+
+if active_theme == "tokyo-night" then
+	hl.config({
+		general = {
+			col = {
+				active_border = "rgba(7aa2f738)",
+				inactive_border = "rgba(41486838)",
+			},
+		},
+	})
+end
+
 -- Default animation curves, see https://wiki.hypr.land/Configuring/Advanced-and-Cool/Animations/
 hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
-hl.curve("easeInOutCubic", { type = "bezier", points = { { 0.65, 0.05 }, { 0.36, 1 } } })
-hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
-hl.curve("almostLinear", { type = "bezier", points = { { 0.5, 0.5 }, { 0.75, 1 } } })
-hl.curve("quick", { type = "bezier", points = { { 0.15, 0 }, { 0.1, 1 } } })
+hl.curve("smooth", { type = "bezier", points = { { 0.5, 0 }, { 0.5, 1 } } })
+hl.curve("overshot", { type = "bezier", points = { { 0.13, 0.99 }, { 0.29, 1.05 } } })
+hl.curve("gentle", { type = "bezier", points = { { 0.25, 0.1 }, { 0.25, 1 } } })
 
 -- Animation definitions
 hl.animation({ leaf = "global", enabled = true, speed = 10, bezier = "default" })
-hl.animation({ leaf = "border", enabled = true, speed = 5.39, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windows", enabled = true, speed = 4.79, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windowsIn", enabled = true, speed = 4.1, bezier = "easeOutQuint", style = "popin 87%" })
-hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" })
-hl.animation({ leaf = "fadeIn", enabled = true, speed = 1.73, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeOut", enabled = true, speed = 1.46, bezier = "almostLinear" })
-hl.animation({ leaf = "fade", enabled = true, speed = 3.03, bezier = "quick" })
-hl.animation({ leaf = "layers", enabled = true, speed = 3.81, bezier = "easeOutQuint" })
-hl.animation({ leaf = "layersIn", enabled = true, speed = 4, bezier = "easeOutQuint", style = "fade" })
-hl.animation({ leaf = "layersOut", enabled = true, speed = 1.5, bezier = "linear", style = "fade" })
-hl.animation({ leaf = "fadeLayersIn", enabled = true, speed = 1.79, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesIn", enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
+hl.animation({ leaf = "windows", enabled = true, speed = 4.5, bezier = "smooth" })
+hl.animation({ leaf = "windowsIn", enabled = true, speed = 5, bezier = "overshot", style = "popin 85%" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 5, bezier = "smooth", style = "popin 85%" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 5, bezier = "smooth" })
+hl.animation({ leaf = "fadeIn", enabled = true, speed = 3.5, bezier = "smooth" })
+hl.animation({ leaf = "fadeOut", enabled = true, speed = 3, bezier = "smooth" })
+hl.animation({ leaf = "fade", enabled = true, speed = 4, bezier = "smooth" })
+hl.animation({ leaf = "fadeSwitch", enabled = true, speed = 4, bezier = "smooth" })
+hl.animation({ leaf = "fadeDim", enabled = true, speed = 4, bezier = "smooth" })
+hl.animation({ leaf = "fadeShadow", enabled = true, speed = 4, bezier = "smooth" })
+hl.animation({ leaf = "fadePopups", enabled = true, speed = 4, bezier = "smooth" })
+hl.animation({ leaf = "fadePopupsIn", enabled = true, speed = 3.5, bezier = "smooth" })
+hl.animation({ leaf = "fadePopupsOut", enabled = true, speed = 2.5, bezier = "smooth" })
+hl.animation({ leaf = "layers", enabled = true, speed = 4, bezier = "easeOutQuint" })
+hl.animation({ leaf = "layersIn", enabled = true, speed = 6, bezier = "easeOutQuint", style = "fade" })
+hl.animation({ leaf = "layersOut", enabled = true, speed = 4, bezier = "easeOutQuint", style = "fade" })
+hl.animation({ leaf = "fadeLayersIn", enabled = true, speed = 5, bezier = "smooth" })
+hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 3, bezier = "smooth" })
+hl.animation({ leaf = "border", enabled = true, speed = 6, bezier = "smooth" })
+hl.animation({ leaf = "borderangle", enabled = true, speed = 6, bezier = "smooth" })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 4.5, bezier = "gentle", style = "slide" })
+hl.animation({ leaf = "workspacesIn", enabled = true, speed = 4, bezier = "gentle", style = "slide" })
+hl.animation({ leaf = "workspacesOut", enabled = true, speed = 4, bezier = "gentle", style = "slide" })
+hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 4.5, bezier = "gentle", style = "slidefade 15%" })
+hl.animation({ leaf = "specialWorkspaceIn", enabled = true, speed = 4, bezier = "gentle", style = "slidefade 15%" })
+hl.animation({ leaf = "specialWorkspaceOut", enabled = true, speed = 4, bezier = "gentle", style = "slidefade 15%" })
 
 -- Ref https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
 -- "Smart gaps" / "No gaps when only"
@@ -356,6 +393,7 @@ hl.bind(
 
 -- MoonArch theme selector — phase 2 will wire this properly
 hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/moonarch/theme-selector"))
+hl.bind(mainMod .. " + N", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/eww/scripts/usrctl.sh")) -- Control center eww
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. " + left", hl.dsp.focus({ direction = "left" }))

@@ -2,28 +2,22 @@
   "layer": "top", // Prioridad de renderizado
   "position": "top", // O "bottom", "left", "right"
   "mod": "dock",
-  "height": 72, // Altura fija para evitar saltos de layout
+  "height": 74, // Altura fija para evitar saltos de layout
   "exclusive": true, // Hyprland reservará este espacio
 
   // Módulos a cargar
   "modules-left": [
-    "hyprland/workspaces",
-    "custom/sep",
-    "wlr/taskbar",
     "custom/launcher",
-    "custom/sep",
+    "hyprland/workspaces",
+    "wlr/taskbar",
     "tray",
-    "custom/sep",
     "custom/pacman"
   ],
-  "modules-center": ["clock"],
   "modules-right": [
+    "clock",
     "pulseaudio",
-    "custom/sep",
     "group/hardware",
-    "custom/sep",
     "custom/notification",
-    "custom/sep",
     "custom/power"
   ],
 
@@ -33,10 +27,10 @@
 
   "format-icons": {
     "urgent": "",
-    "active": "",
-    "visible": "",
-    "default": "",
-    "empty": ""
+    "active": "●",
+    "visible": "◉",
+    "default": "○",
+    "empty": "○"
   },
 
   "all-outputs": false,
@@ -49,19 +43,19 @@
     "spacing": 10
   },
   "clock": {
-    "format": "{:%H:%M} <span size='15pt' rise='-1500'></span>",
-    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "format": "{:%H:%M} ",
+    "tooltip-format": "{calendar}",
     "calendar": {
       "mode": "year",
       "mode-mon-col": 3,
       "weeks-pos": "right",
       "on-scroll": 1,
       "format": {
-        "months": "<span color='#c0caf5'><b>{}</b></span>",
-        "days": "<span color='#c0caf5'><b>{}</b></span>",
-        "weeks": "<span color='#7dcfff'><b>W{}</b></span>",
-        "weekdays": "<span color='#ff9e64'><b>{}</b></span>",
-        "today": "<span color='#f7768e'><b><u>{}</u></b></span>"
+        "months": "<span color='#7aa2f7'><b>{}</b></span>",
+        "days": "{}",
+        "weeks": "<span color='#414868'>W{}</span>",
+        "weekdays": "{}",
+        "today": "<span color='#f7768e'><b>{}</b></span>"
       }
     },
     "actions": {
@@ -108,37 +102,21 @@
     "tooltip": false
   },
   "temperature": {
+    // Zona térmica automática (thermal_zone0); se desactiva solo si no hay sensor.
     "critical-threshold": 80,
     "format": "{temperatureC}°C <span size='15pt' rise='-1500'>{icon}</span>",
     "format-icons": ["", "", ""]
   },
-  "battery": {
-    "bat": "BAT2",
-    "interval": 60,
-    "states": {
-      "warning": 30,
-      "critical": 15
-    },
-    "format": "{capacity}% {icon}",
-    "format-icons": ["", "", "", "", ""],
-    "max-length": 25
-  },
 
   "upower": {
+    "format": "{percentage}% {icon}",
     "icon-size": 20,
     "hide-if-empty": true,
     "tooltip": true,
-    "tooltip-spacing": 20
-  },
-  "power-profiles-daemon": {
-    "format": "{icon}",
-    "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
-    "tooltip": true,
-    "format-icons": {
-      "default": "",
-      "performance": "",
-      "balanced": "",
-      "power-saver": ""
+    "tooltip-spacing": 20,
+    "states": {
+      "warning": 30,
+      "critical": 15
     }
   },
   "group/hardware": {
@@ -152,9 +130,7 @@
       "cpu", // Un icono fijo que siempre se ve
       "temperature",
       "memory",
-      "battery",
-      "upower",
-      "power-profiles-daemon"
+      "upower"
     ]
   },
   "wlr/taskbar": {
@@ -174,25 +150,11 @@
   "custom/notification": {
     "tooltip": false,
     "format": "󰵅",
-    "on-click": "eww open usrctl && eww update ctlrev=true" // Abre el panel lateral
+    "on-click": "$HOME/.config/eww/scripts/usrctl.sh" // Toggle del panel lateral
   },
-  "mpris": {
-    "format": "{player_icon} {title} - {artist}",
-    "format-paused": "{status_icon} {title} - {artist}",
-    "player-icons": {
-      "default": "🎵",
-      "mpd": "🎧",
-      "firefox": "🦊",
-      "chromium": "",
-      "spotify": ""
-    },
-    "status-icons": {
-      "paused": ""
-    }
-  },
-  "custom/sep": {
-    "format": "|", // O un espacio vacío " "
-    "tooltip": false
+      "custom/sep": {
+        "format": "·", // Separador sutil
+        "tooltip": false
   },
   "custom/pacman": {
     "format": "<span>  {}</span>",
