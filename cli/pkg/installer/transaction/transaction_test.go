@@ -1362,3 +1362,56 @@ func (h *hookFS) ReadDir(path string) ([]os.DirEntry, error) {
 	}
 	return h.Filesystem.ReadDir(path)
 }
+
+func TestAcceptObservedStates_AllowsCommitAfterAuthorizedDrift(t *testing.T) {
+	t.Run("without acceptance commit reports drift", func(t *testing.T) {
+		repo := t.TempDir()
+		home := t.TempDir()
+		src := filepath.Join(repo, "src")
+		mustWriteFile(t, src, []byte("new"))
+		dest := filepath.Join(home, "target")
+		mustWriteFile(t, dest, []byte("original"))
+
+		p := buildPlan(t, repo, home, []plan.Target{{Source: src, Destination: dest, Kind: plan.CopyFile}})
+		mustWriteFile(t, dest, []byte("changed after plan"))
+
+		tx := New(p)
+		if err := tx.Prepare(); err != nil {
+			t.Fatalf("Prepare: %v", err)
+		}
+		err := tx.Commit()
+		var drift *report.PlanDriftError
+		if !errors.As(err, &drift) {
+			t.Fatalf("Commit() error = %v, want PlanDriftError", err)
+		}
+		if got := readFileString(t, dest); got != "changed after plan" {
+			t.Errorf("dest content = %q, want unchanged", got)
+		}
+	})
+
+	t.Run("accepted observed states allow commit", func(t *testing.T) {
+		repo := t.TempDir()
+		home := t.TempDir()
+		src := filepath.Join(repo, "src")
+		mustWriteFile(t, src, []byte("new"))
+		dest := filepath.Join(home, "target")
+		mustWriteFile(t, dest, []byte("original"))
+
+		p := buildPlan(t, repo, home, []plan.Target{{Source: src, Destination: dest, Kind: plan.CopyFile}})
+		mustWriteFile(t, dest, []byte("changed after plan"))
+
+		tx := New(p)
+		if err := tx.AcceptObservedStates(); err != nil {
+			t.Fatalf("AcceptObservedStates: %v", err)
+		}
+		if err := tx.Prepare(); err != nil {
+			t.Fatalf("Prepare: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Commit() error = %v, want nil after authorized drift", err)
+		}
+		if got := readFileString(t, dest); got != "new" {
+			t.Errorf("dest content = %q, want new", got)
+		}
+	})
+}

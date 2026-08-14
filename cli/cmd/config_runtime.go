@@ -112,6 +112,7 @@ type configManagedTransaction interface {
 	Commit() error
 	Rollback() error
 	Inventory() *transaction.Inventory
+	AcceptObservedStates() error
 }
 
 type configThemeMutation interface {
@@ -1181,7 +1182,13 @@ func (r *configRuntime) Apply(ctx context.Context, out io.Writer, req configAppl
 		if err != nil && len(result.Observations) != 0 {
 			printDriftEvidence(out, result)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		if req.AuthorizeDrift != "" {
+			return tx.AcceptObservedStates()
+		}
+		return nil
 	}
 	next, err := executeConfigMutation(artifact.Identity, state, configPlan.RunID, configMutationDependencies{
 		journal:     r.deps.journal,
@@ -1338,7 +1345,13 @@ func (r *configRuntime) Rollback(ctx context.Context, out io.Writer, req configR
 		if err != nil && len(result.Observations) != 0 {
 			printDriftEvidence(out, result)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		if req.AuthorizeDrift != "" {
+			return tx.AcceptObservedStates()
+		}
+		return nil
 	}
 	next, err := executeConfigMutation(candidate, state, configPlan.RunID, configMutationDependencies{
 		journal:     r.deps.journal,

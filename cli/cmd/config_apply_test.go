@@ -125,11 +125,12 @@ func (r mapStateReader) Read(path string) (plan.PreState, error) {
 }
 
 type stubConfigTransaction struct {
-	events      *[]string
-	inventory   *transaction.Inventory
-	prepareErr  error
-	commitErr   error
-	rollbackErr error
+	events              *[]string
+	inventory           *transaction.Inventory
+	prepareErr          error
+	commitErr           error
+	rollbackErr         error
+	acceptObservedCalls int
 }
 
 func (s *stubConfigTransaction) Prepare() error {
@@ -149,6 +150,12 @@ func (s *stubConfigTransaction) Rollback() error {
 
 func (s *stubConfigTransaction) Inventory() *transaction.Inventory {
 	return s.inventory
+}
+
+func (s *stubConfigTransaction) AcceptObservedStates() error {
+	*s.events = append(*s.events, "transaction:accept-observed")
+	s.acceptObservedCalls++
+	return nil
 }
 
 type stubThemeMutation struct {
@@ -932,6 +939,97 @@ func TestConfigApply_DriftedRemovalBlocked(t *testing.T) {
 	}
 	if strings.Contains(strings.Join(events, ","), "transaction:prepare") {
 		t.Fatalf("events = %v, transaction must not prepare after drift", events)
+	}
+}
+
+func TestConfigApply_AuthorizedDriftRefreshesObservedStatesInTransaction(t *testing.T) {
+	t.Parallel()
+
+	home := t.TempDir()
+	replacement := filepath.Join(home, ".zshrc")
+	configPlan, err := plan.NewInstallationPlan("run-authorized", []plan.Target{{
+		Destination: replacement,
+		Kind:        plan.CopyFile,
+		PreState:    plan.PreState{Type: plan.StateFile, Mode: 0o644, Digest: "expected-zsh"},
+	}})
+	if err != nil {
+		t.Fatalf("build authorized drift plan: %v", err)
+	}
+	candidate := release.Identity{Tag: "config-v2.0.0", Digest: strings.Repeat("c", 64)}
+	reader := mapStateReader{replacement: {Type: plan.StateFile, Mode: 0o644, Digest: "local-zsh"}}
+
+	first, err := checkConfigPreflight(configPlan, reader, candidate, "")
+	if !errors.Is(err, errDriftAuthorizationRequired) || first.Token == "" {
+		t.Fatalf("first preflight = %#v, err = %v, want drift authorization with token", first, err)
+	}
+
+	events := []string{}
+	stateWrites := 0
+	tx := &stubConfigTransaction{events: &events, inventory: &transaction.Inventory{}}
+	operations := newConfigRuntime(configRuntimeDependencies{
+		paths:   configPaths{home: home, lock: "/state/lock", state: "/state/state.json", themeCurrent: filepath.Join(home, "themes", "current")},
+		lock:    &stubConfigLock{},
+		journal: &stubConfigJournal{outcome: release.JournalOutcomeCommitted, events: &events},
+		acquireArtifact: func(context.Context, string) (acquiredConfigArtifact, error) {
+			return acquiredConfigArtifact{
+				Identity: candidate,
+				Root:     "/artifact",
+				Manifest: release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{}},
+			}, nil
+		},
+		readState: func(string) (*release.State, error) {
+			return &release.State{Current: &release.Identity{Tag: "config-v1.0.0", Digest: strings.Repeat("e", 64)}}, nil
+		},
+		loadBaseline: func(*release.State) (configBaseline, error) { return nil, nil },
+		buildPlan: func(string, string, release.Manifest, configBaseline, plan.StateReader) (plan.InstallationPlan, []string, error) {
+			return configPlan, []string{"tokyo-night"}, nil
+		},
+		prepareTheme: func(string, []string, string) (configThemeMutation, error) {
+			return &stubThemeMutation{events: &events}, nil
+		},
+		newTransaction: func(plan.InstallationPlan) configManagedTransaction {
+			events = append(events, "transaction:new")
+			return tx
+		},
+		stateReader: reader,
+		writeState: func(*release.State) error {
+			stateWrites++
+			return nil
+		},
+	})
+
+	var out bytes.Buffer
+	err = operations.Apply(context.Background(), &out, configApplyRequest{Tag: "config-v2.0.0"})
+	if !errors.Is(err, errDriftAuthorizationRequired) {
+		t.Fatalf("unauthorized apply error = %v, want drift authorization required", err)
+	}
+	if tx.acceptObservedCalls != 0 {
+		t.Fatalf("AcceptObservedStates calls before authorization = %d, want 0", tx.acceptObservedCalls)
+	}
+	if stateWrites != 0 {
+		t.Fatalf("state writes before authorization = %d, want 0", stateWrites)
+	}
+
+	out.Reset()
+	err = operations.Apply(context.Background(), &out, configApplyRequest{Tag: "config-v2.0.0", AuthorizeDrift: first.Token})
+	if err != nil {
+		t.Fatalf("authorized apply error = %v\noutput: %s", err, out.String())
+	}
+	if tx.acceptObservedCalls != 1 {
+		t.Fatalf("AcceptObservedStates calls after authorization = %d, want 1", tx.acceptObservedCalls)
+	}
+	if stateWrites != 1 {
+		t.Fatalf("state writes after authorization = %d, want 1", stateWrites)
+	}
+
+	reader[replacement] = plan.PreState{Type: plan.StateFile, Mode: 0o644, Digest: "expected-zsh"}
+	out.Reset()
+	err = operations.Apply(context.Background(), &out, configApplyRequest{Tag: "config-v2.0.0"})
+	if err != nil {
+		t.Fatalf("clean apply error = %v\noutput: %s", err, out.String())
+	}
+	if tx.acceptObservedCalls != 1 {
+		t.Fatalf("AcceptObservedStates calls after clean preflight = %d, want still 1", tx.acceptObservedCalls)
 	}
 }
 

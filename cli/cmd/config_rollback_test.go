@@ -64,6 +64,7 @@ func TestConfigRollback_UsesRetainedArtifactOfflineAndSwapsIdentities(t *testing
 		t.Fatalf("build rollback plan: %v", err)
 	}
 	var written *release.State
+	tx := &stubConfigTransaction{events: &events, inventory: &transaction.Inventory{RunID: "run-rollback"}}
 	operations := newConfigRuntime(configRuntimeDependencies{
 		paths:      configPaths{home: t.TempDir(), lock: "/state/lock", state: "/state/state.json", themeCurrent: "/home/test/themes/current"},
 		lock:       &stubConfigLock{},
@@ -93,7 +94,7 @@ func TestConfigRollback_UsesRetainedArtifactOfflineAndSwapsIdentities(t *testing
 			return &stubThemeMutation{events: &events}, nil
 		},
 		newTransaction: func(plan.InstallationPlan) configManagedTransaction {
-			return &stubConfigTransaction{events: &events, inventory: &transaction.Inventory{RunID: "run-rollback"}}
+			return tx
 		},
 		stateReader: mapStateReader{},
 		writeState: func(state *release.State) error {
@@ -118,5 +119,90 @@ func TestConfigRollback_UsesRetainedArtifactOfflineAndSwapsIdentities(t *testing
 	}
 	if len(events) == 0 || events[0] != "lookup" {
 		t.Fatalf("rollback events = %v, want cache lookup first", events)
+	}
+	if tx.acceptObservedCalls != 0 {
+		t.Fatalf("AcceptObservedStates calls after clean rollback preflight = %d, want 0", tx.acceptObservedCalls)
+	}
+}
+
+func TestConfigRollback_AuthorizedDriftRefreshesObservedStatesInTransaction(t *testing.T) {
+	t.Parallel()
+
+	events := []string{}
+	digestA := strings.Repeat("a", 64)
+	digestB := strings.Repeat("b", 64)
+	previous := release.Identity{Tag: "config-v1.0.0", Digest: digestA}
+	current := release.Identity{Tag: "config-v2.0.0", Digest: digestB}
+	artifactRoot := filepath.Join(t.TempDir(), "artifacts", digestA)
+	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
+		t.Fatalf("create retained artifact root: %v", err)
+	}
+	home := t.TempDir()
+	retired := filepath.Join(home, ".retired")
+	configPlan, err := plan.NewInstallationPlan("run-rollback-drift", []plan.Target{{
+		Destination: retired,
+		Kind:        plan.Remove,
+		PreState:    plan.PreState{Type: plan.StateFile, Mode: 0o644, Digest: "expected-retired"},
+	}})
+	if err != nil {
+		t.Fatalf("build rollback drift plan: %v", err)
+	}
+	reader := mapStateReader{retired: {Type: plan.StateFile, Mode: 0o644, Digest: "local-retired"}}
+
+	first, err := checkConfigPreflight(configPlan, reader, previous, "")
+	if !errors.Is(err, errDriftAuthorizationRequired) || first.Token == "" {
+		t.Fatalf("first preflight = %#v, err = %v, want drift authorization with token", first, err)
+	}
+
+	tx := &stubConfigTransaction{events: &events, inventory: &transaction.Inventory{RunID: "run-rollback-drift"}}
+	operations := newConfigRuntime(configRuntimeDependencies{
+		paths:      configPaths{home: home, lock: "/state/lock", state: "/state/state.json", themeCurrent: "/home/test/themes/current"},
+		lock:       &stubConfigLock{},
+		journal:    &stubConfigJournal{outcome: release.JournalOutcomeCommitted, events: &events},
+		resolver:   &stubConfigResolver{err: errors.New("network must remain offline")},
+		cache:      &recordingCache{events: &events, root: artifactRoot},
+		cliVersion: "v1.0.0",
+		readState: func(string) (*release.State, error) {
+			return &release.State{Current: &current, Previous: &previous, LastCompletedRunID: "run-current"}, nil
+		},
+		readManifest: func(path string) (release.Manifest, error) {
+			if path != filepath.Join(artifactRoot, release.ManifestFilename) {
+				t.Fatalf("manifest path = %q", path)
+			}
+			return release.Manifest{SchemaVersion: "1", Catalog: []release.CatalogEntry{}}, nil
+		},
+		loadBaseline: func(*release.State) (configBaseline, error) { return nil, nil },
+		buildPlan: func(string, string, release.Manifest, configBaseline, plan.StateReader) (plan.InstallationPlan, []string, error) {
+			return configPlan, []string{"tokyo-night"}, nil
+		},
+		prepareTheme: func(string, []string, string) (configThemeMutation, error) {
+			return &stubThemeMutation{events: &events}, nil
+		},
+		newTransaction: func(plan.InstallationPlan) configManagedTransaction {
+			return tx
+		},
+		stateReader: reader,
+		writeState: func(*release.State) error {
+			events = append(events, "state:capture")
+			return nil
+		},
+	})
+
+	var out bytes.Buffer
+	err = operations.Rollback(context.Background(), &out, configRollbackRequest{Offline: true})
+	if !errors.Is(err, errDriftAuthorizationRequired) {
+		t.Fatalf("unauthorized rollback error = %v, want drift authorization required", err)
+	}
+	if tx.acceptObservedCalls != 0 {
+		t.Fatalf("AcceptObservedStates calls before authorization = %d, want 0", tx.acceptObservedCalls)
+	}
+
+	out.Reset()
+	err = operations.Rollback(context.Background(), &out, configRollbackRequest{Offline: true, AuthorizeDrift: first.Token})
+	if err != nil {
+		t.Fatalf("authorized rollback error = %v\noutput: %s", err, out.String())
+	}
+	if tx.acceptObservedCalls != 1 {
+		t.Fatalf("AcceptObservedStates calls after authorization = %d, want 1", tx.acceptObservedCalls)
 	}
 }

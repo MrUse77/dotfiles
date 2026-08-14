@@ -1229,3 +1229,60 @@ func TestPlanner_PhasePlanImmutableAgainstInputMutation(t *testing.T) {
 		t.Errorf("reviewed plan options mutated: %v", plan.Options.Groups)
 	}
 }
+
+func TestRefreshPreStates_ReplacesEachManagedTargetPreState(t *testing.T) {
+	home := t.TempDir()
+	present := filepath.Join(home, ".zshrc")
+	mustWriteFile(t, present, []byte("local zsh config"))
+	absent := filepath.Join(home, ".absent")
+	configDir := filepath.Join(home, ".config")
+	mustMkdirAll(t, filepath.Join(configDir, "hypr"))
+	mustWriteFile(t, filepath.Join(configDir, "hypr", "hyprland.conf"), []byte("local hypr config"))
+
+	p, err := NewInstallationPlan("run-refresh", []Target{
+		{Destination: present, Kind: CopyFile, PreState: PreState{Type: StateFile, Mode: 0o644, Digest: "stale-baseline"}},
+		{Destination: absent, Kind: CopyFile, PreState: PreState{Type: StateFile, Mode: 0o644, Digest: "stale-baseline"}},
+		{Destination: configDir, Kind: CopyTree, PreState: PreState{Type: StateFile, Mode: 0o644, Digest: "stale-baseline"}},
+	})
+	if err != nil {
+		t.Fatalf("build refresh plan: %v", err)
+	}
+
+	for name, reader := range map[string]StateReader{
+		"explicit reader": DefaultStateReader(),
+		"nil reader":      nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan := p
+			if err := plan.RefreshPreStates(reader); err != nil {
+				t.Fatalf("RefreshPreStates: %v", err)
+			}
+			effective := reader
+			if effective == nil {
+				effective = DefaultStateReader()
+			}
+			targets := plan.ManagedTargets()
+			for _, target := range targets {
+				want, err := effective.Read(target.Destination)
+				if err != nil {
+					t.Fatalf("read %s: %v", target.Destination, err)
+				}
+				if target.PreState != want {
+					t.Errorf("PreState for %s = %#v, want %#v", target.Destination, target.PreState, want)
+				}
+			}
+			if targets[1].PreState.Type != StateAbsent {
+				t.Errorf("absent destination PreState = %#v, want StateAbsent", targets[1].PreState)
+			}
+			if targets[2].PreState.Type != StateDirectory {
+				t.Errorf("directory destination PreState = %#v, want StateDirectory", targets[2].PreState)
+			}
+		})
+	}
+
+	failing := failingStateReader{}
+	err = p.RefreshPreStates(failing)
+	if err == nil || !strings.Contains(err.Error(), present) {
+		t.Fatalf("RefreshPreStates with failing reader error = %v, want wrapped error naming %q", err, present)
+	}
+}
