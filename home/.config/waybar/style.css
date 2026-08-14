@@ -37,7 +37,7 @@ window#waybar {
   margin-bottom: 6px;
   /* Sombra de profundidad sutil; el glow azul en 4 direcciones
      se reemplaza por un borde tenue que respeta el tema. */
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px alpha(@bg_dark, 0.5);
 }
 
 /* Match Hyprland's 20px gaps_out at the screen edges. */
@@ -61,6 +61,7 @@ window#waybar {
    Módulos individuales (estado base unificado)
    ============================================================ */
 #clock,
+#battery,
 #upower,
 #cpu,
 #memory,
@@ -104,6 +105,16 @@ window#waybar {
   color: @bg_dark;
 }
 
+#workspaces button:hover {
+  background-color: alpha(@accent_blue, 0.15);
+  color: @accent_blue;
+}
+
+#workspaces button:hover.active {
+  background-color: alpha(@accent_blue, 0.85);
+  color: @bg_dark;
+}
+
 /* El workspace activo también lleva la clase visible; el selector
    combinado gana por especificidad y mantiene el punto oscuro. */
 #workspaces button.active.visible {
@@ -134,11 +145,16 @@ window#waybar {
   color: @bg_dark;
 }
 
+#taskbar button:hover {
+  background-color: alpha(@bg_dark, 0.9);
+  color: @text_main;
+}
+
 /* ============================================================
    Separadores
    ============================================================ */
 #custom-sep {
-  color: alpha(@gray, 0.55);
+  color: alpha(@text_main, 0.55);
   font-size: 10px;
   margin: 0 2px;
   padding: 0;
@@ -148,7 +164,7 @@ window#waybar {
    Grupo hardware (transparente dentro de la píldora)
    ============================================================ */
 #groups-hardware {
-  background-color: transparent;
+  background-color: alpha(@bg_dark, 0.12);
   margin: 0;
   padding: 0;
   border-radius: 0;
@@ -175,6 +191,7 @@ window#waybar {
 /* ============================================================
    Batería
    ============================================================ */
+#battery,
 #upower,
 #network,
 #pulseaudio {
@@ -182,14 +199,38 @@ window#waybar {
   font-weight: bold;
 }
 
+#battery.charging,
 #upower.charging {
   color: @accent_blue;
 }
 
+#battery.warning,
+#battery.critical,
 #upower.warning,
 #upower.critical {
   color: @urgent_red;
   animation: blink 1s infinite;
+}
+
+/* ============================================================
+   Hover de módulos (respetan el tema)
+   ============================================================ */
+#clock:hover {
+  background-color: alpha(@bg_dark, 0.9);
+}
+
+#tray:hover {
+  background-color: alpha(@accent_blue, 0.15);
+}
+
+#custom-launcher:hover {
+  background-color: alpha(@accent_blue, 0.15);
+  color: @accent_blue;
+}
+
+#custom-pacman:hover {
+  background-color: alpha(@accent_blue, 0.15);
+  color: @accent_blue;
 }
 
 /* ============================================================
