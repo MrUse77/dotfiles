@@ -104,7 +104,8 @@ validate_current || {
 if (( $# == 1 )); then
     selected="$1"
 else
-    if ! selected="$(valid_ids | "$HOME/.config/rofi/scripts/launch" -dmenu -p "Theme" -no-custom)"; then
+    if ! selected="$(valid_ids | "$HOME/.config/rofi/scripts/launch" -dmenu -p "Theme" -no-custom \
+        -theme-str 'window { width: 95%; border-radius: 16px; } mainbox { children: [listview, message]; } listview { columns: 6; lines: 2; spacing: 16px; } element { orientation: vertical; children: [element-text]; padding: 20px 24px; } element-text { expand: true; horizontal-align: 0.5; vertical-align: 0.5; text-align: center; ellipsize: none; }')"; then
         exit 0
     fi
     [[ -n "$selected" ]] || exit 0

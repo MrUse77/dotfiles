@@ -5,7 +5,7 @@
                         :x "5px"
                         :y "-4px"
                         :width "425px"
-                        :height "993px"
+                        :height "520px"
     )
     (box :space-evenly false
          :halign "end"
@@ -17,6 +17,25 @@
     )
 )
 (defvar ctlrev false)
+(defvar tabidx 0)
+
+(defwidget tabbar []
+    (box :class "tabbar"
+         (eventbox :cursor "pointer"
+                   :class {"${tabidx}" == "0" ? "tab tab-active" : "tab"}
+                   :onclick "eww update tabidx=0"
+                   (label :text "󰭻 Dashboard"))
+         (eventbox :cursor "pointer"
+                   :class {"${tabidx}" == "1" ? "tab tab-active" : "tab"}
+                   :onclick "eww update tabidx=1"
+                   (label :text " Media"))
+         (eventbox :cursor "pointer"
+                   :class {"${tabidx}" == "2" ? "tab tab-active" : "tab"}
+                   :onclick "eww update tabidx=2"
+                   (label :text " Performance"))
+    )
+)
+
 (defpoll get_uptime :interval "1m" "uptime -p")
 
 (defvar volico "󰕾")
@@ -27,6 +46,8 @@
          :onhoverlost "./scripts/usrctl.sh"
          (box :orientation "v"
               :space-evenly false
+         (tabbar)
+         (stack :selected {tabidx} :transition "slideleft" :same-size true
          (box :class "main-container"
               :orientation "v"
               :halign "center"
@@ -97,7 +118,7 @@
                         :orientation "v"
                         :space-evenly false
                         (box :class "bats"
-														 :visible {EWW_BATTERY != "null"}
+														 :visible {batico != ""}
                              :space-evenly false
                              (box :class "batico-main"
                                   (literal :content batico)
@@ -106,7 +127,7 @@
                                   :orientation "v"
                                   (box :class "bat-percent"
                                        :space-evenly false
-                                       (label :text "Battery ${EWW_BATTERY != 'null' ? (EWW_BATTERY.BAT0.capacity ?: '0') : '0'}%")
+                                       (label :text "Battery ${batcap}%")
                                   )
                                   (box :class "bat-status"
                                        :space-evenly false
@@ -219,13 +240,17 @@
                    )
               )
          )
+         (music-player)
          (cpu-panel)
-         (music-player) 
+         )
          )
     ))
 )
 
 (deflisten batico "./scripts/batico.sh")
+(defpoll batcap :interval "30s"
+  "cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 0"
+)
 (deflisten batest "./scripts/batest.sh")
 (deflisten music :initial "{}" "./scripts/music.sh")
 (deflisten pmusic :initial "{}" "./scripts/pmusic.sh")
@@ -234,9 +259,7 @@
     "playerctl -l"
 )
 
-(defpoll get_light :interval "1s"
-  "brightnessctl -m | awk -F, '{gsub(/%/, \"\", \$4); print \$4}'"
-)
+(deflisten get_light :initial "0" "./scripts/getlight-loop.sh")
 
 (deflisten vol_json :initial '{"volume": 0, "icon": "󰕾"}'
   "./scripts/getvol.sh")
@@ -296,8 +319,8 @@
               )
               (scale :class "music-slider"
                      :min 0
-                     :max {music.length == "" ? music.length : 100}
-                		 :value {pmusic.position == "" ? pmusic.position : 0}
+                     :max {"${music.length}" == "" || "${music.length}" == "null" ? 100 : music.length}
+                		 :value {"${pmusic.position}" == "" || "${pmusic.position}" == "null" ? 0 : pmusic.position}
                      :onchange "playerctl position {}"
               )
               (box :class "music-timer"

@@ -15,7 +15,7 @@ window {
     border: 2px;
     border-color: @moonarch-accent;
     border-radius: 12px;
-    width: 560px;
+    width: 760px;
 }
 
 mainbox {
@@ -33,6 +33,25 @@ inputbar {
     children: [prompt, entry];
 }
 
+mode-switcher {
+    background-color: @moonarch-surface;
+    border-radius: 8px;
+    padding: 4px;
+    spacing: 6px;
+}
+
+button {
+    background-color: transparent;
+    text-color: @moonarch-foreground;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+
+button selected {
+    background-color: @moonarch-accent;
+    text-color: @moonarch-selected-text;
+}
+
 prompt {
     background-color: transparent;
     color: @moonarch-foreground;
@@ -45,28 +64,33 @@ entry {
 
 listview {
     background-color: transparent;
-    spacing: 5px;
-    lines: 8;
+    spacing: 10px;
+    columns: 4;
+    lines: 3;
     dynamic: true;
     fixed-height: false;
 }
 
 element {
     background-color: transparent;
-    padding: 10px;
-    border-radius: 8px;
-    spacing: 10px;
+    orientation: vertical;
+    padding: 12px;
+    border-radius: 10px;
+    spacing: 8px;
     children: [element-icon, element-text];
 }
 
 element-icon {
-    size: 24px;
+    size: 34px;
+    horizontal-align: 0.5;
     background-color: transparent;
 }
 
 element-text {
     background-color: transparent;
     color: @moonarch-foreground;
+    horizontal-align: 0.5;
+    text-align: center;
 }
 
 element normal {
